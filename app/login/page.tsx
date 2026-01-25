@@ -1,8 +1,12 @@
+'use client';
+
+import { Toaster } from 'react-hot-toast';
 import LoginForm from '@/app/components/auth/LoginForm';
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-[#e8dcc8] flex items-center justify-center relative px-4">
+    <>
+      <div className="min-h-screen bg-[#e8dcc8] flex items-center justify-center relative px-4">
       {/* Green square indicator - top right */}
       <div className="absolute top-4 right-4 w-4 h-4 bg-green-500"></div>
       
@@ -26,6 +30,8 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+    <Toaster position="top-right" />
+    </>
   );
 }
 

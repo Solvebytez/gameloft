@@ -17,6 +17,7 @@ export interface DataTableProps<T> {
   onEdit?: (row: T) => void;
   onDelete?: (row: T) => void;
   onRowSelect?: (selectedRows: T[]) => void;
+  renderActions?: (row: T) => React.ReactNode;
   showEntries?: boolean;
   showExport?: boolean;
   showSearch?: boolean;
@@ -31,6 +32,7 @@ export default function DataTable<T extends Record<string, any>>({
   onEdit,
   onDelete,
   onRowSelect,
+  renderActions,
   showEntries = true,
   showExport = true,
   showSearch = true,
@@ -251,7 +253,7 @@ export default function DataTable<T extends Record<string, any>>({
                   </div>
                 </th>
               ))}
-              {(onEdit || onDelete) && (
+              {(onEdit || onDelete || renderActions) && (
                 <th className="p-3 text-left font-bold text-retro-dark">Actions</th>
               )}
             </tr>
@@ -260,7 +262,7 @@ export default function DataTable<T extends Record<string, any>>({
             {paginatedData.length === 0 ? (
               <tr>
                 <td
-                  colSpan={columns.length + 1 + (onEdit || onDelete ? 1 : 0)}
+                  colSpan={columns.length + 1 + (onEdit || onDelete || renderActions ? 1 : 0)}
                   className="p-8 text-center text-gray-500"
                 >
                   No data available
@@ -284,28 +286,32 @@ export default function DataTable<T extends Record<string, any>>({
                         : row[column.key as string]}
                     </td>
                   ))}
-                  {(onEdit || onDelete) && (
+                  {(onEdit || onDelete || renderActions) && (
                     <td className="p-3">
-                      <div className="flex gap-2">
-                        {onEdit && (
-                          <button
-                            type="button"
-                            onClick={() => onEdit(row)}
-                            className="px-4 py-2 bg-blue-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
-                          >
-                            Edit
-                          </button>
-                        )}
-                        {onDelete && (
-                          <button
-                            type="button"
-                            onClick={() => onDelete(row)}
-                            className="px-4 py-2 bg-red-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </div>
+                      {renderActions ? (
+                        renderActions(row)
+                      ) : (
+                        <div className="flex gap-2">
+                          {onEdit && (
+                            <button
+                              type="button"
+                              onClick={() => onEdit(row)}
+                              className="px-4 py-2 bg-blue-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {onDelete && (
+                            <button
+                              type="button"
+                              onClick={() => onDelete(row)}
+                              className="px-4 py-2 bg-red-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
                   )}
                 </tr>

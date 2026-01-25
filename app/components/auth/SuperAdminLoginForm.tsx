@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
+import axios from 'axios';
 import Input from '@/app/components/ui/Input';
 import api from '@/app/lib/api';
 
-export default function LoginForm() {
+export default function SuperAdminLoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -17,17 +18,23 @@ export default function LoginForm() {
     e.preventDefault();
     setIsLoading(true);
 
-    console.log('🔐 Admin login attempt:', { email, password: '***' });
+    console.log('🔐 Login attempt:', { email, password: '***' });
 
     try {
+      // Note: API routes are exempt from CSRF validation
+      // No need to get CSRF cookie for API requests
+      
       // Make the login request
-      const response = await api.post('/v1/admin/login', {
+      const response = await api.post('/v1/superadmin/login', {
         email,
         password,
       });
 
       console.log('✅ Login response:', response);
       console.log('✅ Response data:', response.data);
+      console.log('✅ Response status:', response.status);
+      console.log('✅ Response headers:', response.headers);
+      console.log('✅ Cookies:', document.cookie);
 
       if (response.data.success) {
         console.log('✅ Login successful, redirecting...');
@@ -42,7 +49,7 @@ export default function LoginForm() {
         // Wait a moment for cookies to be set, then redirect
         // Using window.location instead of router.push to ensure cookies are sent
         setTimeout(() => {
-          window.location.href = '/dashboard';
+          window.location.href = '/superadmin';
         }, 100);
       } else {
         console.warn('⚠️ Login response success is false:', response.data);
@@ -52,6 +59,11 @@ export default function LoginForm() {
       console.error('❌ Login error:', error);
       console.error('❌ Error response:', error.response);
       console.error('❌ Error response data:', error.response?.data);
+      console.error('❌ Error response status:', error.response?.status);
+      console.error('❌ Error message:', error.message);
+      if (error.stack) {
+        console.error('❌ Error stack:', error.stack);
+      }
       
       const errorMessage = error.response?.data?.message || 
                           error.response?.data?.errors?.email?.[0] ||

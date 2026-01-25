@@ -6,29 +6,19 @@ import Card from '@/app/components/ui/Card';
 import Input from '@/app/components/ui/Input';
 import Select from '@/app/components/ui/Select';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
+import { useUsers, useCreateUser, User } from '@/app/hooks/useUsers';
 
 const roleOptions = [
-  { value: 'users', label: 'Users' },
+  { value: 'user', label: 'User' },
   { value: 'admin', label: 'Admin' },
   { value: 'manager', label: 'Manager' },
   { value: 'editor', label: 'Editor' },
   { value: 'viewer', label: 'Viewer' },
 ];
 
-interface User {
-  id: number;
-  userRole: string;
-  name: string;
-  mobile: string;
-  commission: string;
-  partnership: string;
-  lastLogin: string;
-  status: string;
-}
-
 export default function CreateUserPage() {
   const [formData, setFormData] = useState({
-    role: 'users',
+    role: 'user',
     name: '',
     email: '',
     mobile: '',
@@ -39,69 +29,9 @@ export default function CreateUserPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Sample data - In future, this will come from React TanStack Query
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: 11,
-      userRole: 'User',
-      name: '11',
-      mobile: '235689741524',
-      commission: '5%',
-      partnership: '75%',
-      lastLogin: '2026-01-08 13:43:24',
-      status: 'Approved',
-    },
-    {
-      id: 12,
-      userRole: 'User',
-      name: '12',
-      mobile: '8956457896',
-      commission: '5%',
-      partnership: '50%',
-      lastLogin: '2026-01-08 14:20:15',
-      status: 'Approved',
-    },
-    {
-      id: 14,
-      userRole: 'User',
-      name: '14',
-      mobile: '9876543210',
-      commission: '5%',
-      partnership: '20%',
-      lastLogin: '2026-01-08 15:30:45',
-      status: 'Approved',
-    },
-    {
-      id: 15,
-      userRole: 'User',
-      name: '15',
-      mobile: '1234567890',
-      commission: '5%',
-      partnership: '00%',
-      lastLogin: '2026-01-08 16:15:30',
-      status: 'Approved',
-    },
-    {
-      id: 17,
-      userRole: 'User',
-      name: '17',
-      mobile: '5551234567',
-      commission: '5%',
-      partnership: '25%',
-      lastLogin: '2026-01-08 17:45:12',
-      status: 'Approved',
-    },
-    {
-      id: 23,
-      userRole: 'User',
-      name: '23',
-      mobile: '9998887776',
-      commission: '5%',
-      partnership: '60%',
-      lastLogin: '2026-01-08 18:20:33',
-      status: 'Approved',
-    },
-  ]);
+  // Fetch users from API
+  const { data: users = [], isLoading, error } = useUsers();
+  const createUserMutation = useCreateUser();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -115,7 +45,7 @@ export default function CreateUserPage() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const newErrors: Record<string, string> = {};
 
     // Validation - only mandatory fields
@@ -125,14 +55,25 @@ export default function CreateUserPage() {
     if (!formData.name.trim()) {
       newErrors.name = 'Name is required';
     }
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
     if (!formData.password.trim()) {
       newErrors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
     }
     if (!formData.commission.trim()) {
       newErrors.commission = 'Commission is required';
+    } else if (isNaN(Number(formData.commission)) || Number(formData.commission) < 0 || Number(formData.commission) > 100) {
+      newErrors.commission = 'Commission must be a number between 0 and 100';
     }
     if (!formData.partnership.trim()) {
       newErrors.partnership = 'Partnership is required';
+    } else if (isNaN(Number(formData.partnership)) || Number(formData.partnership) < 0 || Number(formData.partnership) > 100) {
+      newErrors.partnership = 'Partnership must be a number between 0 and 100';
     }
 
     // Set errors and show toast if validation fails
@@ -143,41 +84,40 @@ export default function CreateUserPage() {
       return;
     }
 
-    // Clear all errors on success
+    // Clear all errors
     setErrors({});
-    toast.success('User created successfully!', { duration: 3000 });
-    
-    // Add new user to the table (in future, this will be handled by TanStack Query mutation)
-    const newUser: User = {
-      id: Date.now(), // Temporary ID generation
-      userRole: formData.role,
-      name: formData.name,
-      mobile: formData.mobile || '-',
-      commission: formData.commission + '%',
-      partnership: formData.partnership + '%',
-      lastLogin: new Date().toISOString().slice(0, 19).replace('T', ' '),
-      status: 'Approved',
-    };
-    setUsers((prev) => [newUser, ...prev]);
 
-    // Reset form after successful save
-    setFormData({
-      role: 'users',
-      name: '',
-      email: '',
-      mobile: '',
-      password: '',
-      commission: '',
-      partnership: '',
-    });
-    
-    // Handle save logic here
-    console.log('Form data:', formData);
+    try {
+      // Call the mutation
+      await createUserMutation.mutateAsync({
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        mobile: formData.mobile.trim() || null,
+        password: formData.password,
+        role: formData.role,
+        commission: Number(formData.commission),
+        partnership: Number(formData.partnership),
+      });
+
+      // Reset form after successful save
+      setFormData({
+        role: 'user',
+        name: '',
+        email: '',
+        mobile: '',
+        password: '',
+        commission: '',
+        partnership: '',
+      });
+    } catch (error) {
+      // Error is already handled by the mutation's onError callback
+      console.error('Error creating user:', error);
+    }
   };
 
   const handleReset = () => {
     setFormData({
-      role: 'users',
+      role: 'user',
       name: '',
       email: '',
       mobile: '',
@@ -189,8 +129,20 @@ export default function CreateUserPage() {
     toast.success('Form reset', { duration: 2000 });
   };
 
+  // Transform users data for DataTable display
+  const transformedUsers = users.map((user) => ({
+    id: user.id,
+    userRole: user.role.charAt(0).toUpperCase() + user.role.slice(1),
+    name: user.name,
+    mobile: user.mobile || '-',
+    commission: `${user.commission}%`,
+    partnership: `${user.partnership}%`,
+    lastLogin: user.last_login ? new Date(user.last_login).toLocaleString() : '-',
+    status: user.status === 'active' ? 'Active' : 'Inactive',
+  }));
+
   // DataTable columns configuration
-  const columns: Column<User>[] = [
+  const columns: Column<typeof transformedUsers[0]>[] = [
     {
       key: 'userRole',
       label: 'User Role',
@@ -231,27 +183,31 @@ export default function CreateUserPage() {
       label: 'Status',
       sortable: true,
       render: (value) => (
-        <span className="inline-block px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
+        <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
+          value === 'Active' 
+            ? 'bg-green-100 text-green-800' 
+            : 'bg-red-100 text-red-800'
+        }`}>
           {value}
         </span>
       ),
     },
   ];
 
-  const handleEdit = (user: User) => {
+  const handleEdit = (user: typeof transformedUsers[0]) => {
     toast.success(`Editing user: ${user.name}`, { duration: 2000 });
     // Handle edit logic here - in future will navigate to edit page or open modal
     console.log('Edit user:', user);
   };
 
-  const handleDelete = (user: User) => {
+  const handleDelete = (user: typeof transformedUsers[0]) => {
     if (confirm(`Are you sure you want to delete user ${user.name}?`)) {
-      setUsers((prev) => prev.filter((u) => u.id !== user.id));
-      toast.success(`User ${user.name} deleted successfully`, { duration: 2000 });
+      // TODO: Implement delete mutation when backend endpoint is available
+      toast.error('Delete functionality not yet implemented', { duration: 2000 });
     }
   };
 
-  const handleRowSelect = (selectedRows: User[]) => {
+  const handleRowSelect = (selectedRows: typeof transformedUsers) => {
     console.log('Selected rows:', selectedRows);
     // Handle row selection logic here
   };
@@ -284,10 +240,11 @@ export default function CreateUserPage() {
             />
             <Input
               type="email"
-              label="Email"
+              label="Email*"
               id="email"
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
+              error={errors.email}
             />
 
             {/* Row 2 */}
@@ -330,9 +287,10 @@ export default function CreateUserPage() {
               <button
                 type="button"
                 onClick={handleSave}
-                className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+                disabled={createUserMutation.isPending}
+                className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Save
+                {createUserMutation.isPending ? 'Saving...' : 'Save'}
               </button>
               <button
                 type="button"
@@ -349,16 +307,26 @@ export default function CreateUserPage() {
       {/* DataTable below the form */}
       <Card>
         <div className="p-4">
-          <DataTable
-            title="List"
-            data={users}
-            columns={columns}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onRowSelect={handleRowSelect}
-            entriesPerPageOptions={[10, 25, 50, 100]}
-            defaultEntriesPerPage={100}
-          />
+          {isLoading ? (
+            <div className="text-center py-8">
+              <p className="text-[var(--retro-dark)]/60">Loading users...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <p className="text-red-600">Error loading users: {error instanceof Error ? error.message : 'Unknown error'}</p>
+            </div>
+          ) : (
+            <DataTable
+              title="List"
+              data={transformedUsers}
+              columns={columns}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onRowSelect={handleRowSelect}
+              entriesPerPageOptions={[10, 25, 50, 100]}
+              defaultEntriesPerPage={100}
+            />
+          )}
         </div>
       </Card>
     </div>
