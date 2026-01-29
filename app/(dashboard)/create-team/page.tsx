@@ -5,59 +5,52 @@ import toast from 'react-hot-toast';
 import Card from '@/app/components/ui/Card';
 import Input from '@/app/components/ui/Input';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
-
-interface Team {
-  id: number;
-  name: string;
-  logo: string; // URL or base64 string
-}
+import ImageCropModal from '@/app/components/ui/ImageCropModal';
+import ConfirmModal from '@/app/components/ui/ConfirmModal';
+import { useTeams, useCreateTeam, useUpdateTeam, useDeleteTeam, useUpdateTeamStatus, Team } from '@/app/hooks/useTeams';
 
 export default function CreateTeamPage() {
   const [formData, setFormData] = useState({
     teamName: '',
     teamLogo: null as File | null,
   });
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState('No file chosen');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [imageForCrop, setImageForCrop] = useState<string | null>(null);
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [teamToUpdateStatus, setTeamToUpdateStatus] = useState<Team | null>(null);
+  const [newStatus, setNewStatus] = useState<'active' | 'inactive' | null>(null);
+
+  // Fetch teams from API
+  const { data: teams = [], isLoading, error } = useTeams();
+  const createTeamMutation = useCreateTeam();
+  const updateTeamMutation = useUpdateTeam();
+  const deleteTeamMutation = useDeleteTeam();
+  const updateStatusMutation = useUpdateTeamStatus();
 
   // Placeholder image URL - always use this for table display
   const placeholderLogo = 'https://placehold.co/40x40/e8dcc8/2d2d2d?text=Team';
 
-  // Sample data - In future, this will come from React TanStack Query
-  const [teams, setTeams] = useState<Team[]>([
-    {
-      id: 1,
-      name: 'India',
-      logo: placeholderLogo,
-    },
-    {
-      id: 2,
-      name: 'Australia',
-      logo: placeholderLogo,
-    },
-    {
-      id: 3,
-      name: 'big bash',
-      logo: placeholderLogo,
-    },
-    {
-      id: 4,
-      name: 'syndy thunder',
-      logo: placeholderLogo,
-    },
-  ]);
-
-  // Cleanup preview URL on unmount
+  // Cleanup preview URLs on unmount
   useEffect(() => {
     return () => {
       if (imagePreview) {
         URL.revokeObjectURL(imagePreview);
       }
+      if (imageForCrop) {
+        URL.revokeObjectURL(imageForCrop);
+      }
     };
-  }, [imagePreview]);
+  }, [imagePreview, imageForCrop]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -74,45 +67,109 @@ export default function CreateTeamPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     if (file) {
-      // Clean up previous preview URL
-      if (imagePreview) {
-        URL.revokeObjectURL(imagePreview);
-      }
+      // Check if file is an image type (jpeg, jpg, png)
+      const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      const fileType = file.type.toLowerCase();
       
-      setFormData((prev) => ({ ...prev, teamLogo: file }));
-      setFileName(file.name);
-      
-      // Create preview URL
-      const previewUrl = URL.createObjectURL(file);
-      setImagePreview(previewUrl);
-      
-      // Clear error
-      if (errors.teamLogo) {
-        setErrors((prev) => {
-          const newErrors = { ...prev };
-          delete newErrors.teamLogo;
-          return newErrors;
-        });
+      if (validImageTypes.includes(fileType)) {
+        // Clean up previous preview URL
+        if (imagePreview) {
+          URL.revokeObjectURL(imagePreview);
+        }
+        if (imageForCrop) {
+          URL.revokeObjectURL(imageForCrop);
+        }
+        
+        // Store original file and show crop modal
+        setOriginalFile(file);
+        const previewUrl = URL.createObjectURL(file);
+        setImageForCrop(previewUrl);
+        setShowCropModal(true);
+        
+        // Clear error
+        if (errors.teamLogo) {
+          setErrors((prev) => {
+            const newErrors = { ...prev };
+            delete newErrors.teamLogo;
+            return newErrors;
+          });
+        }
+      } else {
+        toast.error('Please upload a JPEG, JPG, or PNG image', { duration: 3000 });
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       }
     } else {
       // Clean up preview URL
       if (imagePreview) {
         URL.revokeObjectURL(imagePreview);
       }
+      if (imageForCrop) {
+        URL.revokeObjectURL(imageForCrop);
+      }
       setFormData((prev) => ({ ...prev, teamLogo: null }));
       setFileName('No file chosen');
       setImagePreview(null);
+      setImageForCrop(null);
+      setOriginalFile(null);
     }
   };
 
-  const handleSave = () => {
+  const handleCropComplete = (croppedImageFile: File) => {
+    // Clean up previous preview URL
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    
+    // Set the cropped image
+    setFormData((prev) => ({ ...prev, teamLogo: croppedImageFile }));
+    setFileName(croppedImageFile.name);
+    
+    // Create preview URL for cropped image
+    const previewUrl = URL.createObjectURL(croppedImageFile);
+    setImagePreview(previewUrl);
+    
+    // Clean up crop modal image
+    if (imageForCrop) {
+      URL.revokeObjectURL(imageForCrop);
+    }
+    setImageForCrop(null);
+    setOriginalFile(null);
+    
+    toast.success('Image cropped successfully!', { duration: 2000 });
+  };
+
+  const handleCropCancel = () => {
+    // Clean up crop modal image
+    if (imageForCrop) {
+      URL.revokeObjectURL(imageForCrop);
+    }
+    setImageForCrop(null);
+    setOriginalFile(null);
+    setShowCropModal(false);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    await handleSave();
+  };
+
+  const handleSave = async () => {
     const newErrors: Record<string, string> = {};
 
-    // Validation - both fields are mandatory
+    // Validation - name is always required
     if (!formData.teamName.trim()) {
       newErrors.teamName = 'Team Name is required';
     }
-    if (!formData.teamLogo) {
+    // Logo is required only when creating, optional when editing
+    if (!isEditMode && !formData.teamLogo) {
       newErrors.teamLogo = 'Team Logo is required';
     }
 
@@ -124,25 +181,49 @@ export default function CreateTeamPage() {
       return;
     }
 
-    // Clear all errors on success
+    // Clear all errors
     setErrors({});
-    toast.success('Team created successfully!', { duration: 3000 });
 
-    // Add new team to the table
-    // Convert file to data URL for preview in table
-    let logoUrl = '';
-    if (formData.teamLogo) {
-      logoUrl = URL.createObjectURL(formData.teamLogo);
+    try {
+      if (isEditMode && editingTeam) {
+        // Update existing team
+        const updatePayload: { name?: string; logo?: File } = {};
+        if (formData.teamName.trim() !== editingTeam.name) {
+          updatePayload.name = formData.teamName.trim();
+        }
+        // Check if a new logo file was selected (not just the preview URL)
+        // In edit mode, formData.teamLogo will be a File object if user selected a new image
+        // If it's null, user wants to keep the existing logo
+        if (formData.teamLogo && formData.teamLogo instanceof File) {
+          updatePayload.logo = formData.teamLogo;
+        }
+        
+        // Only call update if there are changes
+        if (updatePayload.name || updatePayload.logo) {
+          await updateTeamMutation.mutateAsync({
+            id: editingTeam.id,
+            payload: updatePayload,
+          });
+        } else {
+          toast('No changes to save', { duration: 2000 });
+        }
+      } else {
+        // Create new team
+        await createTeamMutation.mutateAsync({
+          name: formData.teamName.trim(),
+          logo: formData.teamLogo!,
+        });
+      }
+
+      // Reset form after successful save
+      handleCancelEdit();
+    } catch (error) {
+      // Error is already handled by the mutation's onError callback
+      console.error('Error saving team:', error);
     }
+  };
 
-    const newTeam: Team = {
-      id: Date.now(), // Temporary ID generation
-      name: formData.teamName,
-      logo: logoUrl || placeholderLogo,
-    };
-    setTeams((prev) => [newTeam, ...prev]);
-
-    // Reset form after successful save
+  const handleCancelEdit = () => {
     // Clean up preview URL
     if (imagePreview) {
       URL.revokeObjectURL(imagePreview);
@@ -153,16 +234,21 @@ export default function CreateTeamPage() {
     });
     setFileName('No file chosen');
     setImagePreview(null);
+    setIsEditMode(false);
+    setEditingTeam(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-
-    // Handle save logic here (in future, will use TanStack Query mutation)
-    console.log('Team data:', formData);
   };
 
+  // Transform teams data for DataTable display
+  const transformedTeams = teams.map((team) => ({
+    ...team,
+    statusDisplay: team.status === 'active' ? 'Active' : 'Inactive',
+  }));
+
   // DataTable columns configuration
-  const columns: Column<Team>[] = [
+  const columns: Column<typeof transformedTeams[0]>[] = [
     {
       key: 'id',
       label: 'id',
@@ -185,42 +271,110 @@ export default function CreateTeamPage() {
     {
       key: 'logo',
       label: 'Logo',
-      sortable: true,
-      render: (value) => {
-        // Always use placeholder for now - in future, value will be actual logo URL
-        const placeholderImg = 'https://placehold.co/40x40/e8dcc8/2d2d2d?text=Team';
-        // For now, always use placeholder. Later when real logos are available, use: value || placeholderImg
+      sortable: false,
+      render: (value, row) => {
+        // Use actual logo URL from API response, fallback to placeholder
+        const logoUrl = row.logo || row.logo_image?.url || placeholderLogo;
         return (
           <img
-            src={placeholderImg}
+            src={logoUrl}
             alt="Team logo"
             className="w-12 h-8 object-contain border border-retro-dark rounded"
             onError={(e) => {
-              // Fallback to a simple data URI if placehold.co fails
+              // Fallback to placeholder if image fails to load
               const target = e.target as HTMLImageElement;
-              target.src = 'data:image/svg+xml,%3Csvg width="40" height="40" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="40" height="40" fill="%23e8dcc8"/%3E%3Ctext x="20" y="25" font-family="Arial" font-size="10" fill="%232d2d2d" font-weight="bold" text-anchor="middle"%3ETeam%3C/text%3E%3C/svg%3E';
+              target.src = placeholderLogo;
             }}
           />
         );
       },
     },
+    {
+      key: 'statusDisplay',
+      label: 'Status',
+      sortable: true,
+      render: (value, row) => (
+        <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
+          row.status === 'active' 
+            ? 'bg-green-100 text-green-800' 
+            : 'bg-red-100 text-red-800'
+        }`}>
+          {value}
+        </span>
+      ),
+    },
   ];
 
   const handleEditTeam = (team: Team) => {
-    toast.success(`Editing team: ${team.name}`, { duration: 2000 });
-    // Handle edit logic here - in future will navigate to edit page or open modal
-    console.log('Edit team:', team);
+    // Set edit mode and populate form with team data
+    setIsEditMode(true);
+    setEditingTeam(team);
+    setFormData({
+      teamName: team.name,
+      teamLogo: null, // Don't pre-fill file, user can choose to update or keep existing
+    });
+    setFileName('Keep existing logo');
+    
+    // Set preview to existing logo if available
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    const logoUrl = team.logo || team.logo_image?.url || placeholderLogo;
+    setImagePreview(logoUrl);
+    
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDeleteTeam = (team: Team) => {
-    if (confirm(`Are you sure you want to delete team ${team.name}?`)) {
-      // Clean up object URL if it's a blob URL
-      if (team.logo.startsWith('blob:')) {
-        URL.revokeObjectURL(team.logo);
+    setTeamToDelete(team);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (teamToDelete) {
+      try {
+        await deleteTeamMutation.mutateAsync(teamToDelete.id);
+        // Success message is handled by the mutation's onSuccess callback
+        setShowDeleteModal(false);
+        setTeamToDelete(null);
+      } catch (error) {
+        // Error is already handled by the mutation's onError callback
+        console.error('Error deleting team:', error);
       }
-      setTeams((prev) => prev.filter((t) => t.id !== team.id));
-      toast.success(`Team ${team.name} deleted successfully`, { duration: 2000 });
     }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setTeamToDelete(null);
+  };
+
+  const handleStatusChange = (team: Team) => {
+    // Get current status or default to 'active'
+    const currentStatus = team.status || 'active';
+    const status = currentStatus === 'active' ? 'inactive' : 'active';
+    setTeamToUpdateStatus(team);
+    setNewStatus(status);
+    setShowStatusModal(true);
+  };
+
+  const confirmStatusChange = () => {
+    if (teamToUpdateStatus && newStatus) {
+      updateStatusMutation.mutate({
+        teamId: teamToUpdateStatus.id,
+        status: newStatus,
+      });
+      setShowStatusModal(false);
+      setTeamToUpdateStatus(null);
+      setNewStatus(null);
+    }
+  };
+
+  const cancelStatusChange = () => {
+    setShowStatusModal(false);
+    setTeamToUpdateStatus(null);
+    setNewStatus(null);
   };
 
   const handleRowSelect = (selectedRows: Team[]) => {
@@ -231,10 +385,17 @@ export default function CreateTeamPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-[var(--foreground)]">CREATE TEAM</h1>
+        <h1 className="text-3xl font-bold text-[var(--foreground)]">
+          {isEditMode ? 'EDIT TEAM' : 'CREATE TEAM'}
+        </h1>
+        {isEditMode && editingTeam && (
+          <p className="text-sm text-[var(--retro-dark)]/60 mt-1">
+            Editing: {editingTeam.name}
+          </p>
+        )}
       </div>
       <Card>
-        <form className="space-y-6">
+        <form className="space-y-6" onSubmit={handleFormSubmit}>
           {/* Single Row - Team Name, Team Logo, Save Button */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
             {/* Team Name Field */}
@@ -252,7 +413,7 @@ export default function CreateTeamPage() {
             {/* Team Logo Field */}
             <div className="md:col-span-5">
               <label htmlFor="team-logo" className="block text-sm font-semibold text-[#2d2d2d] mb-2 uppercase">
-                Team Logo*
+                Team Logo{isEditMode ? ' (optional)' : '*'}
               </label>
               <div className="flex items-center gap-3">
                 <input
@@ -284,15 +445,28 @@ export default function CreateTeamPage() {
               {errors.teamLogo && <p className="mt-1 text-sm text-red-500">{errors.teamLogo}</p>}
             </div>
 
-            {/* Save Button */}
-            <div className="md:col-span-3 flex items-end">
+            {/* Action Buttons */}
+            <div className="md:col-span-3 flex items-end gap-4">
               <button
-                type="button"
-                onClick={handleSave}
-                className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity w-full md:w-auto h-[60px]"
+                type="submit"
+                disabled={createTeamMutation.isPending || updateTeamMutation.isPending}
+                className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity w-full md:w-auto h-[60px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Save
+                {createTeamMutation.isPending || updateTeamMutation.isPending
+                  ? 'Saving...'
+                  : isEditMode
+                  ? 'Update'
+                  : 'Save'}
               </button>
+              {isEditMode && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-6 py-3 bg-gray-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity h-[60px]"
+                >
+                  Cancel
+                </button>
+              )}
             </div>
           </div>
         </form>
@@ -301,18 +475,65 @@ export default function CreateTeamPage() {
       {/* DataTable below the form */}
       <Card>
         <div className="p-4">
-          <DataTable
-            title="TEAM SUMMARY"
-            data={teams}
-            columns={columns}
-            onEdit={handleEditTeam}
-            onDelete={handleDeleteTeam}
-            onRowSelect={handleRowSelect}
-            entriesPerPageOptions={[10, 25, 50, 100]}
-            defaultEntriesPerPage={100}
-          />
+          {isLoading ? (
+            <div className="text-center py-8">
+              <p className="text-[var(--retro-dark)]/60">Loading teams...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <p className="text-red-600">Error loading teams: {error instanceof Error ? error.message : 'Unknown error'}</p>
+            </div>
+          ) : (
+            <DataTable
+              title="TEAM SUMMARY"
+              data={transformedTeams}
+              columns={columns}
+              onEdit={handleEditTeam}
+              onDelete={handleDeleteTeam}
+              onStatusChange={handleStatusChange}
+              onRowSelect={handleRowSelect}
+              entriesPerPageOptions={[10, 25, 50, 100]}
+              defaultEntriesPerPage={100}
+            />
+          )}
         </div>
       </Card>
+
+      {/* Image Crop Modal */}
+      {imageForCrop && (
+        <ImageCropModal
+          isOpen={showCropModal}
+          imageSrc={imageForCrop}
+          onClose={handleCropCancel}
+          onCropComplete={handleCropComplete}
+          aspectRatio={1}
+          cropSize={{ width: 512, height: 512 }}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        title="Delete Team"
+        message={teamToDelete ? `Are you sure you want to delete team "${teamToDelete.name}"? This action cannot be undone.` : ''}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmButtonColor="red"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+      />
+
+      {/* Status Change Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showStatusModal}
+        title="Change Team Status"
+        message={teamToUpdateStatus && newStatus ? `Change status of "${teamToUpdateStatus.name}" to ${newStatus === 'active' ? 'Active' : 'Inactive'}?` : ''}
+        confirmText="Change Status"
+        cancelText="Cancel"
+        confirmButtonColor="blue"
+        onConfirm={confirmStatusChange}
+        onCancel={cancelStatusChange}
+      />
     </div>
   );
 }

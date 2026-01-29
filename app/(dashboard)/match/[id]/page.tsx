@@ -1,23 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Card from '@/app/components/ui/Card';
 import Input from '@/app/components/ui/Input';
 import Select from '@/app/components/ui/Select';
-
-interface Match {
-  id: number;
-  team1: {
-    name: string;
-    logo: string;
-  };
-  team2: {
-    name: string;
-    logo: string;
-  };
-}
+import { useMatch, Match } from '@/app/hooks/useMatches';
 
 interface RecentEntry {
   id: number;
@@ -35,7 +24,9 @@ export default function MatchDetailPage() {
   const router = useRouter();
   const matchId = params.id;
 
-  const [matchData, setMatchData] = useState<Match | null>(null);
+  // Fetch match data from API
+  const { data: matchData, isLoading, error } = useMatch(matchId);
+
   const [favouriteTeam, setFavouriteTeam] = useState<'team1' | 'team2'>('team1'); // Default to team1
   const [userScope, setUserScope] = useState<'customer' | 'all'>('all');
   const [selectedCustomer, setSelectedCustomer] = useState('');
@@ -116,49 +107,6 @@ export default function MatchDetailPage() {
     { value: 'customer3', label: 'Customer 3' },
   ];
 
-  useEffect(() => {
-    // Get match data from sessionStorage or use matchId to fetch
-    if (typeof window !== 'undefined') {
-      const storedMatches = sessionStorage.getItem('dashboard-matches');
-      if (storedMatches) {
-        try {
-          const matches: Match[] = JSON.parse(storedMatches);
-          const match = matches.find((m) => m.id === Number(matchId));
-          if (match) {
-            setMatchData(match);
-          } else {
-            // Fallback to sample data if match not found
-            setMatchData({
-              id: Number(matchId),
-              team1: {
-                name: 'Melbourne Star',
-                logo: 'https://placehold.co/100x100/e8dcc8/2d2d2d?text=Melbourne+Star',
-              },
-              team2: {
-                name: 'Melbourne Renegade',
-                logo: 'https://placehold.co/100x100/e8dcc8/2d2d2d?text=Melbourne+Renegade',
-              },
-            });
-          }
-        } catch (error) {
-          console.error('Error parsing stored matches:', error);
-        }
-      } else {
-        // Fallback to sample data
-        setMatchData({
-          id: Number(matchId),
-          team1: {
-            name: 'Melbourne Star',
-            logo: 'https://placehold.co/100x100/e8dcc8/2d2d2d?text=Melbourne+Star',
-          },
-          team2: {
-            name: 'Melbourne Renegade',
-            logo: 'https://placehold.co/100x100/e8dcc8/2d2d2d?text=Melbourne+Renegade',
-          },
-        });
-      }
-    }
-  }, [matchId]);
 
   const handleBack = () => {
     router.back();
@@ -183,10 +131,24 @@ export default function MatchDetailPage() {
     });
   };
 
-  if (!matchData) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-lg text-retro-dark">Loading...</p>
+        <p className="text-lg text-retro-dark">Loading match...</p>
+      </div>
+    );
+  }
+
+  if (error || !matchData) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen space-y-4">
+        <p className="text-lg text-red-600 font-bold">Match not found</p>
+        <button
+          onClick={handleBack}
+          className="px-4 py-2 bg-retro-dark text-white font-bold rounded hover:opacity-90 transition-opacity"
+        >
+          Go Back
+        </button>
       </div>
     );
   }
@@ -216,11 +178,14 @@ export default function MatchDetailPage() {
           </svg>
           Back
         </button>
-        <h1 className="text-3xl font-bold text-foreground">Entry Window</h1>
       </div>
 
-      <Card>
-        <form onSubmit={handleSubmit} className="py-6 space-y-6">
+      {/* Two Cards Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Entry Window Card - Left Side */}
+        <Card>
+          <h1 className="text-2xl font-bold text-foreground mb-6">Entry Window</h1>
+          <form onSubmit={handleSubmit} className="space-y-6">
           {/* Team Selection Cards - Teams stay in fixed positions, only colors switch */}
           <div className="grid grid-cols-2 gap-4">
             {/* Team 1 Card - Green if favourite, Red if not */}
@@ -238,18 +203,24 @@ export default function MatchDetailPage() {
                   {favouriteTeam === 'team1' ? 'Fav.' : 'NFav.'}
                 </div>
                 <div className="relative w-24 h-24 border-2 border-white rounded overflow-hidden bg-white">
-                  <Image
-                    src={matchData.team1.logo}
-                    alt={matchData.team1.name}
-                    width={96}
-                    height={96}
-                    className="object-contain"
-                    unoptimized
-                  />
+                  {matchData.team1.logo ? (
+                    <Image
+                      src={matchData.team1.logo}
+                      alt={matchData.team1.name}
+                      width={96}
+                      height={96}
+                      className="object-contain"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-retro-dark text-xs font-bold">
+                      {matchData.team1.name.charAt(0)}
+                    </div>
+                  )}
                 </div>
                 <div className="text-center">
-                  <div className="text-white font-bold text-lg">STARS</div>
-                  <div className="text-white font-semibold">{matchData.team1.name}</div>
+                  <div className="text-white font-bold text-lg">{matchData.team1.name.toUpperCase()}</div>
+                  <div className="text-white font-semibold text-sm">{matchData.team1.name}</div>
                 </div>
               </div>
             </button>
@@ -269,18 +240,24 @@ export default function MatchDetailPage() {
                   {favouriteTeam === 'team2' ? 'Fav.' : 'NFav.'}
                 </div>
                 <div className="relative w-24 h-24 border-2 border-white rounded overflow-hidden bg-white">
-                  <Image
-                    src={matchData.team2.logo}
-                    alt={matchData.team2.name}
-                    width={96}
-                    height={96}
-                    className="object-contain"
-                    unoptimized
-                  />
+                  {matchData.team2.logo ? (
+                    <Image
+                      src={matchData.team2.logo}
+                      alt={matchData.team2.name}
+                      width={96}
+                      height={96}
+                      className="object-contain"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-retro-dark text-xs font-bold">
+                      {matchData.team2.name.charAt(0)}
+                    </div>
+                  )}
                 </div>
                 <div className="text-center">
-                  <div className="text-white font-bold text-lg">RENEGADES</div>
-                  <div className="text-white font-semibold">{matchData.team2.name}</div>
+                  <div className="text-white font-bold text-lg">{matchData.team2.name.toUpperCase()}</div>
+                  <div className="text-white font-semibold text-sm">{matchData.team2.name}</div>
                 </div>
               </div>
             </button>
@@ -390,13 +367,12 @@ export default function MatchDetailPage() {
               Submit
             </button>
           </div>
-        </form>
-      </Card>
+          </form>
+        </Card>
 
-      {/* Recent Entries Table */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold text-foreground">Recent Entries</h2>
+        {/* Recent Entries Card - Right Side */}
         <Card>
+          <h2 className="text-2xl font-bold text-foreground mb-6">Recent Entries</h2>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>

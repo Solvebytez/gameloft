@@ -197,3 +197,77 @@ export function useCreateUser() {
   });
 }
 
+// Update user status mutation
+interface UpdateUserStatusPayload {
+  userId: number;
+  status: 'active' | 'inactive';
+}
+
+export function useUpdateUserStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: UpdateUserStatusPayload): Promise<User> => {
+      try {
+        console.log('🔍 Updating user status:', payload);
+        const response = await api.patch(`/v1/admin/users/${payload.userId}/status`, {
+          status: payload.status,
+        });
+        console.log('📥 Update user status response:', response.data);
+        if (response.data.success) {
+          return response.data.data;
+        }
+        throw new Error(response.data.message || 'Failed to update user status');
+      } catch (error: unknown) {
+        console.error('❌ Error updating user status:', error);
+        if (error instanceof AxiosError) {
+          console.error('❌ Error response data:', error.response?.data);
+          console.error('❌ Error response status:', error.response?.status);
+          
+          // Handle validation errors
+          if (error.response?.status === 422 && error.response?.data?.errors) {
+            const errors = error.response.data.errors;
+            const firstError = Object.values(errors)[0];
+            if (Array.isArray(firstError) && firstError.length > 0) {
+              throw new Error(String(firstError[0]));
+            }
+          }
+        }
+        throw error;
+      }
+    },
+    onMutate: async (payload) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: userKeys.list() });
+
+      // Snapshot previous value
+      const previousUsers = queryClient.getQueryData<User[]>(userKeys.list());
+
+      // Optimistically update cache
+      queryClient.setQueryData<User[]>(userKeys.list(), (old = []) =>
+        old.map((user) =>
+          user.id === payload.userId
+            ? { ...user, status: payload.status }
+            : user
+        )
+      );
+
+      return { previousUsers };
+    },
+    onError: (err, payload, context) => {
+      // Rollback on error
+      if (context?.previousUsers) {
+        queryClient.setQueryData(userKeys.list(), context.previousUsers);
+      }
+      toast.error(err instanceof Error ? err.message : 'Failed to update user status');
+    },
+    onSuccess: (data, payload) => {
+      toast.success(`User status changed to ${payload.status} successfully!`);
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: userKeys.list() });
+    },
+  });
+}
+

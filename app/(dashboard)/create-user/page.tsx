@@ -6,7 +6,7 @@ import Card from '@/app/components/ui/Card';
 import Input from '@/app/components/ui/Input';
 import Select from '@/app/components/ui/Select';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
-import { useUsers, useCreateUser, User } from '@/app/hooks/useUsers';
+import { useUsers, useCreateUser, useUpdateUserStatus, User } from '@/app/hooks/useUsers';
 
 const roleOptions = [
   { value: 'user', label: 'User' },
@@ -32,6 +32,7 @@ export default function CreateUserPage() {
   // Fetch users from API
   const { data: users = [], isLoading, error } = useUsers();
   const createUserMutation = useCreateUser();
+  const updateStatusMutation = useUpdateUserStatus();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -207,6 +208,26 @@ export default function CreateUserPage() {
     }
   };
 
+  const handleStatusChange = (user: typeof transformedUsers[0]) => {
+    // Find the original user data to get the actual status
+    const originalUser = users.find((u) => u.id === user.id);
+    if (!originalUser) {
+      toast.error('User not found', { duration: 2000 });
+      return;
+    }
+
+    const currentStatus = originalUser.status;
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const statusText = newStatus === 'active' ? 'Active' : 'Inactive';
+
+    if (confirm(`Change status of ${user.name} to ${statusText}?`)) {
+      updateStatusMutation.mutate({
+        userId: originalUser.id,
+        status: newStatus,
+      });
+    }
+  };
+
   const handleRowSelect = (selectedRows: typeof transformedUsers) => {
     console.log('Selected rows:', selectedRows);
     // Handle row selection logic here
@@ -322,6 +343,7 @@ export default function CreateUserPage() {
               columns={columns}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onStatusChange={handleStatusChange}
               onRowSelect={handleRowSelect}
               entriesPerPageOptions={[10, 25, 50, 100]}
               defaultEntriesPerPage={100}

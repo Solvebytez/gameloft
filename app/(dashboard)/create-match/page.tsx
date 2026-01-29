@@ -1,29 +1,13 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import Card from '@/app/components/ui/Card';
 import Select from '@/app/components/ui/Select';
 import DatePicker from '@/app/components/ui/DatePicker';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
-
-// Sample team options - in future, this will come from API
-const teamOptions = [
-  { value: '', label: 'Select Team' },
-  { value: 'team1', label: 'Team Alpha' },
-  { value: 'team2', label: 'Team Beta' },
-  { value: 'team3', label: 'Team Gamma' },
-  { value: 'team4', label: 'Team Delta' },
-  { value: 'team5', label: 'Team Echo' },
-];
-
-interface Match {
-  id: string;
-  matchBetween: string;
-  date: string;
-  winner: string;
-  status: string;
-}
+import { useTeams } from '@/app/hooks/useTeams';
+import { useMatches, useCreateMatch, Match } from '@/app/hooks/useMatches';
 
 export default function CreateMatchPage() {
   const [formData, setFormData] = useState({
@@ -36,58 +20,30 @@ export default function CreateMatchPage() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const dateInputRef = useRef<HTMLInputElement>(null);
 
-  // Sample match data - In future, this will come from React TanStack Query
-  const [matches, setMatches] = useState<Match[]>([
-    {
-      id: '1',
-      matchBetween: 'Mumbai Vs Delhi',
-      date: '2026-01-10',
-      winner: 'Not Declared',
-      status: 'Yet To Start',
-    },
-    {
-      id: '2',
-      matchBetween: 'Melbourne Star Vs Melbourne Renegades',
-      date: '2026-01-10',
-      winner: 'Not Declared',
-      status: 'Yet To Start',
-    },
-    {
-      id: '3',
-      matchBetween: 'Brisbane Heat Vs Sydney Thunder',
-      date: '2026-01-10',
-      winner: 'Not Declared',
-      status: 'Yet To Start',
-    },
-    {
-      id: '4',
-      matchBetween: 'Durban Vs Sunrisers',
-      date: '2026-01-09',
-      winner: 'Not Declared',
-      status: 'Yet To Start',
-    },
-    {
-      id: '5',
-      matchBetween: 'Pakistan Vs Sri Lanka',
-      date: '2026-01-09',
-      winner: 'Not Declared',
-      status: 'Yet To Start',
-    },
-    {
-      id: '6',
-      matchBetween: 'Hobart Hurricanes Vs Adelaide Strikers',
-      date: '2026-01-09',
-      winner: 'Hobart Hurricanes',
-      status: 'Not Declared',
-    },
-    {
-      id: '7',
-      matchBetween: 'Joburg Super King Vs Paarl Royals',
-      date: '2026-01-08',
-      winner: 'India',
-      status: 'completed',
-    },
-  ]);
+  // Fetch teams created by current user
+  const { data: teams = [], isLoading: teamsLoading } = useTeams();
+  const { data: matches = [], isLoading: matchesLoading } = useMatches();
+  const createMatchMutation = useCreateMatch();
+
+  // Convert teams to options for Select component
+  const teamOptions = useMemo(() => {
+    const options = [{ value: '', label: 'Select Team' }];
+    teams.forEach((team) => {
+      options.push({ value: team.id.toString(), label: team.name });
+    });
+    return options;
+  }, [teams]);
+
+  // Convert matches to DataTable format
+  const tableMatches = useMemo(() => {
+    return matches.map((match) => ({
+      id: match.id.toString(),
+      matchBetween: match.match_between,
+      date: match.match_date,
+      winner: match.winner ? match.winner.name : 'Not Declared',
+      status: match.status === 'scheduled' ? 'Yet To Start' : match.status === 'completed' ? 'Completed' : match.status === 'in_progress' ? 'In Progress' : match.status,
+    }));
+  }, [matches]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -119,6 +75,12 @@ export default function CreateMatchPage() {
     );
   };
 
+  // Convert dd-mm-yyyy to yyyy-mm-dd for API
+  const convertDateToAPIFormat = (dateStr: string): string => {
+    const [day, month, year] = dateStr.split('-');
+    return `${year}-${month}-${day}`;
+  };
+
   const handleDateChange = (date: string) => {
     setFormData((prev) => ({ ...prev, matchDate: date }));
     setIsCalendarOpen(false);
@@ -132,7 +94,7 @@ export default function CreateMatchPage() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const newErrors: Record<string, string> = {};
 
     // Validation - all fields are mandatory
@@ -159,19 +121,29 @@ export default function CreateMatchPage() {
       return;
     }
 
-    // Clear all errors on success
-    setErrors({});
-    toast.success('Match created successfully!', { duration: 3000 });
+    try {
+      // Convert date format from dd-mm-yyyy to yyyy-mm-dd
+      const apiDate = convertDateToAPIFormat(formData.matchDate);
 
-    // Reset form after successful save
-    setFormData({
-      matchDate: '',
-      team1: '',
-      team2: '',
-    });
+      await createMatchMutation.mutateAsync({
+        team1_id: parseInt(formData.team1),
+        team2_id: parseInt(formData.team2),
+        match_date: apiDate,
+      });
 
-    // Handle save logic here (in future, will use TanStack Query mutation)
-    console.log('Match data:', formData);
+      // Clear all errors on success
+      setErrors({});
+
+      // Reset form after successful save
+      setFormData({
+        matchDate: '',
+        team1: '',
+        team2: '',
+      });
+    } catch (error) {
+      // Error is handled by the mutation's onError callback
+      console.error('Failed to create match:', error);
+    }
   };
 
   const handleReset = () => {
@@ -186,7 +158,7 @@ export default function CreateMatchPage() {
   };
 
   // DataTable columns configuration
-  const columns: Column<Match>[] = [
+  const columns: Column<{ id: string; matchBetween: string; date: string; winner: string; status: string }>[] = [
     {
       key: 'matchBetween',
       label: 'Match Between',
@@ -219,20 +191,20 @@ export default function CreateMatchPage() {
     },
   ];
 
-  const handleEdit = (match: Match) => {
+  const handleEdit = (match: { id: string; matchBetween: string; date: string; winner: string; status: string }) => {
     toast.success(`Editing match: ${match.matchBetween}`, { duration: 2000 });
     // Handle edit logic here - in future will navigate to edit page or open modal
     console.log('Edit match:', match);
   };
 
-  const handleDelete = (match: Match) => {
+  const handleDelete = (match: { id: string; matchBetween: string; date: string; winner: string; status: string }) => {
     if (confirm(`Are you sure you want to delete match ${match.matchBetween}?`)) {
-      setMatches((prev) => prev.filter((m) => m.id !== match.id));
       toast.success(`Match ${match.matchBetween} deleted successfully`, { duration: 2000 });
+      // TODO: Implement delete API
     }
   };
 
-  const handleRowSelect = (selectedRows: Match[]) => {
+  const handleRowSelect = (selectedRows: { id: string; matchBetween: string; date: string; winner: string; status: string }[]) => {
     console.log('Selected rows:', selectedRows);
     // Handle row selection logic here
   };
@@ -262,6 +234,10 @@ export default function CreateMatchPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'Escape') {
                       setIsCalendarOpen(false);
+                    }
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSave();
                     }
                   }}
                   placeholder="dd-mm-yyyy"
@@ -306,6 +282,7 @@ export default function CreateMatchPage() {
                 onChange={(e) => handleInputChange('team1', e.target.value)}
                 options={teamOptions}
                 error={errors.team1}
+                disabled={teamsLoading}
               />
             </div>
 
@@ -325,6 +302,7 @@ export default function CreateMatchPage() {
                 onChange={(e) => handleInputChange('team2', e.target.value)}
                 options={teamOptions}
                 error={errors.team2}
+                disabled={teamsLoading}
               />
             </div>
           </div>
@@ -334,9 +312,10 @@ export default function CreateMatchPage() {
             <button
               type="button"
               onClick={handleSave}
-              className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+              disabled={createMatchMutation.isPending || teamsLoading}
+              className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Save
+              {createMatchMutation.isPending ? 'Saving...' : 'Save'}
             </button>
             <button
               type="button"
@@ -350,17 +329,23 @@ export default function CreateMatchPage() {
       </Card>
 
       {/* DataTable below the form */}
-      <h2 className="text-2xl font-bold text-[var(--foreground)] mt-8">TEAM SUMMARY</h2>
+      <h2 className="text-2xl font-bold text-[var(--foreground)] mt-8">MATCH SUMMARY</h2>
       <Card height="600px">
-        <DataTable<Match>
-          data={matches}
-          columns={columns}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onRowSelect={handleRowSelect}
-          entriesPerPageOptions={[10, 25, 50, 100]}
-          defaultEntriesPerPage={100}
-        />
+        {matchesLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-lg text-retro-dark">Loading matches...</p>
+          </div>
+        ) : (
+          <DataTable<{ id: string; matchBetween: string; date: string; winner: string; status: string }>
+            data={tableMatches}
+            columns={columns}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onRowSelect={handleRowSelect}
+            entriesPerPageOptions={[10, 25, 50, 100]}
+            defaultEntriesPerPage={100}
+          />
+        )}
       </Card>
     </div>
   );

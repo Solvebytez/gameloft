@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 
 export interface Column<T> {
@@ -16,6 +17,7 @@ export interface DataTableProps<T> {
   columns: Column<T>[];
   onEdit?: (row: T) => void;
   onDelete?: (row: T) => void;
+  onStatusChange?: (row: T) => void;
   onRowSelect?: (selectedRows: T[]) => void;
   renderActions?: (row: T) => React.ReactNode;
   showEntries?: boolean;
@@ -31,6 +33,7 @@ export default function DataTable<T extends Record<string, any>>({
   columns,
   onEdit,
   onDelete,
+  onStatusChange,
   onRowSelect,
   renderActions,
   showEntries = true,
@@ -47,6 +50,9 @@ export default function DataTable<T extends Record<string, any>>({
     direction: 'asc' | 'desc';
   } | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [openDropdown, setOpenDropdown] = useState<number | null>(null);
+  const dropdownRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
 
   // Search functionality
   const filteredData = useMemo(() => {
@@ -123,8 +129,56 @@ export default function DataTable<T extends Record<string, any>>({
     // Export logic will be implemented here
   };
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openDropdown !== null) {
+        const target = event.target as HTMLElement;
+        // Check if click is outside the dropdown and the button
+        const dropdownElement = document.querySelector('[data-dropdown-menu]');
+        const buttonElement = dropdownRefs.current[openDropdown];
+        
+        if (
+          dropdownElement && 
+          !dropdownElement.contains(target) &&
+          buttonElement &&
+          !buttonElement.contains(target)
+        ) {
+          setOpenDropdown(null);
+          setDropdownPosition(null);
+        }
+      }
+    };
+
+    if (openDropdown !== null) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openDropdown]);
+
+  const toggleDropdown = (index: number, event?: React.MouseEvent) => {
+    if (openDropdown === index) {
+      setOpenDropdown(null);
+      setDropdownPosition(null);
+    } else {
+      setOpenDropdown(index);
+      // Calculate position for dropdown
+      if (event) {
+        const button = event.currentTarget as HTMLElement;
+        const rect = button.getBoundingClientRect();
+        setDropdownPosition({
+          top: rect.bottom + 8,
+          left: rect.right - 192, // 192px = w-48 (12rem)
+        });
+      }
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" style={{ overflow: 'visible' }}>
       {title && (
         <h2 className="text-2xl font-bold text-[var(--foreground)]">{title}</h2>
       )}
@@ -218,8 +272,8 @@ export default function DataTable<T extends Record<string, any>>({
       </div>
 
       {/* Data Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse bg-white">
+      <div className="overflow-x-auto" style={{ overflowY: 'visible', position: 'relative' }}>
+        <table className="w-full border-collapse bg-transparent">
           <thead>
             <tr className="border-b border-gray-300">
               <th className="p-3 text-left">
@@ -234,7 +288,7 @@ export default function DataTable<T extends Record<string, any>>({
                 <th
                   key={String(column.key)}
                   className={`p-3 text-left font-bold text-retro-dark ${
-                    column.sortable !== false ? 'cursor-pointer hover:bg-gray-100' : ''
+                    column.sortable !== false ? 'cursor-pointer hover:bg-transparent' : ''
                   }`}
                   onClick={() => column.sortable !== false && handleSort(String(column.key))}
                 >
@@ -253,7 +307,7 @@ export default function DataTable<T extends Record<string, any>>({
                   </div>
                 </th>
               ))}
-              {(onEdit || onDelete || renderActions) && (
+              {(onEdit || onDelete || onStatusChange || renderActions) && (
                 <th className="p-3 text-left font-bold text-retro-dark">Actions</th>
               )}
             </tr>
@@ -262,7 +316,7 @@ export default function DataTable<T extends Record<string, any>>({
             {paginatedData.length === 0 ? (
               <tr>
                 <td
-                  colSpan={columns.length + 1 + (onEdit || onDelete || renderActions ? 1 : 0)}
+                  colSpan={columns.length + 1 + (onEdit || onDelete || onStatusChange || renderActions ? 1 : 0)}
                   className="p-8 text-center text-gray-500"
                 >
                   No data available
@@ -270,7 +324,7 @@ export default function DataTable<T extends Record<string, any>>({
               </tr>
             ) : (
               paginatedData.map((row, index) => (
-                <tr key={index} className="border-b border-gray-200 hover:bg-gray-50">
+                <tr key={index} className="border-b border-gray-200 hover:bg-transparent">
                   <td className="p-3">
                     <input
                       type="checkbox"
@@ -286,29 +340,78 @@ export default function DataTable<T extends Record<string, any>>({
                         : row[column.key as string]}
                     </td>
                   ))}
-                  {(onEdit || onDelete || renderActions) && (
+                  {(onEdit || onDelete || onStatusChange || renderActions) && (
                     <td className="p-3">
                       {renderActions ? (
                         renderActions(row)
                       ) : (
-                        <div className="flex gap-2">
-                          {onEdit && (
-                            <button
-                              type="button"
-                              onClick={() => onEdit(row)}
-                              className="px-4 py-2 bg-blue-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
+                        <div className="relative z-50" ref={(el) => (dropdownRefs.current[index] = el)}>
+                          <button
+                            type="button"
+                            onClick={(e) => toggleDropdown(index, e)}
+                            className="p-2 hover:bg-transparent rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-retro-accent"
+                            aria-label="Actions"
+                          >
+                            <svg
+                              className="w-5 h-5 text-retro-dark"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
                             >
-                              Edit
-                            </button>
-                          )}
-                          {onDelete && (
-                            <button
-                              type="button"
-                              onClick={() => onDelete(row)}
-                              className="px-4 py-2 bg-red-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
+                              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                            </svg>
+                          </button>
+                          {openDropdown === index && dropdownPosition && typeof window !== 'undefined' && createPortal(
+                            <div 
+                              className="fixed w-48 bg-white border-2 border-retro-dark rounded-lg shadow-xl z-[9999]"
+                              data-dropdown-menu
+                              style={{ 
+                                top: `${dropdownPosition.top}px`,
+                                left: `${dropdownPosition.left}px`,
+                              }}
                             >
-                              Delete
-                            </button>
+                              <div className="py-1">
+                                {onEdit && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      onEdit(row);
+                                      setOpenDropdown(null);
+                                      setDropdownPosition(null);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-retro-dark hover:bg-retro-accent hover:text-white transition-colors font-bold"
+                                  >
+                                    Edit
+                                  </button>
+                                )}
+                                {onStatusChange && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      onStatusChange(row);
+                                      setOpenDropdown(null);
+                                      setDropdownPosition(null);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors font-bold"
+                                  >
+                                    Change Status
+                                  </button>
+                                )}
+                                {onDelete && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      onDelete(row);
+                                      setOpenDropdown(null);
+                                      setDropdownPosition(null);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors font-bold"
+                                  >
+                                    Delete
+                                  </button>
+                                )}
+                              </div>
+                            </div>,
+                            document.body
                           )}
                         </div>
                       )}
