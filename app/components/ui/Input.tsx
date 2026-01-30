@@ -1,4 +1,4 @@
-import React, { useId } from "react";
+import React, { useId, forwardRef } from "react";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -7,7 +7,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: string;
 }
 
-export default function Input({
+const Input = forwardRef<HTMLInputElement, InputProps>(({
   label,
   labelClassName = "",
   containerClassName = "",
@@ -15,7 +15,7 @@ export default function Input({
   className = "",
   id,
   ...props
-}: InputProps) {
+}, ref) => {
   const generatedId = useId();
   const inputId = id || generatedId;
 
@@ -30,6 +30,7 @@ export default function Input({
         </label>
       )}
       <input
+        ref={ref}
         id={inputId}
         className={`w-full px-4 py-3 bg-white border-[3px] border-retro-dark text-retro-dark font-bold text-lg rounded focus:outline-none focus:ring-2 focus:ring-retro-accent disabled:opacity-50 disabled:cursor-not-allowed ${
           error ? "border-red-500" : ""
@@ -39,4 +40,8 @@ export default function Input({
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
     </div>
   );
-}
+});
+
+Input.displayName = "Input";
+
+export default Input;

@@ -8,11 +8,12 @@ import { AxiosError } from 'axios';
 export interface User {
   id: number;
   name: string;
-  email: string;
+  email: string | null;
   mobile: string | null;
   role: string;
   commission: number;
   partnership: number;
+  commission_type: 'no_commission' | 'profit_loss' | 'entrywise';
   last_login: string | null;
   status: 'active' | 'inactive';
   created_at: string;
@@ -21,12 +22,18 @@ export interface User {
 
 interface CreateUserPayload {
   name: string;
-  email: string;
-  mobile?: string | null;
-  password: string;
   role: string;
   commission: number;
   partnership: number;
+  commission_type: 'no_commission' | 'profit_loss' | 'entrywise';
+}
+
+interface UpdateUserPayload {
+  name?: string;
+  role?: string;
+  commission?: number;
+  partnership?: number;
+  commission_type?: 'no_commission' | 'profit_loss' | 'entrywise';
 }
 
 // Query key factory
@@ -162,11 +169,12 @@ export function useCreateUser() {
       const optimisticUser: User = {
         id: Date.now(), // Temporary ID
         name: newUser.name,
-        email: newUser.email,
-        mobile: newUser.mobile || null,
+        email: null,
+        mobile: null,
         role: newUser.role,
         commission: newUser.commission,
         partnership: newUser.partnership,
+        commission_type: newUser.commission_type,
         last_login: null,
         status: 'active', // Default status
         created_at: new Date().toISOString(),
@@ -189,6 +197,73 @@ export function useCreateUser() {
     },
     onSuccess: () => {
       toast.success('User created successfully!');
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: userKeys.list() });
+    },
+  });
+}
+
+// Update user mutation
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: number; payload: UpdateUserPayload }): Promise<User> => {
+      try {
+        console.log('🔍 Updating user:', id, payload);
+        const response = await api.put(`/v1/admin/users/${id}`, payload);
+        console.log('📥 Update user response:', response.data);
+        if (response.data.success) {
+          return response.data.data;
+        }
+        throw new Error(response.data.message || 'Failed to update user');
+      } catch (error: unknown) {
+        console.error('❌ Error updating user:', error);
+        if (error instanceof AxiosError) {
+          console.error('❌ Error response data:', error.response?.data);
+          console.error('❌ Error response status:', error.response?.status);
+          
+          // Handle validation errors
+          if (error.response?.status === 422 && error.response?.data?.errors) {
+            const errors = error.response.data.errors;
+            const firstError = Object.values(errors)[0];
+            if (Array.isArray(firstError) && firstError.length > 0) {
+              throw new Error(String(firstError[0]));
+            }
+          }
+        }
+        throw error;
+      }
+    },
+    onMutate: async ({ id, payload }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: userKeys.list() });
+
+      // Snapshot previous value
+      const previousUsers = queryClient.getQueryData<User[]>(userKeys.list());
+
+      // Optimistically update cache
+      queryClient.setQueryData<User[]>(userKeys.list(), (old = []) =>
+        old.map((user) =>
+          user.id === id
+            ? { ...user, ...payload }
+            : user
+        )
+      );
+
+      return { previousUsers };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousUsers) {
+        queryClient.setQueryData(userKeys.list(), context.previousUsers);
+      }
+      toast.error(err instanceof Error ? err.message : 'Failed to update user');
+    },
+    onSuccess: () => {
+      toast.success('User updated successfully!');
     },
     onSettled: () => {
       // Refetch to ensure consistency
@@ -263,6 +338,69 @@ export function useUpdateUserStatus() {
     },
     onSuccess: (data, payload) => {
       toast.success(`User status changed to ${payload.status} successfully!`);
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: userKeys.list() });
+    },
+  });
+}
+
+// Delete user mutation
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (userId: number): Promise<void> => {
+      try {
+        console.log('🔍 Deleting user:', userId);
+        const response = await api.delete(`/v1/admin/users/${userId}`);
+        console.log('📥 Delete user response:', response.data);
+        if (response.data.success) {
+          return;
+        }
+        throw new Error(response.data.message || 'Failed to delete user');
+      } catch (error: unknown) {
+        console.error('❌ Error deleting user:', error);
+        if (error instanceof AxiosError) {
+          console.error('❌ Error response data:', error.response?.data);
+          console.error('❌ Error response status:', error.response?.status);
+          
+          // Handle validation errors
+          if (error.response?.status === 422 && error.response?.data?.errors) {
+            const errors = error.response.data.errors;
+            const firstError = Object.values(errors)[0];
+            if (Array.isArray(firstError) && firstError.length > 0) {
+              throw new Error(String(firstError[0]));
+            }
+          }
+        }
+        throw error;
+      }
+    },
+    onMutate: async (userId) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: userKeys.list() });
+
+      // Snapshot previous value
+      const previousUsers = queryClient.getQueryData<User[]>(userKeys.list());
+
+      // Optimistically update cache by removing the user
+      queryClient.setQueryData<User[]>(userKeys.list(), (old = []) =>
+        old.filter((user) => user.id !== userId)
+      );
+
+      return { previousUsers };
+    },
+    onError: (err, userId, context) => {
+      // Rollback on error
+      if (context?.previousUsers) {
+        queryClient.setQueryData(userKeys.list(), context.previousUsers);
+      }
+      toast.error(err instanceof Error ? err.message : 'Failed to delete user');
+    },
+    onSuccess: (data, userId) => {
+      toast.success('User deleted successfully!');
     },
     onSettled: () => {
       // Refetch to ensure consistency

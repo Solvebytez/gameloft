@@ -30,10 +30,10 @@ export default function MatchDetailPage() {
   const [favouriteTeam, setFavouriteTeam] = useState<'team1' | 'team2'>('team1'); // Default to team1
   const [userScope, setUserScope] = useState<'customer' | 'all'>('all');
   const [selectedCustomer, setSelectedCustomer] = useState('');
-  const [favRate, setFavRate] = useState('');
-  const [favAmount, setFavAmount] = useState('');
-  const [nfavRate, setNfavRate] = useState('');
-  const [nfavAmount, setNfavAmount] = useState('');
+  const [team1Rate, setTeam1Rate] = useState('');
+  const [team1Amount, setTeam1Amount] = useState('');
+  const [team2Rate, setTeam2Rate] = useState('');
+  const [team2Amount, setTeam2Amount] = useState('');
 
   // Sample recent entries data - In future, this will come from React TanStack Query
   const recentEntries: RecentEntry[] = [
@@ -124,10 +124,10 @@ export default function MatchDetailPage() {
       favouriteTeam,
       userScope,
       selectedCustomer,
-      favRate,
-      favAmount,
-      nfavRate,
-      nfavAmount,
+      team1Rate,
+      team1Amount,
+      team2Rate,
+      team2Amount,
     });
   };
 
@@ -180,8 +180,8 @@ export default function MatchDetailPage() {
         </button>
       </div>
 
-      {/* Two Cards Side by Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Two Cards Side by Side - 30% Form, 70% Table */}
+      <div className="grid grid-cols-1 lg:grid-cols-[30%_70%] gap-6">
         {/* Entry Window Card - Left Side */}
         <Card>
           <h1 className="text-2xl font-bold text-foreground mb-6">Entry Window</h1>
@@ -307,54 +307,86 @@ export default function MatchDetailPage() {
             </div>
           )}
 
-          {/* Rate and Amount Inputs - Single Row */}
+          {/* Rate and Amount Inputs - Two Columns (One per Team) */}
           <div className="space-y-4">
             {/* Section Headers */}
-            <div className="grid grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 gap-6">
+              {/* Team 1 Column Header */}
               <div>
-                <h3 className="text-lg font-bold text-retro-dark mb-4">Favourite - Lagai</h3>
+                <h3 className={`text-base font-bold mb-1 whitespace-nowrap ${
+                  favouriteTeam === 'team1' ? 'text-green-700' : 'text-red-700'
+                }`} style={{ fontSize: '16px' }}>
+                  {favouriteTeam === 'team1' ? 'Favourite - Lagai' : 'Non-Favourite - Khai'}
+                </h3>
+                <p className="text-xs text-retro-dark truncate">{matchData.team1.name}</p>
               </div>
-              <div></div>
+              {/* Team 2 Column Header */}
               <div>
-                <h3 className="text-lg font-bold text-retro-dark mb-4">Non-Favourite - Khai</h3>
+                <h3 className={`text-base font-bold mb-1 whitespace-nowrap ${
+                  favouriteTeam === 'team2' ? 'text-green-700' : 'text-red-700'
+                }`} style={{ fontSize: '16px' }}>
+                  {favouriteTeam === 'team2' ? 'Favourite - Lagai' : 'Non-Favourite - Khai'}
+                </h3>
+                <p className="text-xs text-retro-dark truncate">{matchData.team2.name}</p>
               </div>
-              <div></div>
             </div>
             
-            {/* Input Fields in Single Row */}
-            <div className="grid grid-cols-4 gap-6">
-              <Input
-                label="Rate"
-                type="text"
-                placeholder="Fav Rate"
-                value={favRate}
-                onChange={(e) => setFavRate(e.target.value)}
-                className="bg-green-100 border-green-600 border-[3px] focus:ring-green-500"
-              />
-              <Input
-                label="Amount"
-                type="text"
-                placeholder="Fav. Amt."
-                value={favAmount}
-                onChange={(e) => setFavAmount(e.target.value)}
-                className="bg-green-100 border-green-600 border-[3px] focus:ring-green-500"
-              />
-              <Input
-                label="Rate"
-                type="text"
-                placeholder="NFav Rate"
-                value={nfavRate}
-                onChange={(e) => setNfavRate(e.target.value)}
-                className="bg-red-100 border-red-600 border-[3px] focus:ring-red-500"
-              />
-              <Input
-                label="Amount"
-                type="text"
-                placeholder="NFav. Am"
-                value={nfavAmount}
-                onChange={(e) => setNfavAmount(e.target.value)}
-                className="bg-red-100 border-red-600 border-[3px] focus:ring-red-500"
-              />
+            {/* Input Fields - Two Columns: Each column has Rate and Amount */}
+            <div className="grid grid-cols-2 gap-6">
+              {/* Team 1 Column */}
+              <div className="space-y-4">
+                <Input
+                  label="Rate"
+                  type="text"
+                  placeholder={favouriteTeam === 'team1' ? 'Fav Rate' : 'NFav Rate'}
+                  value={team1Rate}
+                  onChange={(e) => setTeam1Rate(e.target.value)}
+                  className={
+                    favouriteTeam === 'team1'
+                      ? '!bg-green-100 !border-green-600 !border-[3px] focus:!ring-green-500 focus:!border-green-600'
+                      : '!bg-red-100 !border-red-600 !border-[3px] focus:!ring-red-500 focus:!border-red-600'
+                  }
+                />
+                <Input
+                  label="Amount"
+                  type="text"
+                  placeholder={favouriteTeam === 'team1' ? 'Fav. Amt.' : 'NFav. Am'}
+                  value={team1Amount}
+                  onChange={(e) => setTeam1Amount(e.target.value)}
+                  className={
+                    favouriteTeam === 'team1'
+                      ? '!bg-green-100 !border-green-600 !border-[3px] focus:!ring-green-500 focus:!border-green-600'
+                      : '!bg-red-100 !border-red-600 !border-[3px] focus:!ring-red-500 focus:!border-red-600'
+                  }
+                />
+              </div>
+              {/* Team 2 Column */}
+              <div className="space-y-4">
+                <Input
+                  label="Rate"
+                  type="text"
+                  placeholder={favouriteTeam === 'team2' ? 'Fav Rate' : 'NFav Rate'}
+                  value={team2Rate}
+                  onChange={(e) => setTeam2Rate(e.target.value)}
+                  className={
+                    favouriteTeam === 'team2'
+                      ? '!bg-green-100 !border-green-600 !border-[3px] focus:!ring-green-500 focus:!border-green-600'
+                      : '!bg-red-100 !border-red-600 !border-[3px] focus:!ring-red-500 focus:!border-red-600'
+                  }
+                />
+                <Input
+                  label="Amount"
+                  type="text"
+                  placeholder={favouriteTeam === 'team2' ? 'Fav. Amt.' : 'NFav. Am'}
+                  value={team2Amount}
+                  onChange={(e) => setTeam2Amount(e.target.value)}
+                  className={
+                    favouriteTeam === 'team2'
+                      ? '!bg-green-100 !border-green-600 !border-[3px] focus:!ring-green-500 focus:!border-green-600'
+                      : '!bg-red-100 !border-red-600 !border-[3px] focus:!ring-red-500 focus:!border-red-600'
+                  }
+                />
+              </div>
             </div>
           </div>
 

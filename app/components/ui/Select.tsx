@@ -1,4 +1,4 @@
-import React, { useId } from "react";
+import React, { useId, forwardRef } from "react";
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
@@ -8,7 +8,7 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   options: Array<{ value: string; label: string }>;
 }
 
-export default function Select({
+const Select = forwardRef<HTMLSelectElement, SelectProps>(({
   label,
   labelClassName = "",
   containerClassName = "",
@@ -17,7 +17,7 @@ export default function Select({
   id,
   options,
   ...props
-}: SelectProps) {
+}, ref) => {
   const generatedId = useId();
   const selectId = id || generatedId;
 
@@ -32,6 +32,7 @@ export default function Select({
         </label>
       )}
       <select
+        ref={ref}
         id={selectId}
         className={`w-full px-4 py-3 bg-white border-[3px] border-retro-dark text-retro-dark font-bold text-lg rounded focus:outline-none focus:ring-2 focus:ring-retro-accent disabled:opacity-50 disabled:cursor-not-allowed ${
           error ? "border-red-500" : ""
@@ -47,5 +48,9 @@ export default function Select({
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
     </div>
   );
-}
+});
+
+Select.displayName = "Select";
+
+export default Select;
 
