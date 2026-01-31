@@ -345,7 +345,7 @@ export default function DataTable<T extends Record<string, any>>({
                       {renderActions ? (
                         renderActions(row)
                       ) : (
-                        <div className="relative z-50" ref={(el) => (dropdownRefs.current[index] = el)}>
+                        <div className="relative z-50" ref={(el) => { dropdownRefs.current[index] = el; }}>
                           <button
                             type="button"
                             onClick={(e) => toggleDropdown(index, e)}

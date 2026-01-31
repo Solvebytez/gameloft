@@ -17,7 +17,7 @@ export default function LogoutPage() {
         <h1 className="text-2xl font-bold text-foreground mb-4">Logging out...</h1>
         {logoutMutation.isError && (
           <p className="text-red-500 mt-2">
-            Error during logout: {logoutMutation.error?.message || 'Unknown error'}
+            Error during logout: {logoutMutation.error instanceof Error ? logoutMutation.error.message : 'Unknown error'}
           </p>
         )}
       </Card>

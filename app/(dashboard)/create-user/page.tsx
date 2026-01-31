@@ -553,7 +553,7 @@ export default function CreateUserPage() {
       {/* Delete Confirmation Modal */}
       <ConfirmModal
         isOpen={deleteConfirmModal.isOpen}
-        onClose={() => setDeleteConfirmModal({ isOpen: false, userId: null })}
+        onCancel={() => setDeleteConfirmModal({ isOpen: false, userId: null })}
         onConfirm={confirmDelete}
         title="Delete User"
         message={
@@ -563,14 +563,13 @@ export default function CreateUserPage() {
         }
         confirmText="Delete"
         cancelText="Cancel"
-        confirmButtonClassName="bg-red-500 hover:bg-red-600"
-        isLoading={deleteUserMutation.isPending}
+        confirmButtonColor="red"
       />
 
       {/* Status Change Confirmation Modal */}
       <ConfirmModal
         isOpen={statusChangeModal.isOpen}
-        onClose={() => setStatusChangeModal({ isOpen: false, userId: null, newStatus: null })}
+        onCancel={() => setStatusChangeModal({ isOpen: false, userId: null, newStatus: null })}
         onConfirm={confirmStatusChange}
         title="Change User Status"
         message={
@@ -580,8 +579,7 @@ export default function CreateUserPage() {
         }
         confirmText="Change Status"
         cancelText="Cancel"
-        confirmButtonClassName="bg-blue-500 hover:bg-blue-600"
-        isLoading={updateStatusMutation.isPending}
+        confirmButtonColor="blue"
       />
     </div>
   );

@@ -13,7 +13,7 @@ interface MultiSelectProps {
   error?: string;
   containerClassName?: string;
   labelClassName?: string;
-  inputRef?: React.RefObject<HTMLInputElement>;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
 const MultiSelect = forwardRef<HTMLDivElement, MultiSelectProps>(({
@@ -85,10 +85,12 @@ const MultiSelect = forwardRef<HTMLDivElement, MultiSelectProps>(({
     }
   }, [isOpen]);
 
-  const toggleOption = (value: string | number, e?: React.MouseEvent) => {
+  const toggleOption = (value: string | number, e?: React.MouseEvent | React.ChangeEvent<HTMLInputElement>) => {
     if (e) {
       e.stopPropagation();
-      e.preventDefault();
+      if ('preventDefault' in e) {
+        e.preventDefault();
+      }
     }
     if (selectedValues.includes(value)) {
       onChange(selectedValues.filter((v) => v !== value));

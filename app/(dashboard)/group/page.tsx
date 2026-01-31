@@ -294,7 +294,7 @@ export default function GroupPage() {
       {/* Delete Confirmation Modal */}
       <ConfirmModal
         isOpen={deleteConfirmModal.isOpen}
-        onClose={() => setDeleteConfirmModal({ isOpen: false, groupId: null })}
+        onCancel={() => setDeleteConfirmModal({ isOpen: false, groupId: null })}
         onConfirm={confirmDelete}
         title="Delete Group"
         message={
@@ -304,8 +304,7 @@ export default function GroupPage() {
         }
         confirmText="Delete"
         cancelText="Cancel"
-        confirmButtonClassName="bg-red-500 hover:bg-red-600"
-        isLoading={deleteGroupMutation.isPending}
+        confirmButtonColor="red"
       />
     </div>
   );
