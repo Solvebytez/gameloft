@@ -28,7 +28,7 @@ export default function MatchDetailPage() {
   const { data: groups = [], isLoading: isLoadingGroups } = useGroups();
 
   // Fetch entries for this match
-  const { data: entriesData, isLoading: isLoadingEntries } = useEntries(matchId);
+  const { data: entriesData, isLoading: isLoadingEntries } = useEntries(matchId || undefined);
   const allEntries: Entry[] = entriesData?.data || [];
 
   // Create entry mutation
@@ -40,7 +40,7 @@ export default function MatchDetailPage() {
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
 
   // Fetch entry data when editing
-  const { data: editingEntry, isLoading: isLoadingEntry } = useEntry(editingEntryId);
+  const { data: editingEntry, isLoading: isLoadingEntry } = useEntry(editingEntryId || undefined);
 
   // Filter state (for table filtering)
   const [filterType, setFilterType] = useState<'all' | 'customer' | 'group'>('all');
