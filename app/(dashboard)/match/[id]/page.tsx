@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Card from '@/app/components/ui/Card';
@@ -54,6 +54,13 @@ export default function MatchDetailPage() {
   const [team1Amount, setTeam1Amount] = useState('');
   const [team2Rate, setTeam2Rate] = useState('');
   const [team2Amount, setTeam2Amount] = useState('');
+
+  // Refs for keyboard navigation
+  const team1RateRef = useRef<HTMLInputElement>(null);
+  const team1AmountRef = useRef<HTMLInputElement>(null);
+  const team2RateRef = useRef<HTMLInputElement>(null);
+  const team2AmountRef = useRef<HTMLInputElement>(null);
+  const multiSelectInputRef = useRef<HTMLInputElement>(null);
 
   // Filter active users and create dropdown options for filter
   const customerFilterOptions = useMemo(() => {
@@ -156,6 +163,76 @@ export default function MatchDetailPage() {
     setTeam2Amount('');
     setAssignedUsers([]);
   };
+
+  // Handle Enter key to move focus to next field
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, currentField: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Define the order of fields
+      const fieldOrder = ['team1Rate', 'team1Amount', 'team2Rate', 'team2Amount'];
+      const currentIndex = fieldOrder.indexOf(currentField);
+      
+      if (currentIndex < fieldOrder.length - 1) {
+        // Move to next field
+        const nextField = fieldOrder[currentIndex + 1];
+        
+        // Use requestAnimationFrame to ensure DOM is ready
+        requestAnimationFrame(() => {
+          switch (nextField) {
+            case 'team1Rate':
+              team1RateRef.current?.focus();
+              team1RateRef.current?.select();
+              break;
+            case 'team1Amount':
+              team1AmountRef.current?.focus();
+              team1AmountRef.current?.select();
+              break;
+            case 'team2Rate':
+              team2RateRef.current?.focus();
+              team2RateRef.current?.select();
+              break;
+            case 'team2Amount':
+              team2AmountRef.current?.focus();
+              team2AmountRef.current?.select();
+              break;
+          }
+        });
+      } else {
+        // Last field - submit the form
+        const form = e.currentTarget.closest('form');
+        if (form) {
+          form.requestSubmit();
+        }
+      }
+    }
+  };
+
+  // Handle Enter key in MultiSelect to open dropdown or move to first rate input
+  const handleMultiSelectEnter = () => {
+    // If dropdown is not open, open it first
+    if (multiSelectInputRef.current) {
+      // Trigger focus and click to open dropdown
+      multiSelectInputRef.current.focus();
+      // Dispatch a click event to open the dropdown
+      const clickEvent = new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+      });
+      multiSelectInputRef.current.dispatchEvent(clickEvent);
+    }
+  };
+
+  // Focus MultiSelect input when page loads or form is ready
+  useEffect(() => {
+    if (!isEditMode && !isLoadingEntry && matchData) {
+      const timer = setTimeout(() => {
+        multiSelectInputRef.current?.focus();
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [isEditMode, isLoadingEntry, matchData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -419,6 +496,14 @@ export default function MatchDetailPage() {
               onChange={(values) => setAssignedUsers(values as number[])}
               placeholder="Search and select users..."
               error={assignedUsers.length === 0 ? undefined : undefined}
+              inputRef={multiSelectInputRef}
+              onEnterKey={() => {
+                // Move to next field after selection with a delay to ensure dropdown is closed
+                setTimeout(() => {
+                  team1RateRef.current?.focus();
+                  team1RateRef.current?.select();
+                }, 100);
+              }}
             />
             {isLoadingUsers && (
               <p className="text-sm text-retro-dark mt-1">Loading users...</p>
@@ -457,11 +542,13 @@ export default function MatchDetailPage() {
               {/* Team 1 Column */}
               <div className="space-y-4">
                 <Input
+                  ref={team1RateRef}
                   label="Rate"
                   type="text"
                   placeholder={favouriteTeam === 'team1' ? 'Fav Rate' : 'NFav Rate'}
                   value={team1Rate}
                   onChange={(e) => setTeam1Rate(e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, 'team1Rate')}
                   className={
                     favouriteTeam === 'team1'
                       ? '!bg-green-100 !border-green-600 !border-[3px] focus:!ring-green-500 focus:!border-green-600'
@@ -469,11 +556,13 @@ export default function MatchDetailPage() {
                   }
                 />
                 <Input
+                  ref={team1AmountRef}
                   label="Amount"
                   type="text"
                   placeholder={favouriteTeam === 'team1' ? 'Fav. Amt.' : 'NFav. Am'}
                   value={team1Amount}
                   onChange={(e) => setTeam1Amount(e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, 'team1Amount')}
                   className={
                     favouriteTeam === 'team1'
                       ? '!bg-green-100 !border-green-600 !border-[3px] focus:!ring-green-500 focus:!border-green-600'
@@ -484,11 +573,13 @@ export default function MatchDetailPage() {
               {/* Team 2 Column */}
               <div className="space-y-4">
                 <Input
+                  ref={team2RateRef}
                   label="Rate"
                   type="text"
                   placeholder={favouriteTeam === 'team2' ? 'Fav Rate' : 'NFav Rate'}
                   value={team2Rate}
                   onChange={(e) => setTeam2Rate(e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, 'team2Rate')}
                   className={
                     favouriteTeam === 'team2'
                       ? '!bg-green-100 !border-green-600 !border-[3px] focus:!ring-green-500 focus:!border-green-600'
@@ -496,11 +587,13 @@ export default function MatchDetailPage() {
                   }
                 />
                 <Input
+                  ref={team2AmountRef}
                   label="Amount"
                   type="text"
                   placeholder={favouriteTeam === 'team2' ? 'Fav. Amt.' : 'NFav. Am'}
                   value={team2Amount}
                   onChange={(e) => setTeam2Amount(e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, 'team2Amount')}
                   className={
                     favouriteTeam === 'team2'
                       ? '!bg-green-100 !border-green-600 !border-[3px] focus:!ring-green-500 focus:!border-green-600'

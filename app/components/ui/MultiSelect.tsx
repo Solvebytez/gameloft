@@ -14,6 +14,7 @@ interface MultiSelectProps {
   containerClassName?: string;
   labelClassName?: string;
   inputRef?: React.RefObject<HTMLInputElement | null>;
+  onEnterKey?: () => void;
 }
 
 const MultiSelect = forwardRef<HTMLDivElement, MultiSelectProps>(({
@@ -27,10 +28,13 @@ const MultiSelect = forwardRef<HTMLDivElement, MultiSelectProps>(({
   containerClassName = '',
   labelClassName = '',
   inputRef: externalInputRef,
+  onEnterKey,
 }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const isClosingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const internalInputRef = useRef<HTMLInputElement>(null);
@@ -40,6 +44,13 @@ const MultiSelect = forwardRef<HTMLDivElement, MultiSelectProps>(({
   const filteredOptions = options.filter((option) =>
     option.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Reset highlighted index when filtered options change
+  useEffect(() => {
+    if (filteredOptions.length > 0) {
+      setHighlightedIndex(0);
+    }
+  }, [filteredOptions.length]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -78,10 +89,17 @@ const MultiSelect = forwardRef<HTMLDivElement, MultiSelectProps>(({
     }
   }, [isOpen]);
 
-  // Focus input when dropdown opens
+  // Focus input when dropdown opens (but not when closing)
   useEffect(() => {
     if (isOpen && inputRef.current) {
-      inputRef.current.focus();
+      // Small delay to ensure dropdown is rendered
+      const timer = setTimeout(() => {
+        // Double check it's still open before focusing
+        if (isOpen && inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 10);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
@@ -125,7 +143,11 @@ const MultiSelect = forwardRef<HTMLDivElement, MultiSelectProps>(({
           className={`w-full min-h-[48px] px-4 py-3 bg-white border-[3px] border-retro-dark text-retro-dark font-bold text-lg rounded focus-within:ring-2 focus-within:ring-retro-accent cursor-pointer ${
             error ? 'border-red-500' : ''
           }`}
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => {
+            if (!isClosingRef.current) {
+              setIsOpen(!isOpen);
+            }
+          }}
         >
           <div className="flex flex-wrap gap-2 items-center min-h-[24px]">
             {selectedValues.length > 0 ? (
@@ -158,13 +180,82 @@ const MultiSelect = forwardRef<HTMLDivElement, MultiSelectProps>(({
               }}
               onClick={(e) => {
                 e.stopPropagation();
-                setIsOpen(true);
+                if (!isClosingRef.current) {
+                  setIsOpen(true);
+                }
               }}
-              onFocus={() => setIsOpen(true)}
+              onFocus={() => {
+                // Completely disabled - don't auto-open on focus
+                // This prevents the dropdown from reopening when we're trying to close it
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  // Don't submit form, just keep dropdown open
+                  e.stopPropagation();
+                  if (e.nativeEvent) {
+                    e.nativeEvent.stopImmediatePropagation();
+                  }
+                  
+                  // If dropdown is open
+                  if (isOpen) {
+                    // Set closing flag FIRST
+                    isClosingRef.current = true;
+                    
+                    // If there are filtered options and the highlighted one is NOT selected, select it
+                    // If it's already selected, don't toggle (just close)
+                    if (filteredOptions.length > 0) {
+                      const selectedOption = filteredOptions[highlightedIndex] || filteredOptions[0];
+                      const isAlreadySelected = selectedValues.includes(selectedOption.value);
+                      // Only toggle if not already selected
+                      if (!isAlreadySelected) {
+                        toggleOption(selectedOption.value, e as any);
+                      }
+                    }
+                    
+                    // Close dropdown using functional update
+                    setIsOpen(() => false);
+                    setSearchTerm('');
+                    setHighlightedIndex(0);
+                    
+                    // Blur immediately
+                    requestAnimationFrame(() => {
+                      if (inputRef.current) {
+                        inputRef.current.blur();
+                      }
+                    });
+                    
+                    // Move to next field
+                    setTimeout(() => {
+                      // Ensure it's closed
+                      setIsOpen(false);
+                      onEnterKey?.();
+                    }, 200);
+                    
+                    // Reset flag after delay
+                    setTimeout(() => {
+                      isClosingRef.current = false;
+                    }, 1000);
+                  } 
+                  // If dropdown is closed, open it
+                  else {
+                    setIsOpen(true);
+                  }
+                } else if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  if (!isOpen) {
+                    setIsOpen(true);
+                  } else if (filteredOptions.length > 0) {
+                    setHighlightedIndex((prev) => (prev + 1) % filteredOptions.length);
+                  }
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  if (isOpen && filteredOptions.length > 0) {
+                    setHighlightedIndex((prev) => (prev - 1 + filteredOptions.length) % filteredOptions.length);
+                  }
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setIsOpen(false);
+                  setSearchTerm('');
                 }
               }}
               placeholder={selectedValues.length === 0 ? placeholder : ''}
@@ -188,18 +279,64 @@ const MultiSelect = forwardRef<HTMLDivElement, MultiSelectProps>(({
             onClick={(e) => {
               e.stopPropagation();
             }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                // If there's a highlighted option, select it only if not already selected
+                if (filteredOptions.length > 0) {
+                  const selectedOption = filteredOptions[highlightedIndex] || filteredOptions[0];
+                  const isAlreadySelected = selectedValues.includes(selectedOption.value);
+                  // Only toggle if not already selected
+                  if (!isAlreadySelected) {
+                    toggleOption(selectedOption.value, e as any);
+                  }
+                  setIsOpen(false);
+                  setSearchTerm('');
+                  setHighlightedIndex(0);
+                  setTimeout(() => {
+                    onEnterKey?.();
+                  }, 100);
+                }
+              }
+            }}
+            tabIndex={-1}
           >
             {filteredOptions.length > 0 ? (
-              filteredOptions.map((option) => {
+              filteredOptions.map((option, index) => {
                 const isSelected = selectedValues.includes(option.value);
+                const isHighlighted = index === highlightedIndex;
                 return (
                   <div
                     key={option.value}
                     className={`px-4 py-2 cursor-pointer hover:bg-retro-accent/10 ${
                       isSelected ? 'bg-retro-accent/20' : ''
+                    } ${
+                      isHighlighted ? 'bg-blue-100' : ''
                     }`}
                     onClick={(e) => toggleOption(option.value, e)}
                     onMouseDown={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        // Only toggle if not already selected (don't deselect)
+                        const isAlreadySelected = selectedValues.includes(option.value);
+                        if (!isAlreadySelected) {
+                          toggleOption(option.value, e);
+                        }
+                        // Close dropdown and move to next field
+                        setIsOpen(false);
+                        setSearchTerm('');
+                        setHighlightedIndex(0);
+                        setTimeout(() => {
+                          onEnterKey?.();
+                        }, 100);
+                      }
+                    }}
+                    tabIndex={0}
+                    role="option"
+                    aria-selected={isSelected}
                   >
                     <div className="flex items-center gap-2">
                       <input
