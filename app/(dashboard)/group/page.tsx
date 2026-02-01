@@ -203,8 +203,8 @@ export default function GroupPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-[var(--foreground)]">Group</h1>
-        <p className="text-sm text-[var(--retro-dark)]/60 mt-1">{isEditMode ? 'Edit' : 'Create'}</p>
+        <h1 className="text-3xl font-bold text-foreground">Group</h1>
+        <p className="text-sm text-retro-dark/60 mt-1">{isEditMode ? 'Edit' : 'Create'}</p>
       </div>
       <Card>
         <form className="space-y-6">
@@ -268,16 +268,16 @@ export default function GroupPage() {
       {/* Groups Table */}
       <Card>
         <div className="mb-4">
-          <h2 className="text-2xl font-bold text-[var(--foreground)]">Groups List</h2>
-          <p className="text-sm text-[var(--retro-dark)]/60 mt-1">
+          <h2 className="text-2xl font-bold text-foreground">Groups List</h2>
+          <p className="text-sm text-retro-dark/60 mt-1">
             {groups.length} {groups.length === 1 ? 'group' : 'groups'} found
           </p>
         </div>
 
         {groupsLoading ? (
-          <div className="text-center py-8 text-[var(--retro-dark)]/60">Loading groups...</div>
+          <div className="text-center py-8 text-retro-dark/60">Loading groups...</div>
         ) : groups.length === 0 ? (
-          <div className="text-center py-8 text-[var(--retro-dark)]/60">No groups found. Create your first group above.</div>
+          <div className="text-center py-8 text-retro-dark/60">No groups found. Create your first group above.</div>
         ) : (
           <div className="p-4">
             <DataTable
@@ -352,7 +352,7 @@ const groupColumns: Column<Group>[] = [
     render: (value, group) => {
       const userNames = group.users?.map((u) => u.name).join(', ') || 'No users';
       return (
-        <span className="text-sm text-[var(--retro-dark)]/70" title={userNames}>
+        <span className="text-sm text-retro-dark/70" title={userNames}>
           {userNames.length > 50 ? `${userNames.substring(0, 50)}...` : userNames}
         </span>
       );
@@ -364,7 +364,7 @@ const groupColumns: Column<Group>[] = [
     render: (value, group) => {
       const date = new Date(group.created_at);
       return (
-        <span className="text-sm text-[var(--retro-dark)]/60">
+        <span className="text-sm text-retro-dark/60">
           {date.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',

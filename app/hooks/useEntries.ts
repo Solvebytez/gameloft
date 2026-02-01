@@ -6,9 +6,8 @@ import { AxiosError } from 'axios';
 export interface Entry {
   id: number;
   match_id: number;
-  user_scope: 'all' | 'customer' | 'group';
+  user_scope: 'all' | 'customer';
   user_id: number | null;
-  group_id: number | null;
   customer: string;
   favourite_team: 'team1' | 'team2';
   team1_rate: number | null;
@@ -26,9 +25,8 @@ export interface Entry {
 
 export interface CreateEntryPayload {
   match_id: number;
-  user_scope: 'all' | 'customer' | 'group';
+  user_scope: 'all' | 'customer';
   user_id?: number | null;
-  group_id?: number | null;
   favourite_team: 'team1' | 'team2';
   team1_rate?: number | null;
   team1_amount?: number | null;
@@ -37,6 +35,7 @@ export interface CreateEntryPayload {
 }
 
 export interface UpdateEntryPayload {
+  user_id?: number | null;
   favourite_team?: 'team1' | 'team2';
   team1_rate?: number | null;
   team1_amount?: number | null;
@@ -100,8 +99,13 @@ export function useCreateEntry() {
       throw new Error(response.data.message || 'Failed to create entry');
     },
     onSuccess: (data) => {
-      // Invalidate entries query for the match
-      queryClient.invalidateQueries({ queryKey: ['entries', data.match_id] });
+      // Invalidate entries query for the match (handle both string and number match_id)
+      const matchId = data.match_id;
+      queryClient.invalidateQueries({ queryKey: ['entries', String(matchId)] });
+      queryClient.invalidateQueries({ queryKey: ['entries', matchId] });
+      // Also refetch to ensure immediate update
+      queryClient.refetchQueries({ queryKey: ['entries', String(matchId)] });
+      queryClient.refetchQueries({ queryKey: ['entries', matchId] });
       toast.success('Entry created successfully');
     },
     onError: (error: AxiosError<any>) => {
@@ -135,9 +139,14 @@ export function useUpdateEntry() {
       throw new Error(response.data.message || 'Failed to update entry');
     },
     onSuccess: (data) => {
-      // Invalidate entries query for the match
-      queryClient.invalidateQueries({ queryKey: ['entries', data.match_id] });
+      // Invalidate entries query for the match (handle both string and number match_id)
+      const matchId = data.match_id;
+      queryClient.invalidateQueries({ queryKey: ['entries', String(matchId)] });
+      queryClient.invalidateQueries({ queryKey: ['entries', matchId] });
       queryClient.invalidateQueries({ queryKey: ['entry', data.id] });
+      // Also refetch to ensure immediate update
+      queryClient.refetchQueries({ queryKey: ['entries', String(matchId)] });
+      queryClient.refetchQueries({ queryKey: ['entries', matchId] });
       toast.success('Entry updated successfully');
     },
     onError: (error: AxiosError<any>) => {

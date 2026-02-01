@@ -1,23 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Card from '@/app/components/ui/Card';
 import Input from '@/app/components/ui/Input';
 import Select from '@/app/components/ui/Select';
 import { useMatch, Match } from '@/app/hooks/useMatches';
-
-interface RecentEntry {
-  id: number;
-  customer: string;
-  team1Fav: string;
-  team1Nfav: string;
-  team2Fav: string;
-  team2Nfav: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { useUsers } from '@/app/hooks/useUsers';
+import { useEntries, useCreateEntry, useUpdateEntry, useEntry, Entry } from '@/app/hooks/useEntries';
+import { useGroups } from '@/app/hooks/useGroups';
+import MultiSelect from '@/app/components/ui/MultiSelect';
+import toast from 'react-hot-toast';
 
 export default function MatchDetailPage() {
   const params = useParams();
@@ -26,87 +20,110 @@ export default function MatchDetailPage() {
 
   // Fetch match data from API
   const { data: matchData, isLoading, error } = useMatch(matchId);
+  
+  // Fetch users list (already filtered by current admin in backend)
+  const { data: users = [], isLoading: isLoadingUsers } = useUsers();
 
+  // Fetch groups list
+  const { data: groups = [], isLoading: isLoadingGroups } = useGroups();
+
+  // Fetch entries for this match
+  const { data: entriesData, isLoading: isLoadingEntries } = useEntries(matchId);
+  const allEntries: Entry[] = entriesData?.data || [];
+
+  // Create entry mutation
+  const createEntryMutation = useCreateEntry();
+  const updateEntryMutation = useUpdateEntry();
+
+  // Edit mode state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
+
+  // Fetch entry data when editing
+  const { data: editingEntry, isLoading: isLoadingEntry } = useEntry(editingEntryId);
+
+  // Filter state (for table filtering)
+  const [filterType, setFilterType] = useState<'all' | 'customer' | 'group'>('all');
+  const [filterCustomer, setFilterCustomer] = useState('');
+  const [filterGroup, setFilterGroup] = useState('');
+
+  // Form state
   const [favouriteTeam, setFavouriteTeam] = useState<'team1' | 'team2'>('team1'); // Default to team1
-  const [userScope, setUserScope] = useState<'customer' | 'all'>('all');
-  const [selectedCustomer, setSelectedCustomer] = useState('');
+  const [assignedUsers, setAssignedUsers] = useState<number[]>([]); // Multi-select for "Assign to"
   const [team1Rate, setTeam1Rate] = useState('');
   const [team1Amount, setTeam1Amount] = useState('');
   const [team2Rate, setTeam2Rate] = useState('');
   const [team2Amount, setTeam2Amount] = useState('');
 
-  // Sample recent entries data - In future, this will come from React TanStack Query
-  const recentEntries: RecentEntry[] = [
-    {
-      id: 1,
-      customer: '17',
-      team1Fav: '71/40000',
-      team1Nfav: '0',
-      team2Fav: '0',
-      team2Nfav: '0/0000',
-      createdAt: '2026-01-10 17:09:12',
-      updatedAt: '2026-01-10 17:09:57',
-    },
-    {
-      id: 2,
-      customer: '15',
-      team1Fav: '0/0000',
-      team1Nfav: '0',
-      team2Fav: '0',
-      team2Nfav: '2/500000',
-      createdAt: '2026-01-10 16:28:44',
-      updatedAt: '2026-01-10 16:28:44',
-    },
-    {
-      id: 3,
-      customer: 'PZ',
-      team1Fav: '5/1000000',
-      team1Nfav: '0',
-      team2Fav: '0',
-      team2Nfav: '6.5/50000',
-      createdAt: '2026-01-10 15:20:30',
-      updatedAt: '2026-01-10 15:20:30',
-    },
-    {
-      id: 4,
-      customer: 'JK',
-      team1Fav: '0/0000',
-      team1Nfav: '0',
-      team2Fav: '0',
-      team2Nfav: '3.5/250000',
-      createdAt: '2026-01-10 14:15:22',
-      updatedAt: '2026-01-10 14:15:22',
-    },
-    {
-      id: 5,
-      customer: '27',
-      team1Fav: '0/0000',
-      team1Nfav: '0',
-      team2Fav: '0',
-      team2Nfav: '5.5/200000',
-      createdAt: '2026-01-10 13:10:15',
-      updatedAt: '2026-01-10 13:10:15',
-    },
-    {
-      id: 6,
-      customer: '14',
-      team1Fav: '0/0000',
-      team1Nfav: '0',
-      team2Fav: '0',
-      team2Nfav: '5/500000',
-      createdAt: '2026-01-10 12:05:08',
-      updatedAt: '2026-01-10 12:05:08',
-    },
-  ];
+  // Filter active users and create dropdown options for filter
+  const customerFilterOptions = useMemo(() => {
+    const activeUsers = users.filter((user) => user.status === 'active');
+    const options = [{ value: '', label: '--SELECT--' }];
+    activeUsers.forEach((user) => {
+      options.push({
+        value: String(user.id),
+        label: user.name,
+      });
+    });
+    return options;
+  }, [users]);
 
-  // Sample customer options - In future, this will come from API
-  const customerOptions = [
-    { value: '', label: '--SELECT--' },
-    { value: 'customer1', label: 'Customer 1' },
-    { value: 'customer2', label: 'Customer 2' },
-    { value: 'customer3', label: 'Customer 3' },
-  ];
+  // Group options for filter
+  const groupFilterOptions = useMemo(() => {
+    const options = [{ value: '', label: '--SELECT--' }];
+    groups.forEach((group) => {
+      options.push({
+        value: String(group.id),
+        label: group.name,
+      });
+    });
+    return options;
+  }, [groups]);
 
+  // User options for "Assign to" multi-select
+  const userOptions = useMemo(() => {
+    const activeUsers = users.filter((user) => user.status === 'active');
+    return activeUsers.map((user) => ({
+      value: user.id,
+      label: user.name,
+    }));
+  }, [users]);
+
+  // Filter entries based on selected filter
+  const entries = useMemo(() => {
+    if (filterType === 'all') {
+      return allEntries;
+    } else if (filterType === 'customer' && filterCustomer) {
+      const customerId = parseInt(filterCustomer);
+      return allEntries.filter((entry) => entry.user_id === customerId);
+    } else if (filterType === 'group' && filterGroup) {
+      const groupId = parseInt(filterGroup);
+      const selectedGroup = groups.find((g) => g.id === groupId);
+      if (!selectedGroup) return [];
+      const groupUserIds = selectedGroup.users.map((u) => u.id);
+      return allEntries.filter((entry) => entry.user_id && groupUserIds.includes(entry.user_id));
+    }
+    return allEntries;
+  }, [allEntries, filterType, filterCustomer, filterGroup, groups]);
+
+
+
+  // Populate form when editing entry data is loaded
+  useEffect(() => {
+    if (editingEntry && isEditMode) {
+      setFavouriteTeam(editingEntry.favourite_team);
+      setTeam1Rate(editingEntry.team1_rate ? String(editingEntry.team1_rate) : '');
+      setTeam1Amount(editingEntry.team1_amount ? String(editingEntry.team1_amount) : '');
+      setTeam2Rate(editingEntry.team2_rate ? String(editingEntry.team2_rate) : '');
+      setTeam2Amount(editingEntry.team2_amount ? String(editingEntry.team2_amount) : '');
+      // Set assigned users - if user_id exists, add it to array
+      if (editingEntry.user_id) {
+        setAssignedUsers([editingEntry.user_id]);
+      } else {
+        setAssignedUsers([]);
+      }
+    }
+  }, [editingEntry, isEditMode]);
 
   const handleBack = () => {
     router.back();
@@ -116,19 +133,141 @@ export default function MatchDetailPage() {
     setFavouriteTeam(team);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleEditClick = (entryId: number) => {
+    setEditingEntryId(entryId);
+    setIsEditMode(true);
+    // Scroll to form
+    setTimeout(() => {
+      const formElement = document.querySelector('form');
+      if (formElement) {
+        formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditingEntryId(null);
+    // Reset form
+    setFavouriteTeam('team1');
+    setTeam1Rate('');
+    setTeam1Amount('');
+    setTeam2Rate('');
+    setTeam2Amount('');
+    setAssignedUsers([]);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission - In future, this will use React TanStack Query
-    console.log('Form submitted:', {
-      matchId,
-      favouriteTeam,
-      userScope,
-      selectedCustomer,
-      team1Rate,
-      team1Amount,
-      team2Rate,
-      team2Amount,
-    });
+
+    // Validation: At least one user must be selected
+    if (assignedUsers.length === 0) {
+      toast.error('Please select at least one user to assign entries to');
+      return;
+    }
+
+    // Validation: At least one team must have both rate and amount
+    const hasTeam1Bet = team1Rate.trim() !== '' && team1Amount.trim() !== '';
+    const hasTeam2Bet = team2Rate.trim() !== '' && team2Amount.trim() !== '';
+
+    if (!hasTeam1Bet && !hasTeam2Bet) {
+      toast.error('At least one team must have both rate and amount');
+      return;
+    }
+
+    // Validate numeric values
+    const team1RateNum = team1Rate.trim() ? parseFloat(team1Rate) : null;
+    const team1AmountNum = team1Amount.trim() ? parseFloat(team1Amount) : null;
+    const team2RateNum = team2Rate.trim() ? parseFloat(team2Rate) : null;
+    const team2AmountNum = team2Amount.trim() ? parseFloat(team2Amount) : null;
+
+    if (hasTeam1Bet && (isNaN(team1RateNum!) || isNaN(team1AmountNum!) || team1RateNum! < 0 || team1AmountNum! < 0)) {
+      toast.error('Team 1 rate and amount must be valid positive numbers');
+      return;
+    }
+
+    if (hasTeam2Bet && (isNaN(team2RateNum!) || isNaN(team2AmountNum!) || team2RateNum! < 0 || team2AmountNum! < 0)) {
+      toast.error('Team 2 rate and amount must be valid positive numbers');
+      return;
+    }
+
+    if (!matchId) {
+      toast.error('Match ID is missing');
+      return;
+    }
+
+    try {
+      if (isEditMode && editingEntryId) {
+        // Update existing entry
+        if (assignedUsers.length !== 1) {
+          toast.error('Please select exactly one user when editing an entry');
+          return;
+        }
+
+        const updatePayload = {
+          user_id: assignedUsers[0],
+          favourite_team: favouriteTeam,
+          team1_rate: team1RateNum,
+          team1_amount: team1AmountNum,
+          team2_rate: team2RateNum,
+          team2_amount: team2AmountNum,
+        };
+
+        await updateEntryMutation.mutateAsync({
+          id: editingEntryId,
+          payload: updatePayload,
+        });
+        
+        // Reset form and exit edit mode
+        handleCancelEdit();
+      } else {
+        // Create entry for each selected user
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const userId of assignedUsers) {
+          try {
+            const payload = {
+              match_id: parseInt(matchId),
+              user_scope: 'customer' as const,
+              user_id: userId,
+              favourite_team: favouriteTeam,
+              team1_rate: team1RateNum,
+              team1_amount: team1AmountNum,
+              team2_rate: team2RateNum,
+              team2_amount: team2AmountNum,
+            };
+
+            await createEntryMutation.mutateAsync(payload);
+            successCount++;
+          } catch (error) {
+            errorCount++;
+            const user = users.find((u) => u.id === userId);
+            console.error(`Failed to create entry for user ${user?.name || userId}:`, error);
+          }
+        }
+
+        // Show summary message
+        if (successCount > 0 && errorCount === 0) {
+          toast.success(`Entries created successfully for ${successCount} user(s)`);
+        } else if (successCount > 0 && errorCount > 0) {
+          toast.success(`Entries created for ${successCount} user(s), ${errorCount} failed`);
+        } else {
+          toast.error(`Failed to create entries for all selected users`);
+        }
+
+        // Reset form after successful submission
+        setTeam1Rate('');
+        setTeam1Amount('');
+        setTeam2Rate('');
+        setTeam2Amount('');
+        setAssignedUsers([]);
+        setFavouriteTeam('team1');
+      }
+    } catch (error) {
+      // Error is already handled by the mutation's onError callback
+      console.error('Failed to save entry:', error);
+    }
   };
 
   if (isLoading) {
@@ -157,6 +296,7 @@ export default function MatchDetailPage() {
 
   return (
     <div className="space-y-6">
+      {/* Top Row: Back Button */}
       <div className="flex items-center gap-4">
         <button
           onClick={handleBack}
@@ -184,8 +324,15 @@ export default function MatchDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[30%_70%] gap-6">
         {/* Entry Window Card - Left Side */}
         <Card>
-          <h1 className="text-2xl font-bold text-foreground mb-6">Entry Window</h1>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold text-foreground">
+              {isEditMode ? 'Edit Entry' : 'Entry Window'}
+            </h1>
+            {isLoadingEntry && (
+              <span className="text-sm text-retro-dark">Loading entry data...</span>
+            )}
+          </div>
+          <form onSubmit={handleSubmit} className="space-y-6" style={{ opacity: isLoadingEntry ? 0.6 : 1 }}>
           {/* Team Selection Cards - Teams stay in fixed positions, only colors switch */}
           <div className="grid grid-cols-2 gap-4">
             {/* Team 1 Card - Green if favourite, Red if not */}
@@ -263,49 +410,23 @@ export default function MatchDetailPage() {
             </button>
           </div>
 
-          {/* User Scope Selection */}
-          <div className="space-y-3">
-            <label className="block text-sm font-semibold text-retro-dark uppercase mb-2">
-              User Scope
-            </label>
-            <div className="flex gap-6">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="userScope"
-                  value="customer"
-                  checked={userScope === 'customer'}
-                  onChange={(e) => setUserScope(e.target.value as 'customer' | 'all')}
-                  className="w-5 h-5 text-blue-600 border-2 border-retro-dark focus:ring-2 focus:ring-retro-accent"
-                />
-                <span className="text-retro-dark font-semibold">Customer Wise</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="userScope"
-                  value="all"
-                  checked={userScope === 'all'}
-                  onChange={(e) => setUserScope(e.target.value as 'customer' | 'all')}
-                  className="w-5 h-5 text-blue-600 border-2 border-retro-dark focus:ring-2 focus:ring-retro-accent"
-                />
-                <span className="text-retro-dark font-semibold">All User</span>
-              </label>
-            </div>
+          {/* Assign to Section */}
+          <div>
+            <MultiSelect
+              label="Assign to"
+              options={userOptions}
+              selectedValues={assignedUsers}
+              onChange={(values) => setAssignedUsers(values as number[])}
+              placeholder="Search and select users..."
+              error={assignedUsers.length === 0 ? undefined : undefined}
+            />
+            {isLoadingUsers && (
+              <p className="text-sm text-retro-dark mt-1">Loading users...</p>
+            )}
+            {!isLoadingUsers && userOptions.length === 0 && (
+              <p className="text-sm text-red-600 mt-1">No active users found</p>
+            )}
           </div>
-
-          {/* Customer Dropdown - Only show when Customer Wise is selected */}
-          {userScope === 'customer' && (
-            <div>
-              <Select
-                label="CUSTOMER"
-                options={customerOptions}
-                value={selectedCustomer}
-                onChange={(e) => setSelectedCustomer(e.target.value)}
-                className="w-full"
-              />
-            </div>
-          )}
 
           {/* Rate and Amount Inputs - Two Columns (One per Team) */}
           <div className="space-y-4">
@@ -390,13 +511,28 @@ export default function MatchDetailPage() {
             </div>
           </div>
 
-          {/* Submit Button */}
-          <div className="flex justify-center pt-4">
+          {/* Submit and Cancel Buttons */}
+          <div className="flex justify-center gap-4 pt-4">
+            {isEditMode && (
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="px-8 py-3 bg-gray-500 text-white font-bold text-lg rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+            )}
             <button
               type="submit"
-              className="px-8 py-3 bg-blue-500 text-white font-bold text-lg rounded-lg hover:bg-blue-600 transition-colors"
+              disabled={createEntryMutation.isPending || updateEntryMutation.isPending || isLoadingEntry}
+              className="px-8 py-3 bg-blue-500 text-white font-bold text-lg rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Submit
+              {isLoadingEntry 
+                ? 'Loading...' 
+                : createEntryMutation.isPending || updateEntryMutation.isPending
+                ? (isEditMode ? 'Updating...' : 'Submitting...')
+                : (isEditMode ? 'Update Entry' : 'Submit')
+              }
             </button>
           </div>
           </form>
@@ -404,81 +540,192 @@ export default function MatchDetailPage() {
 
         {/* Recent Entries Card - Right Side */}
         <Card>
-          <h2 className="text-2xl font-bold text-foreground mb-6">Recent Entries</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b-2 border-retro-dark">
-                  <th className="px-4 py-3 text-left font-bold text-retro-dark">Customer</th>
-                  <th className="px-4 py-3 text-center font-bold text-retro-dark border-l-2 border-retro-dark" colSpan={2}>
-                    {matchData.team1.name}
-                  </th>
-                  <th className="px-4 py-3 text-center font-bold text-retro-dark border-l-2 border-retro-dark" colSpan={2}>
-                    {matchData.team2.name}
-                  </th>
-                  <th className="px-4 py-3 text-center font-bold text-retro-dark border-l-2 border-retro-dark">Action</th>
-                  <th className="px-4 py-3 text-center font-bold text-retro-dark border-l-2 border-retro-dark">Created at</th>
-                  <th className="px-4 py-3 text-center font-bold text-retro-dark border-l-2 border-retro-dark">Updated at</th>
-                </tr>
-                <tr className="border-b-2 border-retro-dark">
-                  <th></th>
-                  <th className="px-4 py-2 text-center font-semibold text-retro-dark border-l-2 border-retro-dark">Fav.</th>
-                  <th className="px-4 py-2 text-center font-semibold text-retro-dark">NFav.</th>
-                  <th className="px-4 py-2 text-center font-semibold text-retro-dark border-l-2 border-retro-dark">Fav.</th>
-                  <th className="px-4 py-2 text-center font-semibold text-retro-dark">NFav.</th>
-                  <th className="px-4 py-2 text-center font-semibold text-retro-dark border-l-2 border-retro-dark"></th>
-                  <th className="px-4 py-2 text-center font-semibold text-retro-dark border-l-2 border-retro-dark"></th>
-                  <th className="px-4 py-2 text-center font-semibold text-retro-dark border-l-2 border-retro-dark"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentEntries.map((entry) => (
-                  <tr key={entry.id} className="border-b border-retro-dark/20 hover:bg-retro-cream/50">
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-500 text-white font-bold text-sm">
-                        {entry.customer}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center border-l-2 border-retro-dark">
-                      <span className="inline-block px-3 py-1 bg-green-500 text-white font-semibold text-sm rounded">
-                        {entry.team1Fav}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-500 text-white font-semibold text-sm">
-                        {entry.team1Nfav}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center border-l-2 border-retro-dark">
-                      <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-500 text-white font-semibold text-sm">
-                        {entry.team2Fav}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="inline-block px-3 py-1 bg-red-500 text-white font-semibold text-sm rounded">
-                        {entry.team2Nfav}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center border-l-2 border-retro-dark">
-                      <button className="px-4 py-2 bg-blue-500 text-white font-semibold text-sm rounded hover:bg-blue-600 transition-colors">
-                        Edit
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-center border-l-2 border-retro-dark">
-                      <span className="inline-block px-3 py-1 bg-gray-400 text-white font-semibold text-sm rounded">
-                        {entry.createdAt}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center border-l-2 border-retro-dark">
-                      <span className="inline-block px-3 py-1 bg-gray-400 text-white font-semibold text-sm rounded">
-                        {entry.updatedAt}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+            <h2 className="text-2xl font-bold text-foreground">Recent Entries</h2>
+            
+            {/* Filter Section - Aligned with table */}
+            <div className="flex items-center gap-4 flex-wrap bg-[var(--muted)] px-4 py-2 rounded-lg border border-[var(--retro-dark)]">
+              <label className="text-sm font-semibold text-retro-dark">Filter:</label>
+              
+              {/* All User Filter */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="filterType"
+                  value="all"
+                  checked={filterType === 'all'}
+                  onChange={(e) => {
+                    setFilterType('all');
+                    setFilterCustomer('');
+                    setFilterGroup('');
+                  }}
+                  className="w-4 h-4 text-blue-600 border-2 border-retro-dark focus:ring-2 focus:ring-retro-accent"
+                />
+                <span className="text-retro-dark font-semibold text-sm">All User</span>
+              </label>
+
+              {/* Customer Wise Filter */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="filterType"
+                  value="customer"
+                  checked={filterType === 'customer'}
+                  onChange={(e) => {
+                    setFilterType('customer');
+                    setFilterGroup('');
+                  }}
+                  className="w-4 h-4 text-blue-600 border-2 border-retro-dark focus:ring-2 focus:ring-retro-accent"
+                />
+                <span className="text-retro-dark font-semibold text-sm">Customer Wise</span>
+              </label>
+              {filterType === 'customer' && (
+                <Select
+                  options={customerFilterOptions}
+                  value={filterCustomer}
+                  onChange={(e) => setFilterCustomer(e.target.value)}
+                  className="w-48 !py-1 !text-xs !font-normal"
+                  disabled={isLoadingUsers}
+                />
+              )}
+
+              {/* Group By Filter */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="filterType"
+                  value="group"
+                  checked={filterType === 'group'}
+                  onChange={(e) => {
+                    setFilterType('group');
+                    setFilterCustomer('');
+                  }}
+                  className="w-4 h-4 text-blue-600 border-2 border-retro-dark focus:ring-2 focus:ring-retro-accent"
+                />
+                <span className="text-retro-dark font-semibold text-sm">Group By</span>
+              </label>
+              {filterType === 'group' && (
+                <Select
+                  options={groupFilterOptions}
+                  value={filterGroup}
+                  onChange={(e) => setFilterGroup(e.target.value)}
+                  className="w-48 !py-1 !text-xs !font-normal"
+                  disabled={isLoadingGroups}
+                />
+              )}
+            </div>
           </div>
+          {isLoadingEntries ? (
+            <div className="flex items-center justify-center py-8">
+              <p className="text-retro-dark">Loading entries...</p>
+            </div>
+          ) : entries.length === 0 ? (
+            <div className="flex items-center justify-center py-8">
+              <p className="text-retro-dark">No entries found. Create your first entry above.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-t-2 border-b-2 border-retro-dark">
+                    <th className="px-4 py-3 text-left font-bold text-retro-dark">Customer</th>
+                    <th className="px-4 py-3 text-center font-bold text-retro-dark border-l-2 border-retro-dark" colSpan={2}>
+                      {matchData.team1.name}
+                    </th>
+                    <th className="px-4 py-3 text-center font-bold text-retro-dark border-l-2 border-retro-dark" colSpan={2}>
+                      {matchData.team2.name}
+                    </th>
+                    <th className="px-4 py-3 text-center font-bold text-retro-dark border-l-2 border-retro-dark">Action</th>
+                    <th className="px-4 py-3 text-center font-bold text-retro-dark border-l-2 border-retro-dark">Created at</th>
+                    <th className="px-4 py-3 text-center font-bold text-retro-dark border-l-2 border-retro-dark">Updated at</th>
+                  </tr>
+                  <tr className="border-b-2 border-retro-dark">
+                    <th></th>
+                    <th className="px-4 py-2 text-center font-semibold text-retro-dark border-l-2 border-retro-dark">Fav.</th>
+                    <th className="px-4 py-2 text-center font-semibold text-retro-dark">NFav.</th>
+                    <th className="px-4 py-2 text-center font-semibold text-retro-dark border-l-2 border-retro-dark">Fav.</th>
+                    <th className="px-4 py-2 text-center font-semibold text-retro-dark">NFav.</th>
+                    <th className="px-4 py-2 text-center font-semibold text-retro-dark border-l-2 border-retro-dark"></th>
+                    <th className="px-4 py-2 text-center font-semibold text-retro-dark border-l-2 border-retro-dark"></th>
+                    <th className="px-4 py-2 text-center font-semibold text-retro-dark border-l-2 border-retro-dark"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.map((entry) => (
+                    <tr key={entry.id} className="border-b border-retro-dark/20 hover:bg-retro-cream/50">
+                      <td className="px-4 py-3">
+                        <span className="inline-block px-3 py-1 bg-blue-500 text-white font-semibold text-sm rounded">
+                          {entry.customer ? entry.customer.split(' ')[0] : 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center border-l-2 border-retro-dark">
+                        {entry.team1Fav && entry.team1Fav !== '0' && entry.team1Fav !== '0/0000' ? (
+                          <span className="inline-block px-3 py-1 bg-green-500 text-white font-semibold text-sm rounded">
+                            {entry.team1Fav}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-500 text-white font-semibold text-sm">
+                            0
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {entry.team1Nfav && entry.team1Nfav !== '0' && entry.team1Nfav !== '0/0000' ? (
+                          <span className="inline-block px-3 py-1 bg-red-500 text-white font-semibold text-sm rounded">
+                            {entry.team1Nfav}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-500 text-white font-semibold text-sm">
+                            0
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center border-l-2 border-retro-dark">
+                        {entry.team2Fav && entry.team2Fav !== '0' && entry.team2Fav !== '0/0000' ? (
+                          <span className="inline-block px-3 py-1 bg-green-500 text-white font-semibold text-sm rounded">
+                            {entry.team2Fav}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-500 text-white font-semibold text-sm">
+                            0
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {entry.team2Nfav && entry.team2Nfav !== '0' && entry.team2Nfav !== '0/0000' ? (
+                          <span className="inline-block px-3 py-1 bg-red-500 text-white font-semibold text-sm rounded">
+                            {entry.team2Nfav}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-500 text-white font-semibold text-sm">
+                            0
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center border-l-2 border-retro-dark">
+                        <button 
+                          onClick={() => handleEditClick(entry.id)}
+                          className="px-4 py-2 bg-blue-500 text-white font-semibold text-sm rounded hover:bg-blue-600 transition-colors"
+                        >
+                          Edit
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 text-center border-l-2 border-retro-dark">
+                        <span className="inline-block px-3 py-1 bg-gray-400 text-white font-semibold text-sm rounded">
+                          {entry.created_at}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center border-l-2 border-retro-dark">
+                        <span className="inline-block px-3 py-1 bg-gray-400 text-white font-semibold text-sm rounded">
+                          {entry.updated_at}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
       </div>
     </div>

@@ -7,7 +7,7 @@ import Select from '@/app/components/ui/Select';
 import DatePicker from '@/app/components/ui/DatePicker';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
 import { useTeams } from '@/app/hooks/useTeams';
-import { useMatches, useCreateMatch, Match } from '@/app/hooks/useMatches';
+import { useMatches, useCreateMatch } from '@/app/hooks/useMatches';
 
 export default function CreateMatchPage() {
   const [formData, setFormData] = useState({
@@ -212,7 +212,7 @@ export default function CreateMatchPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-[var(--foreground)]">CREATE MATCH</h1>
+        <h1 className="text-3xl font-bold text-foreground">CREATE MATCH</h1>
       </div>
       <Card>
         <form className="space-y-6">
@@ -329,7 +329,7 @@ export default function CreateMatchPage() {
       </Card>
 
       {/* DataTable below the form */}
-      <h2 className="text-2xl font-bold text-[var(--foreground)] mt-8">MATCH SUMMARY</h2>
+      <h2 className="text-2xl font-bold text-foreground mt-8">MATCH SUMMARY</h2>
       <Card height="600px">
         {matchesLoading ? (
           <div className="flex items-center justify-center h-full">

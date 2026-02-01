@@ -72,27 +72,27 @@ export default function CreateTeamPage() {
       const fileType = file.type.toLowerCase();
       
       if (validImageTypes.includes(fileType)) {
-        // Clean up previous preview URL
-        if (imagePreview) {
-          URL.revokeObjectURL(imagePreview);
-        }
+      // Clean up previous preview URL
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
         if (imageForCrop) {
           URL.revokeObjectURL(imageForCrop);
         }
         
         // Store original file and show crop modal
         setOriginalFile(file);
-        const previewUrl = URL.createObjectURL(file);
+      const previewUrl = URL.createObjectURL(file);
         setImageForCrop(previewUrl);
         setShowCropModal(true);
-        
-        // Clear error
-        if (errors.teamLogo) {
-          setErrors((prev) => {
-            const newErrors = { ...prev };
-            delete newErrors.teamLogo;
-            return newErrors;
-          });
+      
+      // Clear error
+      if (errors.teamLogo) {
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors.teamLogo;
+          return newErrors;
+        });
         }
       } else {
         toast.error('Please upload a JPEG, JPG, or PNG image', { duration: 3000 });
@@ -196,8 +196,8 @@ export default function CreateTeamPage() {
         // If it's null, user wants to keep the existing logo
         if (formData.teamLogo && formData.teamLogo instanceof File) {
           updatePayload.logo = formData.teamLogo;
-        }
-        
+    }
+
         // Only call update if there are changes
         if (updatePayload.name || updatePayload.logo) {
           await updateTeamMutation.mutateAsync({
@@ -215,7 +215,7 @@ export default function CreateTeamPage() {
         });
       }
 
-      // Reset form after successful save
+    // Reset form after successful save
       handleCancelEdit();
     } catch (error) {
       // Error is already handled by the mutation's onError callback
@@ -385,11 +385,11 @@ export default function CreateTeamPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-[var(--foreground)]">
+        <h1 className="text-3xl font-bold text-foreground">
           {isEditMode ? 'EDIT TEAM' : 'CREATE TEAM'}
         </h1>
         {isEditMode && editingTeam && (
-          <p className="text-sm text-[var(--retro-dark)]/60 mt-1">
+          <p className="text-sm text-retro-dark/60 mt-1">
             Editing: {editingTeam.name}
           </p>
         )}
@@ -459,13 +459,13 @@ export default function CreateTeamPage() {
                   : 'Save'}
               </button>
               {isEditMode && (
-                <button
-                  type="button"
+              <button
+                type="button"
                   onClick={handleCancelEdit}
                   className="px-6 py-3 bg-gray-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity h-[60px]"
-                >
+              >
                   Cancel
-                </button>
+              </button>
               )}
             </div>
           </div>
@@ -477,24 +477,24 @@ export default function CreateTeamPage() {
         <div className="p-4">
           {isLoading ? (
             <div className="text-center py-8">
-              <p className="text-[var(--retro-dark)]/60">Loading teams...</p>
+              <p className="text-retro-dark/60">Loading teams...</p>
             </div>
           ) : error ? (
             <div className="text-center py-8">
               <p className="text-red-600">Error loading teams: {error instanceof Error ? error.message : 'Unknown error'}</p>
             </div>
           ) : (
-            <DataTable
-              title="TEAM SUMMARY"
+          <DataTable
+            title="TEAM SUMMARY"
               data={transformedTeams}
-              columns={columns}
-              onEdit={handleEditTeam}
-              onDelete={handleDeleteTeam}
+            columns={columns}
+            onEdit={handleEditTeam}
+            onDelete={handleDeleteTeam}
               onStatusChange={handleStatusChange}
-              onRowSelect={handleRowSelect}
-              entriesPerPageOptions={[10, 25, 50, 100]}
-              defaultEntriesPerPage={100}
-            />
+            onRowSelect={handleRowSelect}
+            entriesPerPageOptions={[10, 25, 50, 100]}
+            defaultEntriesPerPage={100}
+          />
           )}
         </div>
       </Card>

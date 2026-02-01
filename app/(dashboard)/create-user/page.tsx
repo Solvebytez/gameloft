@@ -420,8 +420,8 @@ export default function CreateUserPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-[var(--foreground)]">Users</h1>
-        <p className="text-sm text-[var(--retro-dark)]/60 mt-1">{isEditMode ? 'Edit' : 'Create'}</p>
+        <h1 className="text-3xl font-bold text-foreground">Users</h1>
+        <p className="text-sm text-retro-dark/60 mt-1">{isEditMode ? 'Edit' : 'Create'}</p>
       </div>
       <Card>
         <form className="space-y-6">
@@ -528,7 +528,7 @@ export default function CreateUserPage() {
         <div className="p-4">
           {isLoading ? (
             <div className="text-center py-8">
-              <p className="text-[var(--retro-dark)]/60">Loading users...</p>
+              <p className="text-retro-dark/60">Loading users...</p>
             </div>
           ) : error ? (
             <div className="text-center py-8">

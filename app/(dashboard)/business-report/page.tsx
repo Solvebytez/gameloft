@@ -145,7 +145,7 @@ export default function BusinessReportPage() {
   }
 
   // Sample data - In future, this will come from React TanStack Query
-  const [matchSummaryData, setMatchSummaryData] = useState<MatchSummaryRow[]>([
+  const [matchSummaryData] = useState<MatchSummaryRow[]>([
     {
       srNo: 1337,
       custName: '7',
@@ -433,7 +433,7 @@ export default function BusinessReportPage() {
       key: 'custNetWithComm',
       label: 'Cust net with comm',
       sortable: true,
-      render: (value, row) => {
+      render: (value) => {
         const isPositive = value >= 0;
         const bgColor = isPositive ? 'bg-green-100' : value < 0 ? 'bg-red-100' : '';
         return (
@@ -447,7 +447,7 @@ export default function BusinessReportPage() {
       key: 'netProfitLoss',
       label: 'Net Profit/Loss',
       sortable: true,
-      render: (value, row) => {
+      render: (value) => {
         const isPositive = value >= 0;
         const bgColor = isPositive ? 'bg-green-100' : value < 0 ? 'bg-red-100' : '';
         return (
@@ -462,7 +462,7 @@ export default function BusinessReportPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-[var(--foreground)]">BUSINESS REPORT</h1>
+        <h1 className="text-3xl font-bold text-foreground">BUSINESS REPORT</h1>
       </div>
       <Card>
         <form className="space-y-6">
