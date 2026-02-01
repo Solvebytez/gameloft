@@ -45,12 +45,21 @@ const MultiSelect = forwardRef<HTMLDivElement, MultiSelectProps>(({
     option.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Reset highlighted index when filtered options change
+  // Reset highlighted index when filtered options change - use ref to track previous length
+  const prevFilteredLengthRef = useRef(filteredOptions.length);
+  
   useEffect(() => {
-    if (filteredOptions.length > 0) {
-      setHighlightedIndex(0);
+    // Only reset if filtered options length changed and current index is out of bounds
+    if (filteredOptions.length > 0 && 
+        prevFilteredLengthRef.current !== filteredOptions.length &&
+        highlightedIndex >= filteredOptions.length) {
+      // Use setTimeout to avoid synchronous setState in effect
+      setTimeout(() => {
+        setHighlightedIndex(0);
+      }, 0);
     }
-  }, [filteredOptions.length]);
+    prevFilteredLengthRef.current = filteredOptions.length;
+  }, [filteredOptions.length, highlightedIndex]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -103,7 +112,7 @@ const MultiSelect = forwardRef<HTMLDivElement, MultiSelectProps>(({
     }
   }, [isOpen]);
 
-  const toggleOption = (value: string | number, e?: React.MouseEvent | React.ChangeEvent<HTMLInputElement>) => {
+  const toggleOption = (value: string | number, e?: React.MouseEvent | React.ChangeEvent<HTMLInputElement> | React.KeyboardEvent<HTMLElement>) => {
     if (e) {
       e.stopPropagation();
       if ('preventDefault' in e) {
@@ -208,7 +217,7 @@ const MultiSelect = forwardRef<HTMLDivElement, MultiSelectProps>(({
                       const isAlreadySelected = selectedValues.includes(selectedOption.value);
                       // Only toggle if not already selected
                       if (!isAlreadySelected) {
-                        toggleOption(selectedOption.value, e as any);
+                        toggleOption(selectedOption.value, e);
                       }
                     }
                     
@@ -289,7 +298,7 @@ const MultiSelect = forwardRef<HTMLDivElement, MultiSelectProps>(({
                   const isAlreadySelected = selectedValues.includes(selectedOption.value);
                   // Only toggle if not already selected
                   if (!isAlreadySelected) {
-                    toggleOption(selectedOption.value, e as any);
+                    toggleOption(selectedOption.value, e);
                   }
                   setIsOpen(false);
                   setSearchTerm('');
