@@ -9,8 +9,6 @@ import Select from '@/app/components/ui/Select';
 import { useMatch, Match } from '@/app/hooks/useMatches';
 import { useUsers } from '@/app/hooks/useUsers';
 import { useEntries, useCreateEntry, useUpdateEntry, useEntry, Entry } from '@/app/hooks/useEntries';
-import { useGroups } from '@/app/hooks/useGroups';
-import MultiSelect from '@/app/components/ui/MultiSelect';
 import toast from 'react-hot-toast';
 
 export default function MatchDetailPage() {
@@ -24,8 +22,6 @@ export default function MatchDetailPage() {
   // Fetch users list (already filtered by current admin in backend)
   const { data: users = [], isLoading: isLoadingUsers } = useUsers();
 
-  // Fetch groups list
-  const { data: groups = [], isLoading: isLoadingGroups } = useGroups();
 
   // Fetch entries for this match
   const { data: entriesData, isLoading: isLoadingEntries } = useEntries(matchId || undefined);
@@ -43,13 +39,12 @@ export default function MatchDetailPage() {
   const { data: editingEntry, isLoading: isLoadingEntry } = useEntry(editingEntryId || undefined);
 
   // Filter state (for table filtering)
-  const [filterType, setFilterType] = useState<'all' | 'customer' | 'group'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'customer'>('all');
   const [filterCustomer, setFilterCustomer] = useState('');
-  const [filterGroup, setFilterGroup] = useState('');
 
   // Form state
   const [favouriteTeam, setFavouriteTeam] = useState<'team1' | 'team2'>('team1'); // Default to team1
-  const [assignedUsers, setAssignedUsers] = useState<number[]>([]); // Multi-select for "Assign to"
+  const [assignedUser, setAssignedUser] = useState<number | ''>(''); // Single-select for "Assign to"
   const [team1Rate, setTeam1Rate] = useState('');
   const [team1Amount, setTeam1Amount] = useState('');
   const [team2Rate, setTeam2Rate] = useState('');
@@ -60,7 +55,6 @@ export default function MatchDetailPage() {
   const team1AmountRef = useRef<HTMLInputElement>(null);
   const team2RateRef = useRef<HTMLInputElement>(null);
   const team2AmountRef = useRef<HTMLInputElement>(null);
-  const multiSelectInputRef = useRef<HTMLInputElement>(null);
 
   // Filter active users and create dropdown options for filter
   const customerFilterOptions = useMemo(() => {
@@ -75,19 +69,8 @@ export default function MatchDetailPage() {
     return options;
   }, [users]);
 
-  // Group options for filter
-  const groupFilterOptions = useMemo(() => {
-    const options = [{ value: '', label: '--SELECT--' }];
-    groups.forEach((group) => {
-      options.push({
-        value: String(group.id),
-        label: group.name,
-      });
-    });
-    return options;
-  }, [groups]);
 
-  // User options for "Assign to" multi-select
+  // User options for "Assign to" select
   const userOptions = useMemo(() => {
     const activeUsers = users.filter((user) => user.status === 'active');
     return activeUsers.map((user) => ({
@@ -103,15 +86,9 @@ export default function MatchDetailPage() {
     } else if (filterType === 'customer' && filterCustomer) {
       const customerId = parseInt(filterCustomer);
       return allEntries.filter((entry) => entry.user_id === customerId);
-    } else if (filterType === 'group' && filterGroup) {
-      const groupId = parseInt(filterGroup);
-      const selectedGroup = groups.find((g) => g.id === groupId);
-      if (!selectedGroup) return [];
-      const groupUserIds = selectedGroup.users.map((u) => u.id);
-      return allEntries.filter((entry) => entry.user_id && groupUserIds.includes(entry.user_id));
     }
     return allEntries;
-  }, [allEntries, filterType, filterCustomer, filterGroup, groups]);
+  }, [allEntries, filterType, filterCustomer]);
 
 
 
@@ -123,11 +100,11 @@ export default function MatchDetailPage() {
       setTeam1Amount(editingEntry.team1_amount ? String(editingEntry.team1_amount) : '');
       setTeam2Rate(editingEntry.team2_rate ? String(editingEntry.team2_rate) : '');
       setTeam2Amount(editingEntry.team2_amount ? String(editingEntry.team2_amount) : '');
-      // Set assigned users - if user_id exists, add it to array
+      // Set assigned user - if user_id exists, set it
       if (editingEntry.user_id) {
-        setAssignedUsers([editingEntry.user_id]);
+        setAssignedUser(editingEntry.user_id);
       } else {
-        setAssignedUsers([]);
+        setAssignedUser('');
       }
     }
   }, [editingEntry, isEditMode]);
@@ -170,76 +147,78 @@ export default function MatchDetailPage() {
       e.preventDefault();
       e.stopPropagation();
       
-      // Define the order of fields
-      const fieldOrder = ['team1Rate', 'team1Amount', 'team2Rate', 'team2Amount'];
-      const currentIndex = fieldOrder.indexOf(currentField);
-      
-      if (currentIndex < fieldOrder.length - 1) {
-        // Move to next field
-        const nextField = fieldOrder[currentIndex + 1];
-        
-        // Use requestAnimationFrame to ensure DOM is ready
+      // team1Rate → team1Amount (same team)
+      if (currentField === 'team1Rate') {
         requestAnimationFrame(() => {
-          switch (nextField) {
-            case 'team1Rate':
-              team1RateRef.current?.focus();
-              team1RateRef.current?.select();
-              break;
-            case 'team1Amount':
-              team1AmountRef.current?.focus();
-              team1AmountRef.current?.select();
-              break;
-            case 'team2Rate':
-              team2RateRef.current?.focus();
-              team2RateRef.current?.select();
-              break;
-            case 'team2Amount':
-              team2AmountRef.current?.focus();
-              team2AmountRef.current?.select();
-              break;
-          }
+          team1AmountRef.current?.focus();
+          team1AmountRef.current?.select();
         });
-      } else {
-        // Last field - submit the form
+        return;
+      }
+      
+      // team1Amount → check if both team1 fields are empty, if yes go to team2Rate, else submit
+      if (currentField === 'team1Amount') {
+        const isTeam1Empty = team1Rate.trim() === '' && team1Amount.trim() === '';
+        if (isTeam1Empty) {
+          // Both empty, move to team2Rate
+          requestAnimationFrame(() => {
+            team2RateRef.current?.focus();
+            team2RateRef.current?.select();
+          });
+        } else {
+          // Has value, submit form
+          const form = e.currentTarget.closest('form');
+          if (form) {
+            form.requestSubmit();
+          }
+        }
+        return;
+      }
+      
+      // team2Rate → team2Amount (same team)
+      if (currentField === 'team2Rate') {
+        requestAnimationFrame(() => {
+          team2AmountRef.current?.focus();
+          team2AmountRef.current?.select();
+        });
+        return;
+      }
+      
+      // team2Amount → always submit
+      if (currentField === 'team2Amount') {
         const form = e.currentTarget.closest('form');
         if (form) {
           form.requestSubmit();
         }
+        return;
       }
     }
   };
 
-  // Handle Enter key in MultiSelect to open dropdown or move to first rate input
-  const handleMultiSelectEnter = () => {
-    // If dropdown is not open, open it first
-    if (multiSelectInputRef.current) {
-      // Trigger focus and click to open dropdown
-      multiSelectInputRef.current.focus();
-      // Dispatch a click event to open the dropdown
-      const clickEvent = new MouseEvent('mousedown', {
-        bubbles: true,
-        cancelable: true,
-      });
-      multiSelectInputRef.current.dispatchEvent(clickEvent);
+
+  // Format date to "10 JAN, 26 14:30" format
+  const formatDate = (dateString: string | null | undefined): string => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      const day = date.getDate();
+      const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      const month = monthNames[date.getMonth()];
+      const year = date.getFullYear().toString().slice(-2);
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${day} ${month}, ${year} ${hours}:${minutes}`;
+    } catch (error) {
+      return dateString;
     }
   };
-
-  // Focus MultiSelect input when page loads or form is ready
-  useEffect(() => {
-    if (!isEditMode && !isLoadingEntry && matchData) {
-      const timer = setTimeout(() => {
-        multiSelectInputRef.current?.focus();
-      }, 200);
-      return () => clearTimeout(timer);
-    }
-  }, [isEditMode, isLoadingEntry, matchData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation: At least one user must be selected
-    if (assignedUsers.length === 0) {
-      toast.error('Please select at least one user to assign entries to');
+    // Validation: A user must be selected
+    if (!assignedUser || assignedUser === '') {
+      toast.error('Please select a user to assign entry to');
       return;
     }
 
@@ -276,13 +255,8 @@ export default function MatchDetailPage() {
     try {
       if (isEditMode && editingEntryId) {
         // Update existing entry
-        if (assignedUsers.length !== 1) {
-          toast.error('Please select exactly one user when editing an entry');
-          return;
-        }
-
         const updatePayload = {
-          user_id: assignedUsers[0],
+          user_id: assignedUser as number,
           favourite_team: favouriteTeam,
           team1_rate: team1RateNum,
           team1_amount: team1AmountNum,
@@ -298,47 +272,26 @@ export default function MatchDetailPage() {
         // Reset form and exit edit mode
         handleCancelEdit();
       } else {
-        // Create entry for each selected user
-        let successCount = 0;
-        let errorCount = 0;
+        // Create entry for selected user
+        const payload = {
+          match_id: parseInt(matchId),
+          user_scope: 'customer' as const,
+          user_id: assignedUser as number,
+          favourite_team: favouriteTeam,
+          team1_rate: team1RateNum,
+          team1_amount: team1AmountNum,
+          team2_rate: team2RateNum,
+          team2_amount: team2AmountNum,
+        };
 
-        for (const userId of assignedUsers) {
-          try {
-            const payload = {
-              match_id: parseInt(matchId),
-              user_scope: 'customer' as const,
-              user_id: userId,
-              favourite_team: favouriteTeam,
-              team1_rate: team1RateNum,
-              team1_amount: team1AmountNum,
-              team2_rate: team2RateNum,
-              team2_amount: team2AmountNum,
-            };
-
-            await createEntryMutation.mutateAsync(payload);
-            successCount++;
-          } catch (error) {
-            errorCount++;
-            const user = users.find((u) => u.id === userId);
-            console.error(`Failed to create entry for user ${user?.name || userId}:`, error);
-          }
-        }
-
-        // Show summary message
-        if (successCount > 0 && errorCount === 0) {
-          toast.success(`Entries created successfully for ${successCount} user(s)`);
-        } else if (successCount > 0 && errorCount > 0) {
-          toast.success(`Entries created for ${successCount} user(s), ${errorCount} failed`);
-        } else {
-          toast.error(`Failed to create entries for all selected users`);
-        }
+        await createEntryMutation.mutateAsync(payload);
 
         // Reset form after successful submission
         setTeam1Rate('');
         setTeam1Amount('');
         setTeam2Rate('');
         setTeam2Amount('');
-        setAssignedUsers([]);
+        setAssignedUser('');
         setFavouriteTeam('team1');
       }
     } catch (error) {
@@ -487,23 +440,78 @@ export default function MatchDetailPage() {
             </button>
           </div>
 
+          {/* Filter Section */}
+          <div className="bg-[var(--muted)] px-4 py-2 rounded-lg border border-[var(--retro-dark)]">
+            {/* Radio Buttons Row */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 flex-shrink-0">
+                <label className="text-sm font-semibold text-retro-dark whitespace-nowrap">Filter:</label>
+                
+                {/* All User Filter */}
+                <label className="flex items-center gap-2 cursor-pointer whitespace-nowrap">
+                  <input
+                    type="radio"
+                    name="filterType"
+                    value="all"
+                    checked={filterType === 'all'}
+                    onChange={(e) => {
+                      setFilterType('all');
+                      setFilterCustomer('');
+                    }}
+                    className="w-4 h-4 text-blue-600 border-2 border-retro-dark focus:ring-2 focus:ring-retro-accent"
+                  />
+                  <span className="text-retro-dark font-semibold text-sm">All User</span>
+                </label>
+              </div>
+
+              {/* Customer Wise Filter - Right Side */}
+              <label className="flex items-center gap-2 cursor-pointer whitespace-nowrap">
+                <input
+                  type="radio"
+                  name="filterType"
+                  value="customer"
+                  checked={filterType === 'customer'}
+                  onChange={(e) => {
+                    setFilterType('customer');
+                  }}
+                  className="w-4 h-4 text-blue-600 border-2 border-retro-dark focus:ring-2 focus:ring-retro-accent"
+                />
+                <span className="text-retro-dark font-semibold text-sm">Customer Wise</span>
+              </label>
+            </div>
+            
+            {/* Dropdown Row - Shows below when Customer Wise is selected */}
+            {filterType === 'customer' && (
+              <div className="mt-2">
+                <Select
+                  options={customerFilterOptions}
+                  value={filterCustomer}
+                  onChange={(e) => setFilterCustomer(e.target.value)}
+                  className="w-48 !py-2 !text-xs !font-normal"
+                  disabled={isLoadingUsers}
+                />
+              </div>
+            )}
+          </div>
+
           {/* Assign to Section */}
           <div>
-            <MultiSelect
+            <Select
               label="Assign to"
-              options={userOptions}
-              selectedValues={assignedUsers}
-              onChange={(values) => setAssignedUsers(values as number[])}
-              placeholder="Search and select users..."
-              error={assignedUsers.length === 0 ? undefined : undefined}
-              inputRef={multiSelectInputRef}
-              onEnterKey={() => {
-                // Move to next field after selection with a delay to ensure dropdown is closed
-                setTimeout(() => {
-                  team1RateRef.current?.focus();
-                  team1RateRef.current?.select();
-                }, 100);
+              options={[{ value: '', label: '--SELECT--' }, ...userOptions.map(u => ({ value: String(u.value), label: u.label }))]}
+              value={assignedUser ? String(assignedUser) : ''}
+              onChange={(e) => setAssignedUser(e.target.value ? parseInt(e.target.value) : '')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  // Move to first rate input
+                  setTimeout(() => {
+                    team1RateRef.current?.focus();
+                    team1RateRef.current?.select();
+                  }, 100);
+                }
               }}
+              disabled={isLoadingUsers}
             />
             {isLoadingUsers && (
               <p className="text-sm text-retro-dark mt-1">Loading users...</p>
@@ -633,80 +641,8 @@ export default function MatchDetailPage() {
 
         {/* Recent Entries Card - Right Side */}
         <Card>
-          <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+          <div className="mb-6">
             <h2 className="text-2xl font-bold text-foreground">Recent Entries</h2>
-            
-            {/* Filter Section - Aligned with table */}
-            <div className="flex items-center gap-4 flex-wrap bg-[var(--muted)] px-4 py-2 rounded-lg border border-[var(--retro-dark)]">
-              <label className="text-sm font-semibold text-retro-dark">Filter:</label>
-              
-              {/* All User Filter */}
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="filterType"
-                  value="all"
-                  checked={filterType === 'all'}
-                  onChange={(e) => {
-                    setFilterType('all');
-                    setFilterCustomer('');
-                    setFilterGroup('');
-                  }}
-                  className="w-4 h-4 text-blue-600 border-2 border-retro-dark focus:ring-2 focus:ring-retro-accent"
-                />
-                <span className="text-retro-dark font-semibold text-sm">All User</span>
-              </label>
-
-              {/* Customer Wise Filter */}
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="filterType"
-                  value="customer"
-                  checked={filterType === 'customer'}
-                  onChange={(e) => {
-                    setFilterType('customer');
-                    setFilterGroup('');
-                  }}
-                  className="w-4 h-4 text-blue-600 border-2 border-retro-dark focus:ring-2 focus:ring-retro-accent"
-                />
-                <span className="text-retro-dark font-semibold text-sm">Customer Wise</span>
-              </label>
-              {filterType === 'customer' && (
-                <Select
-                  options={customerFilterOptions}
-                  value={filterCustomer}
-                  onChange={(e) => setFilterCustomer(e.target.value)}
-                  className="w-48 !py-1 !text-xs !font-normal"
-                  disabled={isLoadingUsers}
-                />
-              )}
-
-              {/* Group By Filter */}
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="filterType"
-                  value="group"
-                  checked={filterType === 'group'}
-                  onChange={(e) => {
-                    setFilterType('group');
-                    setFilterCustomer('');
-                  }}
-                  className="w-4 h-4 text-blue-600 border-2 border-retro-dark focus:ring-2 focus:ring-retro-accent"
-                />
-                <span className="text-retro-dark font-semibold text-sm">Group By</span>
-              </label>
-              {filterType === 'group' && (
-                <Select
-                  options={groupFilterOptions}
-                  value={filterGroup}
-                  onChange={(e) => setFilterGroup(e.target.value)}
-                  className="w-48 !py-1 !text-xs !font-normal"
-                  disabled={isLoadingGroups}
-                />
-              )}
-            </div>
           </div>
           {isLoadingEntries ? (
             <div className="flex items-center justify-center py-8">
@@ -718,99 +654,99 @@ export default function MatchDetailPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+              <table className="w-full border-collapse text-xs">
                 <thead>
                   <tr className="border-t-2 border-b-2 border-retro-dark">
-                    <th className="px-4 py-3 text-left font-bold text-retro-dark">Customer</th>
-                    <th className="px-4 py-3 text-center font-bold text-retro-dark border-l-2 border-retro-dark" colSpan={2}>
+                    <th className="px-2 py-1.5 text-left font-bold text-retro-dark text-xs">Customer</th>
+                    <th className="px-2 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark" colSpan={2}>
                       {matchData.team1.name}
                     </th>
-                    <th className="px-4 py-3 text-center font-bold text-retro-dark border-l-2 border-retro-dark" colSpan={2}>
+                    <th className="px-2 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark" colSpan={2}>
                       {matchData.team2.name}
                     </th>
-                    <th className="px-4 py-3 text-center font-bold text-retro-dark border-l-2 border-retro-dark">Action</th>
-                    <th className="px-4 py-3 text-center font-bold text-retro-dark border-l-2 border-retro-dark">Created at</th>
-                    <th className="px-4 py-3 text-center font-bold text-retro-dark border-l-2 border-retro-dark">Updated at</th>
+                    <th className="px-2 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark">Action</th>
+                    <th className="px-2 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark">Created at</th>
+                    <th className="px-2 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark">Updated at</th>
                   </tr>
                   <tr className="border-b-2 border-retro-dark">
                     <th></th>
-                    <th className="px-4 py-2 text-center font-semibold text-retro-dark border-l-2 border-retro-dark">Fav.</th>
-                    <th className="px-4 py-2 text-center font-semibold text-retro-dark">NFav.</th>
-                    <th className="px-4 py-2 text-center font-semibold text-retro-dark border-l-2 border-retro-dark">Fav.</th>
-                    <th className="px-4 py-2 text-center font-semibold text-retro-dark">NFav.</th>
-                    <th className="px-4 py-2 text-center font-semibold text-retro-dark border-l-2 border-retro-dark"></th>
-                    <th className="px-4 py-2 text-center font-semibold text-retro-dark border-l-2 border-retro-dark"></th>
-                    <th className="px-4 py-2 text-center font-semibold text-retro-dark border-l-2 border-retro-dark"></th>
+                    <th className="px-2 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark">Fav.</th>
+                    <th className="px-2 py-1 text-center font-semibold text-retro-dark text-xs">NFav.</th>
+                    <th className="px-2 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark">Fav.</th>
+                    <th className="px-2 py-1 text-center font-semibold text-retro-dark text-xs">NFav.</th>
+                    <th className="px-2 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark"></th>
+                    <th className="px-2 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark"></th>
+                    <th className="px-2 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {entries.map((entry) => (
                     <tr key={entry.id} className="border-b border-retro-dark/20 hover:bg-retro-cream/50">
-                      <td className="px-4 py-3">
-                        <span className="inline-block px-3 py-1 bg-blue-500 text-white font-semibold text-sm rounded">
+                      <td className="px-2 py-1.5">
+                        <span className="inline-block px-2 py-0.5 bg-blue-500 text-white font-semibold text-xs rounded">
                           {entry.customer ? entry.customer.split(' ')[0] : 'N/A'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center border-l-2 border-retro-dark">
+                      <td className="px-2 py-1.5 text-center border-l-2 border-retro-dark">
                         {entry.team1Fav && entry.team1Fav !== '0' && entry.team1Fav !== '0/0000' ? (
-                          <span className="inline-block px-3 py-1 bg-green-500 text-white font-semibold text-sm rounded">
+                          <span className="inline-block px-2 py-0.5 bg-green-500 text-white font-semibold text-xs rounded">
                             {entry.team1Fav}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-500 text-white font-semibold text-sm">
+                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-500 text-white font-semibold text-xs">
                             0
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-2 py-1.5 text-center">
                         {entry.team1Nfav && entry.team1Nfav !== '0' && entry.team1Nfav !== '0/0000' ? (
-                          <span className="inline-block px-3 py-1 bg-red-500 text-white font-semibold text-sm rounded">
+                          <span className="inline-block px-2 py-0.5 bg-red-500 text-white font-semibold text-xs rounded">
                             {entry.team1Nfav}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-500 text-white font-semibold text-sm">
+                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-500 text-white font-semibold text-xs">
                             0
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-center border-l-2 border-retro-dark">
+                      <td className="px-2 py-1.5 text-center border-l-2 border-retro-dark">
                         {entry.team2Fav && entry.team2Fav !== '0' && entry.team2Fav !== '0/0000' ? (
-                          <span className="inline-block px-3 py-1 bg-green-500 text-white font-semibold text-sm rounded">
+                          <span className="inline-block px-2 py-0.5 bg-green-500 text-white font-semibold text-xs rounded">
                             {entry.team2Fav}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-500 text-white font-semibold text-sm">
+                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-500 text-white font-semibold text-xs">
                             0
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-2 py-1.5 text-center">
                         {entry.team2Nfav && entry.team2Nfav !== '0' && entry.team2Nfav !== '0/0000' ? (
-                          <span className="inline-block px-3 py-1 bg-red-500 text-white font-semibold text-sm rounded">
+                          <span className="inline-block px-2 py-0.5 bg-red-500 text-white font-semibold text-xs rounded">
                             {entry.team2Nfav}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-500 text-white font-semibold text-sm">
+                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-500 text-white font-semibold text-xs">
                             0
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-center border-l-2 border-retro-dark">
+                      <td className="px-2 py-1.5 text-center border-l-2 border-retro-dark">
                         <button 
                           onClick={() => handleEditClick(entry.id)}
-                          className="px-4 py-2 bg-blue-500 text-white font-semibold text-sm rounded hover:bg-blue-600 transition-colors"
+                          className="px-2 py-1 bg-blue-500 text-white font-semibold text-xs rounded hover:bg-blue-600 transition-colors"
                         >
                           Edit
                         </button>
                       </td>
-                      <td className="px-4 py-3 text-center border-l-2 border-retro-dark">
-                        <span className="inline-block px-3 py-1 bg-gray-400 text-white font-semibold text-sm rounded">
-                          {entry.created_at}
+                      <td className="px-2 py-1.5 text-center border-l-2 border-retro-dark">
+                        <span className="inline-block px-2 py-0.5 bg-gray-400 text-white font-semibold text-xs rounded">
+                          {formatDate(entry.created_at)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center border-l-2 border-retro-dark">
-                        <span className="inline-block px-3 py-1 bg-gray-400 text-white font-semibold text-sm rounded">
-                          {entry.updated_at}
+                      <td className="px-2 py-1.5 text-center border-l-2 border-retro-dark">
+                        <span className="inline-block px-2 py-0.5 bg-gray-400 text-white font-semibold text-xs rounded">
+                          {formatDate(entry.updated_at)}
                         </span>
                       </td>
                     </tr>

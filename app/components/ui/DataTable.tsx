@@ -276,14 +276,16 @@ export default function DataTable<T extends Record<string, any>>({
         <table className="w-full border-collapse bg-transparent">
           <thead>
             <tr className="border-b border-gray-300">
-              <th className="p-3 text-left">
-                <input
-                  type="checkbox"
-                  onChange={handleSelectAll}
-                  checked={selectedRows.size === paginatedData.length && paginatedData.length > 0}
-                  className="w-4 h-4 border-2 border-retro-dark rounded cursor-pointer"
-                />
-              </th>
+              {onRowSelect && (
+                <th className="p-3 text-left">
+                  <input
+                    type="checkbox"
+                    onChange={handleSelectAll}
+                    checked={selectedRows.size === paginatedData.length && paginatedData.length > 0}
+                    className="w-4 h-4 border-2 border-retro-dark rounded cursor-pointer"
+                  />
+                </th>
+              )}
               {columns.map((column) => (
                 <th
                   key={String(column.key)}
@@ -316,7 +318,7 @@ export default function DataTable<T extends Record<string, any>>({
             {paginatedData.length === 0 ? (
               <tr>
                 <td
-                  colSpan={columns.length + 1 + (onEdit || onDelete || onStatusChange || renderActions ? 1 : 0)}
+                  colSpan={columns.length + (onRowSelect ? 1 : 0) + (onEdit || onDelete || onStatusChange || renderActions ? 1 : 0)}
                   className="p-8 text-center text-gray-500"
                 >
                   No data available
@@ -325,14 +327,16 @@ export default function DataTable<T extends Record<string, any>>({
             ) : (
               paginatedData.map((row, index) => (
                 <tr key={index} className="border-b border-gray-200 hover:bg-transparent">
-                  <td className="p-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.has(index)}
-                      onChange={() => handleSelectRow(index, row)}
-                      className="w-4 h-4 border-2 border-retro-dark rounded cursor-pointer"
-                    />
-                  </td>
+                  {onRowSelect && (
+                    <td className="p-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedRows.has(index)}
+                        onChange={() => handleSelectRow(index, row)}
+                        className="w-4 h-4 border-2 border-retro-dark rounded cursor-pointer"
+                      />
+                    </td>
+                  )}
                   {columns.map((column) => (
                     <td key={String(column.key)} className="p-3 text-retro-dark">
                       {column.render

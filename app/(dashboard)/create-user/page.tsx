@@ -412,10 +412,6 @@ export default function CreateUserPage() {
     }
   };
 
-  const handleRowSelect = (selectedRows: typeof transformedUsers) => {
-    console.log('Selected rows:', selectedRows);
-    // Handle row selection logic here
-  };
 
   return (
     <div className="space-y-6">
@@ -542,7 +538,6 @@ export default function CreateUserPage() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onStatusChange={handleStatusChange}
-              onRowSelect={handleRowSelect}
               entriesPerPageOptions={[10, 25, 50, 100]}
               defaultEntriesPerPage={100}
             />
