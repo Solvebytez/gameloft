@@ -18,6 +18,11 @@ export interface User {
   status: 'active' | 'inactive';
   created_at: string;
   updated_at: string;
+  group_id?: number | null;
+  groups?: Array<{
+    id: number;
+    name: string;
+  }>;
 }
 
 interface CreateUserPayload {
@@ -26,6 +31,7 @@ interface CreateUserPayload {
   commission: number;
   partnership: number;
   commission_type: 'no_commission' | 'profit_loss' | 'entrywise';
+  group_id?: number | null;
 }
 
 interface UpdateUserPayload {
@@ -34,6 +40,7 @@ interface UpdateUserPayload {
   commission?: number;
   partnership?: number;
   commission_type?: 'no_commission' | 'profit_loss' | 'entrywise';
+  group_id?: number | null;
 }
 
 // Query key factory

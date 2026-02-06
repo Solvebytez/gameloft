@@ -4,16 +4,13 @@ import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import Card from '@/app/components/ui/Card';
 import Input from '@/app/components/ui/Input';
-import MultiSelect from '@/app/components/ui/MultiSelect';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
 import ConfirmModal from '@/app/components/ui/ConfirmModal';
-import { useUsers } from '@/app/hooks/useUsers';
 import { useCreateGroup, useUpdateGroup, useDeleteGroup, useGroups, Group } from '@/app/hooks/useGroups';
 
 export default function GroupPage() {
   const [formData, setFormData] = useState({
     groupName: '',
-    selectedUsers: [] as number[],
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -24,21 +21,10 @@ export default function GroupPage() {
     groupId: null,
   });
   const groupNameInputRef = useRef<HTMLInputElement>(null);
-  const multiSelectRef = useRef<HTMLDivElement>(null);
-  const multiSelectInputRef = useRef<HTMLInputElement>(null);
-
-  // Fetch users from API
-  const { data: users = [], isLoading } = useUsers();
   const createGroupMutation = useCreateGroup();
   const updateGroupMutation = useUpdateGroup();
   const deleteGroupMutation = useDeleteGroup();
   const { data: groups = [], isLoading: groupsLoading } = useGroups();
-
-  // Transform users to options format
-  const userOptions = users.map((user) => ({
-    value: user.id,
-    label: user.name,
-  }));
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -52,30 +38,12 @@ export default function GroupPage() {
     }
   };
 
-  const handleUserSelection = (selectedUserIds: (string | number)[]) => {
-    setFormData((prev) => ({
-      ...prev,
-      selectedUsers: selectedUserIds.map((id) => Number(id)),
-    }));
-    // Clear error when user selects
-    if (errors.selectedUsers) {
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors.selectedUsers;
-        return newErrors;
-      });
-    }
-  };
-
   const handleSave = async () => {
     const newErrors: Record<string, string> = {};
 
     // Validation
     if (!formData.groupName.trim()) {
       newErrors.groupName = 'Group name is required';
-    }
-    if (formData.selectedUsers.length === 0) {
-      newErrors.selectedUsers = 'At least one user must be selected';
     }
 
     // Set errors and show toast if validation fails
@@ -96,7 +64,6 @@ export default function GroupPage() {
           id: editingGroup.id,
           payload: {
             name: formData.groupName.trim(),
-            user_ids: formData.selectedUsers,
           },
         });
         
@@ -107,14 +74,12 @@ export default function GroupPage() {
         // Create new group
         await createGroupMutation.mutateAsync({
           name: formData.groupName.trim(),
-          user_ids: formData.selectedUsers,
         });
       }
 
       // Reset form after successful save
       setFormData({
         groupName: '',
-        selectedUsers: [],
       });
 
       // Focus on group name field after successful save
@@ -130,7 +95,6 @@ export default function GroupPage() {
   const handleReset = () => {
     setFormData({
       groupName: '',
-      selectedUsers: [],
     });
     setErrors({});
     setIsEditMode(false);
@@ -143,7 +107,6 @@ export default function GroupPage() {
     setEditingGroup(group);
     setFormData({
       groupName: group.name,
-      selectedUsers: group.users?.map((u) => u.id) || [],
     });
     
     // Scroll to form
@@ -155,7 +118,6 @@ export default function GroupPage() {
     setEditingGroup(null);
     setFormData({
       groupName: '',
-      selectedUsers: [],
     });
     setErrors({});
   };
@@ -179,23 +141,13 @@ export default function GroupPage() {
     }
   };
 
-  // Handle Enter key to move focus or submit
+  // Handle Enter key to submit form
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, field: string) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (field === 'groupName') {
-        // Focus on multi-select input when Enter is pressed in group name
-        setTimeout(() => {
-          if (multiSelectInputRef.current) {
-            multiSelectInputRef.current.focus();
-            // Also trigger click to open the dropdown
-            const clickEvent = new MouseEvent('mousedown', {
-              bubbles: true,
-              cancelable: true,
-            });
-            multiSelectRef.current?.dispatchEvent(clickEvent);
-          }
-        }, 50);
+        // Submit form when Enter is pressed
+        handleSave();
       }
     }
   };
@@ -208,59 +160,50 @@ export default function GroupPage() {
       </div>
       <Card>
         <form className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input
-              ref={groupNameInputRef}
-              type="text"
-              label="Group Name*"
-              id="groupName"
-              value={formData.groupName}
-              onChange={(e) => handleInputChange('groupName', e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, 'groupName')}
-              error={errors.groupName}
-              placeholder="Enter group name"
-            />
+          <div className="flex items-end gap-4">
+            <div className="flex-1">
+              <Input
+                ref={groupNameInputRef}
+                type="text"
+                label="Group Name*"
+                id="groupName"
+                value={formData.groupName}
+                onChange={(e) => handleInputChange('groupName', e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, 'groupName')}
+                error={errors.groupName}
+                placeholder="Enter group name"
+              />
+            </div>
 
-            <MultiSelect
-              ref={multiSelectRef}
-              inputRef={multiSelectInputRef}
-              label="Select Users*"
-              options={userOptions}
-              selectedValues={formData.selectedUsers}
-              onChange={handleUserSelection}
-              placeholder="Search and select users..."
-              error={errors.selectedUsers}
-            />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-4 items-end">
-            {isEditMode && (
+            {/* Action Buttons */}
+            <div className="flex gap-4 items-end">
+              {isEditMode && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-6 py-3 bg-gray-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+                >
+                  Cancel
+                </button>
+              )}
               <button
                 type="button"
-                onClick={handleCancelEdit}
-                className="px-6 py-3 bg-gray-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+                onClick={handleSave}
+                disabled={createGroupMutation.isPending || updateGroupMutation.isPending}
+                className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Cancel
+                {(createGroupMutation.isPending || updateGroupMutation.isPending) ? 'Saving...' : (isEditMode ? 'Update' : 'Save')}
               </button>
-            )}
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={createGroupMutation.isPending || updateGroupMutation.isPending}
-              className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {(createGroupMutation.isPending || updateGroupMutation.isPending) ? 'Saving...' : (isEditMode ? 'Update' : 'Save')}
-            </button>
-            {!isEditMode && (
-              <button
-                type="button"
-                onClick={handleReset}
-                className="px-6 py-3 bg-red-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
-              >
-                Reset
-              </button>
-            )}
+              {!isEditMode && (
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="px-6 py-3 bg-red-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
           </div>
         </form>
       </Card>

@@ -41,6 +41,10 @@ export default function MatchDetailPage() {
   // Filter state (for table filtering)
   const [filterType, setFilterType] = useState<'all' | 'customer'>('all');
   const [filterCustomer, setFilterCustomer] = useState('');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [entriesPerPage, setEntriesPerPage] = useState(50);
 
   // Form state
   const [favouriteTeam, setFavouriteTeam] = useState<'team1' | 'team2'>('team1'); // Default to team1
@@ -80,7 +84,7 @@ export default function MatchDetailPage() {
   }, [users]);
 
   // Filter entries based on selected filter
-  const entries = useMemo(() => {
+  const filteredEntries = useMemo(() => {
     if (filterType === 'all') {
       return allEntries;
     } else if (filterType === 'customer' && filterCustomer) {
@@ -89,6 +93,18 @@ export default function MatchDetailPage() {
     }
     return allEntries;
   }, [allEntries, filterType, filterCustomer]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredEntries.length / entriesPerPage);
+  const entries = useMemo(() => {
+    const startIndex = (currentPage - 1) * entriesPerPage;
+    return filteredEntries.slice(startIndex, startIndex + entriesPerPage);
+  }, [filteredEntries, currentPage, entriesPerPage]);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterType, filterCustomer]);
 
 
 
@@ -364,28 +380,28 @@ export default function MatchDetailPage() {
           </div>
           <form onSubmit={handleSubmit} className="space-y-6" style={{ opacity: isLoadingEntry ? 0.6 : 1 }}>
           {/* Team Selection Cards - Teams stay in fixed positions, only colors switch */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             {/* Team 1 Card - Green if favourite, Red if not */}
             <button
               type="button"
               onClick={() => handleTeamSelect('team1')}
-              className={`relative p-6 rounded-lg border-4 transition-all ${
+              className={`relative p-3 rounded-lg border-2 transition-all ${
                 favouriteTeam === 'team1'
-                  ? 'bg-green-500 border-green-700 hover:bg-green-600'
-                  : 'bg-red-500 border-red-700 hover:bg-red-600'
+                  ? 'bg-green-500/70 border-green-700 hover:bg-green-600/70'
+                  : 'bg-red-500/70 border-red-700 hover:bg-red-600/70'
               }`}
             >
-              <div className="flex flex-col items-center space-y-3">
-                <div className="text-white font-bold text-sm mb-2">
+              <div className="flex flex-col items-center space-y-1.5">
+                <div className="text-white font-bold text-xs mb-1">
                   {favouriteTeam === 'team1' ? 'Fav.' : 'NFav.'}
                 </div>
-                <div className="relative w-24 h-24 border-2 border-white rounded overflow-hidden bg-white">
+                <div className="relative w-16 h-16 border-2 border-white rounded overflow-hidden bg-white">
                   {matchData.team1.logo ? (
                     <Image
                       src={matchData.team1.logo}
                       alt={matchData.team1.name}
-                      width={96}
-                      height={96}
+                      width={64}
+                      height={64}
                       className="object-contain"
                       unoptimized
                     />
@@ -396,8 +412,8 @@ export default function MatchDetailPage() {
                   )}
                 </div>
                 <div className="text-center">
-                  <div className="text-white font-bold text-lg">{matchData.team1.name.toUpperCase()}</div>
-                  <div className="text-white font-semibold text-sm">{matchData.team1.name}</div>
+                  <div className="text-white font-bold text-sm">{matchData.team1.name.toUpperCase()}</div>
+                  <div className="text-white font-semibold text-xs">{matchData.team1.name}</div>
                 </div>
               </div>
             </button>
@@ -406,23 +422,23 @@ export default function MatchDetailPage() {
             <button
               type="button"
               onClick={() => handleTeamSelect('team2')}
-              className={`relative p-6 rounded-lg border-4 transition-all ${
+              className={`relative p-3 rounded-lg border-2 transition-all ${
                 favouriteTeam === 'team2'
-                  ? 'bg-green-500 border-green-700 hover:bg-green-600'
-                  : 'bg-red-500 border-red-700 hover:bg-red-600'
+                  ? 'bg-green-500/70 border-green-700 hover:bg-green-600/70'
+                  : 'bg-red-500/70 border-red-700 hover:bg-red-600/70'
               }`}
             >
-              <div className="flex flex-col items-center space-y-3">
-                <div className="text-white font-bold text-sm mb-2">
+              <div className="flex flex-col items-center space-y-1.5">
+                <div className="text-white font-bold text-xs mb-1">
                   {favouriteTeam === 'team2' ? 'Fav.' : 'NFav.'}
                 </div>
-                <div className="relative w-24 h-24 border-2 border-white rounded overflow-hidden bg-white">
+                <div className="relative w-16 h-16 border-2 border-white rounded overflow-hidden bg-white">
                   {matchData.team2.logo ? (
                     <Image
                       src={matchData.team2.logo}
                       alt={matchData.team2.name}
-                      width={96}
-                      height={96}
+                      width={64}
+                      height={64}
                       className="object-contain"
                       unoptimized
                     />
@@ -433,8 +449,8 @@ export default function MatchDetailPage() {
                   )}
                 </div>
                 <div className="text-center">
-                  <div className="text-white font-bold text-lg">{matchData.team2.name.toUpperCase()}</div>
-                  <div className="text-white font-semibold text-sm">{matchData.team2.name}</div>
+                  <div className="text-white font-bold text-sm">{matchData.team2.name.toUpperCase()}</div>
+                  <div className="text-white font-semibold text-xs">{matchData.team2.name}</div>
                 </div>
               </div>
             </button>
@@ -653,107 +669,197 @@ export default function MatchDetailPage() {
               <p className="text-retro-dark">No entries found. Create your first entry above.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-xs">
-                <thead>
-                  <tr className="border-t-2 border-b-2 border-retro-dark">
-                    <th className="px-2 py-1.5 text-left font-bold text-retro-dark text-xs">Customer</th>
-                    <th className="px-2 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark" colSpan={2}>
-                      {matchData.team1.name}
-                    </th>
-                    <th className="px-2 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark" colSpan={2}>
-                      {matchData.team2.name}
-                    </th>
-                    <th className="px-2 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark">Action</th>
-                    <th className="px-2 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark">Created at</th>
-                    <th className="px-2 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark">Updated at</th>
-                  </tr>
-                  <tr className="border-b-2 border-retro-dark">
-                    <th></th>
-                    <th className="px-2 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark">Fav.</th>
-                    <th className="px-2 py-1 text-center font-semibold text-retro-dark text-xs">NFav.</th>
-                    <th className="px-2 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark">Fav.</th>
-                    <th className="px-2 py-1 text-center font-semibold text-retro-dark text-xs">NFav.</th>
-                    <th className="px-2 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark"></th>
-                    <th className="px-2 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark"></th>
-                    <th className="px-2 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {entries.map((entry) => (
-                    <tr key={entry.id} className="border-b border-retro-dark/20 hover:bg-retro-cream/50">
-                      <td className="px-2 py-1.5">
-                        <span className="inline-block px-2 py-0.5 bg-blue-500 text-white font-semibold text-xs rounded">
-                          {entry.customer ? entry.customer.split(' ')[0] : 'N/A'}
-                        </span>
-                      </td>
-                      <td className="px-2 py-1.5 text-center border-l-2 border-retro-dark">
-                        {entry.team1Fav && entry.team1Fav !== '0' && entry.team1Fav !== '0/0000' ? (
-                          <span className="inline-block px-2 py-0.5 bg-green-500 text-white font-semibold text-xs rounded">
-                            {entry.team1Fav}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-500 text-white font-semibold text-xs">
-                            0
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-2 py-1.5 text-center">
-                        {entry.team1Nfav && entry.team1Nfav !== '0' && entry.team1Nfav !== '0/0000' ? (
-                          <span className="inline-block px-2 py-0.5 bg-red-500 text-white font-semibold text-xs rounded">
-                            {entry.team1Nfav}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-500 text-white font-semibold text-xs">
-                            0
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-2 py-1.5 text-center border-l-2 border-retro-dark">
-                        {entry.team2Fav && entry.team2Fav !== '0' && entry.team2Fav !== '0/0000' ? (
-                          <span className="inline-block px-2 py-0.5 bg-green-500 text-white font-semibold text-xs rounded">
-                            {entry.team2Fav}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-500 text-white font-semibold text-xs">
-                            0
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-2 py-1.5 text-center">
-                        {entry.team2Nfav && entry.team2Nfav !== '0' && entry.team2Nfav !== '0/0000' ? (
-                          <span className="inline-block px-2 py-0.5 bg-red-500 text-white font-semibold text-xs rounded">
-                            {entry.team2Nfav}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-500 text-white font-semibold text-xs">
-                            0
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-2 py-1.5 text-center border-l-2 border-retro-dark">
-                        <button 
-                          onClick={() => handleEditClick(entry.id)}
-                          className="px-2 py-1 bg-blue-500 text-white font-semibold text-xs rounded hover:bg-blue-600 transition-colors"
-                        >
-                          Edit
-                        </button>
-                      </td>
-                      <td className="px-2 py-1.5 text-center border-l-2 border-retro-dark">
-                        <span className="inline-block px-2 py-0.5 bg-gray-400 text-white font-semibold text-xs rounded">
-                          {formatDate(entry.created_at)}
-                        </span>
-                      </td>
-                      <td className="px-2 py-1.5 text-center border-l-2 border-retro-dark">
-                        <span className="inline-block px-2 py-0.5 bg-gray-400 text-white font-semibold text-xs rounded">
-                          {formatDate(entry.updated_at)}
-                        </span>
-                      </td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="border-t-2 border-b-2 border-retro-dark">
+                      <th className="px-1 py-1.5 text-left font-bold text-retro-dark text-xs">Customer</th>
+                      <th className="px-1 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark" colSpan={2}>
+                        {matchData.team1.name}
+                      </th>
+                      <th className="px-1 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark" colSpan={2}>
+                        {matchData.team2.name}
+                      </th>
+                      <th className="px-1 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark">Action</th>
+                      <th className="px-1 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark">Created at</th>
+                      <th className="px-1 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark">Updated at</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    <tr className="border-b-2 border-retro-dark">
+                      <th></th>
+                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark">Fav.</th>
+                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-xs">NFav.</th>
+                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark">Fav.</th>
+                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-xs">NFav.</th>
+                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark"></th>
+                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark"></th>
+                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entries.map((entry) => (
+                      <tr key={entry.id} className="border-b border-retro-dark/20 hover:bg-retro-cream/50">
+                        <td className="px-1 py-1.5">
+                          <span className="inline-block px-1.5 py-0.5 bg-blue-500 text-white font-semibold text-xs rounded">
+                            {entry.customer ? entry.customer.split(' ')[0] : 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-1 py-1.5 text-center border-l-2 border-retro-dark">
+                          {entry.team1Fav && entry.team1Fav !== '0' && entry.team1Fav !== '0/0000' ? (
+                            <span className="inline-block px-1.5 py-0.5 bg-green-500 text-white font-semibold text-xs rounded">
+                              {entry.team1Fav}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-500 text-white font-semibold text-xs">
+                              0
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-1 py-1.5 text-center">
+                          {entry.team1Nfav && entry.team1Nfav !== '0' && entry.team1Nfav !== '0/0000' ? (
+                            <span className="inline-block px-1.5 py-0.5 bg-red-500 text-white font-semibold text-xs rounded">
+                              {entry.team1Nfav}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-500 text-white font-semibold text-xs">
+                              0
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-1 py-1.5 text-center border-l-2 border-retro-dark">
+                          {entry.team2Fav && entry.team2Fav !== '0' && entry.team2Fav !== '0/0000' ? (
+                            <span className="inline-block px-1.5 py-0.5 bg-green-500 text-white font-semibold text-xs rounded">
+                              {entry.team2Fav}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-500 text-white font-semibold text-xs">
+                              0
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-1 py-1.5 text-center">
+                          {entry.team2Nfav && entry.team2Nfav !== '0' && entry.team2Nfav !== '0/0000' ? (
+                            <span className="inline-block px-1.5 py-0.5 bg-red-500 text-white font-semibold text-xs rounded">
+                              {entry.team2Nfav}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-500 text-white font-semibold text-xs">
+                              0
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-1 py-1.5 text-center border-l-2 border-retro-dark">
+                          <button 
+                            onClick={() => handleEditClick(entry.id)}
+                            className="px-1.5 py-0.5 bg-blue-500 text-white font-semibold text-xs rounded hover:bg-blue-600 transition-colors"
+                          >
+                            Edit
+                          </button>
+                        </td>
+                        <td className="px-1 py-1.5 text-center border-l-2 border-retro-dark">
+                          <span className="inline-block px-1.5 py-0.5 bg-gray-400 text-white font-semibold text-xs rounded">
+                            {formatDate(entry.created_at)}
+                          </span>
+                        </td>
+                        <td className="px-1 py-1.5 text-center border-l-2 border-retro-dark">
+                          <span className="inline-block px-1.5 py-0.5 bg-gray-400 text-white font-semibold text-xs rounded">
+                            {formatDate(entry.updated_at)}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Pagination */}
+              {filteredEntries.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-retro-dark">Show</label>
+                    <select
+                      value={entriesPerPage}
+                      onChange={(e) => {
+                        setEntriesPerPage(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="px-2 py-1 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-xs focus:outline-none focus:ring-2 focus:ring-retro-accent"
+                    >
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                      <option value={500}>500</option>
+                    </select>
+                    <label className="text-xs text-retro-dark">entries</label>
+                  </div>
+                  
+                  <div className="text-xs text-retro-dark">
+                    Showing {Math.min((currentPage - 1) * entriesPerPage + 1, filteredEntries.length)} to{' '}
+                    {Math.min(currentPage * entriesPerPage, filteredEntries.length)} of {filteredEntries.length}{' '}
+                    entries
+                  </div>
+                  
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-xs hover:bg-retro-accent hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      
+                      {/* Page Number Buttons */}
+                      <div className="flex gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                          // Show first page, last page, current page, and pages around current
+                          const shouldShow =
+                            page === 1 ||
+                            page === totalPages ||
+                            (page >= currentPage - 1 && page <= currentPage + 1);
+                          
+                          if (!shouldShow) {
+                            // Show ellipsis
+                            if (page === currentPage - 2 || page === currentPage + 2) {
+                              return (
+                                <span key={page} className="px-2 py-1 text-retro-dark font-bold text-xs">
+                                  ...
+                                </span>
+                              );
+                            }
+                            return null;
+                          }
+
+                          return (
+                            <button
+                              key={page}
+                              type="button"
+                              onClick={() => setCurrentPage(page)}
+                              className={`px-3 py-1 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-xs transition-colors ${
+                                currentPage === page
+                                  ? 'bg-retro-accent text-white'
+                                  : 'hover:bg-retro-accent hover:text-white'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-xs hover:bg-retro-accent hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </Card>
       </div>

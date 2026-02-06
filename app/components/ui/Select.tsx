@@ -16,10 +16,12 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(({
   className = "",
   id,
   options,
+  value,
   ...props
 }, ref) => {
   const generatedId = useId();
   const selectId = id || generatedId;
+  const isEmpty = value === '' || value === undefined || value === null;
 
   return (
     <div className={containerClassName}>
@@ -34,7 +36,10 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(({
       <select
         ref={ref}
         id={selectId}
-        className={`w-full px-4 py-3 bg-white border-[3px] border-retro-dark text-retro-dark font-bold text-lg rounded focus:outline-none focus:ring-2 focus:ring-retro-accent disabled:opacity-50 disabled:cursor-not-allowed ${
+        value={value}
+        className={`w-full px-4 py-2 bg-white border-[3px] border-retro-dark text-retro-dark font-bold rounded focus:outline-none focus:ring-2 focus:ring-retro-accent disabled:opacity-50 disabled:cursor-not-allowed ${
+          isEmpty ? 'text-sm' : 'text-lg'
+        } ${
           error ? "border-red-500" : ""
         } ${className}`}
         {...props}

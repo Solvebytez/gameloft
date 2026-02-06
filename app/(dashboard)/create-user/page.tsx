@@ -8,6 +8,7 @@ import Select from '@/app/components/ui/Select';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
 import ConfirmModal from '@/app/components/ui/ConfirmModal';
 import { useUsers, useCreateUser, useUpdateUser, useUpdateUserStatus, useDeleteUser, User } from '@/app/hooks/useUsers';
+import { useGroups } from '@/app/hooks/useGroups';
 
 const roleOptions = [
   { value: 'user', label: 'User' },
@@ -31,6 +32,7 @@ export default function CreateUserPage() {
     commission: '',
     partnership: '',
     commission_type: '',
+    group_id: '',
   });
 
   const [isEditMode, setIsEditMode] = useState(false);
@@ -52,9 +54,13 @@ export default function CreateUserPage() {
   const commissionTypeInputRef = useRef<HTMLSelectElement>(null);
   const commissionInputRef = useRef<HTMLInputElement>(null);
   const partnershipInputRef = useRef<HTMLInputElement>(null);
+  const groupInputRef = useRef<HTMLSelectElement>(null);
 
   // Fetch users from API
   const { data: users = [], isLoading, error } = useUsers();
+  
+  // Fetch groups from API
+  const { data: groups = [], isLoading: isLoadingGroups } = useGroups();
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();
   const updateStatusMutation = useUpdateUserStatus();
@@ -78,7 +84,7 @@ export default function CreateUserPage() {
       e.preventDefault();
       
       // Define the order of fields
-      const fieldOrder = ['role', 'name', 'commission_type', 'commission', 'partnership'];
+      const fieldOrder = ['role', 'name', 'commission_type', 'commission', 'partnership', 'group'];
       const currentIndex = fieldOrder.indexOf(currentField);
       
       if (currentIndex < fieldOrder.length - 1) {
@@ -119,6 +125,15 @@ export default function CreateUserPage() {
             case 'partnership':
               partnershipInputRef.current?.focus();
               break;
+            case 'group':
+              groupInputRef.current?.focus();
+              // Open dropdown for select fields
+              setTimeout(() => {
+                if (groupInputRef.current) {
+                  groupInputRef.current.click();
+                }
+              }, 50);
+              break;
           }
         }
       } else {
@@ -129,15 +144,26 @@ export default function CreateUserPage() {
   };
 
   // Handle focus on select fields to auto-open dropdown
-  const handleSelectFocus = (field: 'role' | 'commission_type') => {
+  const handleSelectFocus = (field: 'role' | 'commission_type' | 'group') => {
     setTimeout(() => {
       if (field === 'role' && roleInputRef.current) {
         roleInputRef.current.click();
       } else if (field === 'commission_type' && commissionTypeInputRef.current) {
         commissionTypeInputRef.current.click();
+      } else if (field === 'group' && groupInputRef.current) {
+        groupInputRef.current.click();
       }
     }, 50);
   };
+  
+  // Group options for dropdown
+  const groupOptions = [
+    { value: '', label: '--SELECT--' },
+    ...groups.map((group) => ({
+      value: String(group.id),
+      label: group.name,
+    })),
+  ];
 
   const handleSave = async () => {
     const newErrors: Record<string, string> = {};
@@ -189,6 +215,7 @@ export default function CreateUserPage() {
           commission?: number;
           partnership?: number;
           commission_type?: 'no_commission' | 'profit_loss' | 'entrywise';
+          group_id?: number | null;
         } = {};
 
         if (formData.name.trim() !== editingUser.name) {
@@ -210,6 +237,16 @@ export default function CreateUserPage() {
         if (formData.partnership.trim() && Number(formData.partnership) !== editingUser.partnership) {
           updatePayload.partnership = Number(formData.partnership);
         }
+        
+        // Handle group_id - check if it changed
+        const currentGroupId = editingUser.group_id ?? null;
+        const newGroupId = formData.group_id ? parseInt(formData.group_id) : null;
+        // Normalize both to numbers or null for comparison
+        const currentGroupIdNum = currentGroupId !== null ? Number(currentGroupId) : null;
+        const newGroupIdNum = newGroupId !== null ? Number(newGroupId) : null;
+        if (currentGroupIdNum !== newGroupIdNum) {
+          updatePayload.group_id = newGroupIdNum;
+        }
 
         if (Object.keys(updatePayload).length > 0) {
           await updateUserMutation.mutateAsync({
@@ -227,6 +264,7 @@ export default function CreateUserPage() {
           commission: formData.commission_type === 'no_commission' ? 0 : (formData.commission ? Number(formData.commission) : 0),
           partnership: Number(formData.partnership),
           commission_type: formData.commission_type as 'no_commission' | 'profit_loss' | 'entrywise',
+          group_id: formData.group_id ? parseInt(formData.group_id) : null,
         };
 
         await createUserMutation.mutateAsync(payload);
@@ -265,6 +303,7 @@ export default function CreateUserPage() {
       commission: originalUser.commission.toString(),
       partnership: originalUser.partnership.toString(),
       commission_type: originalUser.commission_type || '',
+      group_id: originalUser.group_id ? String(originalUser.group_id) : '',
     });
     setErrors({});
   };
@@ -278,27 +317,33 @@ export default function CreateUserPage() {
       commission: '',
       partnership: '',
       commission_type: '',
+      group_id: '',
     });
     setErrors({});
   };
 
   // Transform users data for DataTable display
-  const transformedUsers = users.map((user) => ({
-    id: user.id,
-    userRole: user.role.charAt(0).toUpperCase() + user.role.slice(1),
-    name: user.name,
-    mobile: user.mobile || '-',
-    commission: `${user.commission}%`,
-    partnership: `${user.partnership}%`,
-    commissionType: user.commission_type
-      ? user.commission_type
-          .split('_')
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(' ')
-      : '-',
-    lastLogin: user.last_login ? new Date(user.last_login).toLocaleString() : '-',
-    status: user.status === 'active' ? 'Active' : 'Inactive',
-  }));
+  const transformedUsers = users.map((user) => {
+    const groupName = user.groups && user.groups.length > 0 
+      ? user.groups[0].name 
+      : '-';
+    
+    return {
+      id: user.id,
+      userRole: user.role.charAt(0).toUpperCase() + user.role.slice(1),
+      name: user.name,
+      commission: `${user.commission}%`,
+      partnership: `${user.partnership}%`,
+      commissionType: user.commission_type
+        ? user.commission_type
+            .split('_')
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ')
+        : '-',
+      groupName: groupName,
+      status: user.status === 'active' ? 'Active' : 'Inactive',
+    };
+  });
 
   // DataTable columns configuration
   const columns: Column<typeof transformedUsers[0]>[] = [
@@ -315,11 +360,6 @@ export default function CreateUserPage() {
     {
       key: 'name',
       label: 'Name',
-      sortable: true,
-    },
-    {
-      key: 'mobile',
-      label: 'Mobile',
       sortable: true,
     },
     {
@@ -343,9 +383,14 @@ export default function CreateUserPage() {
       ),
     },
     {
-      key: 'lastLogin',
-      label: 'Last Login',
+      key: 'groupName',
+      label: 'Group',
       sortable: true,
+      render: (value) => (
+        <span className="inline-block px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-semibold">
+          {value}
+        </span>
+      ),
     },
     {
       key: 'status',
@@ -479,42 +524,54 @@ export default function CreateUserPage() {
               onKeyDown={(e) => handleKeyDown(e, 'partnership')}
               error={errors.partnership}
             />
+            
+            <Select
+              ref={groupInputRef}
+              label="Group"
+              id="group"
+              value={formData.group_id}
+              onChange={(e) => handleInputChange('group_id', e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, 'group')}
+              onFocus={() => handleSelectFocus('group')}
+              options={groupOptions}
+              disabled={isLoadingGroups}
+            />
+          </div>
 
-            {/* Action Buttons - Same Row, Right Aligned */}
-            <div className={`${isEditMode ? 'col-span-3' : 'col-span-1'} flex justify-end gap-4 items-end`}>
-              {isEditMode && (
-                <button
-                  type="button"
-                  onClick={handleCancelEdit}
-                  className="px-6 py-3 bg-gray-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
-                >
-                  Cancel
-                </button>
-              )}
+          {/* Action Buttons - Right Aligned */}
+          <div className="flex justify-end gap-4">
+            {isEditMode && (
               <button
                 type="button"
-                onClick={handleSave}
-                disabled={isEditMode ? updateUserMutation.isPending : createUserMutation.isPending}
-                className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleCancelEdit}
+                className="px-6 py-3 bg-gray-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
               >
-                {isEditMode
-                  ? updateUserMutation.isPending
-                    ? 'Updating...'
-                    : 'Update'
-                  : createUserMutation.isPending
-                  ? 'Saving...'
-                  : 'Save'}
+                Cancel
               </button>
-              {!isEditMode && (
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="px-6 py-3 bg-red-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
-                >
-                  Reset
-                </button>
-              )}
-            </div>
+            )}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isEditMode ? updateUserMutation.isPending : createUserMutation.isPending}
+              className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isEditMode
+                ? updateUserMutation.isPending
+                  ? 'Updating...'
+                  : 'Update'
+                : createUserMutation.isPending
+                ? 'Saving...'
+                : 'Save'}
+            </button>
+            {!isEditMode && (
+              <button
+                type="button"
+                onClick={handleReset}
+                className="px-6 py-3 bg-red-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+              >
+                Reset
+              </button>
+            )}
           </div>
         </form>
       </Card>
