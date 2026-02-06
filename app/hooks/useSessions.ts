@@ -11,6 +11,7 @@ export interface Session {
   match_name: string | null;
   user_id: number;
   user_name: string | null;
+  group_name: string | null;
   inning_over: string;
   entry_run: number;
   amount: number;
@@ -89,7 +90,7 @@ export function useSessions(matchId?: number | null) {
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     staleTime: 0,
-    cacheTime: 0,
+    gcTime: 0,
   });
 }
 

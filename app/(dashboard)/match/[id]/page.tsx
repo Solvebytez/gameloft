@@ -154,7 +154,7 @@ export default function MatchDetailPage() {
     setTeam1Amount('');
     setTeam2Rate('');
     setTeam2Amount('');
-    setAssignedUsers([]);
+    setAssignedUser('');
   };
 
   // Handle Enter key to move focus to next field
@@ -233,7 +233,7 @@ export default function MatchDetailPage() {
     e.preventDefault();
 
     // Validation: A user must be selected
-    if (!assignedUser || assignedUser === '') {
+    if (!assignedUser || (typeof assignedUser === 'string' && assignedUser === '') || (typeof assignedUser === 'number' && assignedUser === 0)) {
       toast.error('Please select a user to assign entry to');
       return;
     }

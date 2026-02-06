@@ -28,7 +28,7 @@ export interface Group {
 
 interface CreateGroupPayload {
   name: string;
-  user_ids: number[];
+  user_ids?: number[];
 }
 
 interface UpdateGroupPayload {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -9,6 +9,7 @@ import Input from '@/app/components/ui/Input';
 import Select from '@/app/components/ui/Select';
 import { useInningsOvers } from '@/app/hooks/useInningsOvers';
 import { useUsers } from '@/app/hooks/useUsers';
+import { useGroups } from '@/app/hooks/useGroups';
 import { useMatch } from '@/app/hooks/useMatches';
 import { useSessions, useCreateSession, useUpdateSession, useDeleteSession, useUpdateResultByInningsOver, Session } from '@/app/hooks/useSessions';
 
@@ -45,24 +46,22 @@ export default function SessionMatchPage() {
   // Filter state
   const [filters, setFilters] = useState({
     user_id: '',
+    group_id: '',
     inningOver: '',
     isYes: '',
+    groupBy: '',
   });
 
-  // Pre-select match when matchId is available
-  useEffect(() => {
-    if (matchIdNumber && !formData.match_id) {
-      setFormData((prev) => ({ ...prev, match_id: String(matchIdNumber) }));
-    }
-  }, [matchIdNumber, formData.match_id]);
+  // match_id is already initialized in useState above with matchIdNumber
 
-  // Reset pagination when filter changes
-  useEffect(() => {
+  // Helper to update filters and reset pagination
+  const updateFilters = (newFilters: typeof filters) => {
+    setFilters(newFilters);
     setCurrentPage(1);
-  }, [filters]);
+  };
 
   // API hooks - filter sessions by match_id
-  const { data: sessions = [], isLoading: isLoadingSessions } = useSessions(matchIdNumber);
+  const { data: sessions = [] as Session[], isLoading: isLoadingSessions } = useSessions(matchIdNumber);
   const createSessionMutation = useCreateSession();
   const updateSessionMutation = useUpdateSession();
   const deleteSessionMutation = useDeleteSession();
@@ -78,8 +77,9 @@ export default function SessionMatchPage() {
   const addResultInningOverSelectRef = useRef<HTMLSelectElement>(null);
   const addResultResultInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch users and innings/overs for dropdowns
+  // Fetch users, groups, and innings/overs for dropdowns
   const { data: users = [] } = useUsers();
+  const { data: groups = [] } = useGroups();
   const { data: inningsOvers = [] } = useInningsOvers();
 
   // Filter active users and create dropdown options
@@ -107,13 +107,32 @@ export default function SessionMatchPage() {
     return options;
   }, [inningsOvers]);
 
+  // Create group options from all groups created by this admin
+  const groupOptions = useMemo(() => {
+    const options = [{ value: '', label: '--SELECT--' }];
+    groups.forEach((group) => {
+      options.push({
+        value: String(group.id),
+        label: group.name,
+      });
+    });
+    return options;
+  }, [groups]);
+
   // Transform sessions data to match table format and apply filters
   const sessionData = useMemo(() => {
-    let filteredSessions = sessions;
+    let filteredSessions: Session[] = (sessions as Session[]) || [];
     
     // Apply filters
     if (filters.user_id && filters.user_id !== '') {
       filteredSessions = filteredSessions.filter((session) => session.user_id === parseInt(filters.user_id));
+    }
+    if (filters.group_id && filters.group_id !== '') {
+      // Find group name from group_id
+      const selectedGroup = groups.find((g) => g.id === parseInt(filters.group_id));
+      if (selectedGroup) {
+        filteredSessions = filteredSessions.filter((session) => session.group_name === selectedGroup.name);
+      }
     }
     if (filters.inningOver && filters.inningOver !== '') {
       filteredSessions = filteredSessions.filter((session) => session.inning_over === filters.inningOver);
@@ -123,12 +142,13 @@ export default function SessionMatchPage() {
       filteredSessions = filteredSessions.filter((session) => session.is_yes === isYes);
     }
     
-    return filteredSessions.map((session) => ({
+    let mappedSessions = filteredSessions.map((session) => ({
       id: session.id,
       match_id: session.match_id,
       match_name: session.match_name,
       user_id: session.user_id,
       user_name: session.user_name,
+      group_name: session.group_name || null,
       inningOver: session.inning_over,
       entryRun: session.entry_run,
       amount: session.amount,
@@ -136,7 +156,36 @@ export default function SessionMatchPage() {
       result: session.result,
       netProfitLoss: session.net_profit_loss,
     }));
-  }, [sessions, filters]);
+
+    // Apply grouping if selected
+    if (filters.groupBy && filters.groupBy !== '') {
+      const grouped = new Map();
+      
+      mappedSessions.forEach((session) => {
+        let groupKey = '';
+        if (filters.groupBy === 'user') {
+          groupKey = session.user_name || `User ${session.user_id}`;
+        } else if (filters.groupBy === 'inningOver') {
+          groupKey = session.inningOver;
+        } else if (filters.groupBy === 'isYes') {
+          groupKey = session.isYes ? 'Yes' : 'No';
+        } else if (filters.groupBy === 'group') {
+          groupKey = session.group_name || 'No Group';
+        }
+        
+        if (!grouped.has(groupKey)) {
+          grouped.set(groupKey, []);
+        }
+        grouped.get(groupKey).push(session);
+      });
+      
+      // Sort by group key and flatten
+      const sortedGroups = Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+      mappedSessions = sortedGroups.flatMap(([_, sessions]) => sessions);
+    }
+    
+    return mappedSessions;
+  }, [sessions, filters, groups]);
 
   // Pagination logic
   const totalPages = Math.ceil(sessionData.length / entriesPerPage);
@@ -304,7 +353,7 @@ export default function SessionMatchPage() {
   };
 
   const handleEdit = (entry: typeof sessionData[0]) => {
-    const session = sessions.find((s) => s.id === entry.id);
+    const session = (sessions as Session[]).find((s) => s.id === entry.id);
     if (!session) {
       toast.error('Session not found', { duration: 2000 });
       return;
@@ -773,8 +822,22 @@ export default function SessionMatchPage() {
                     label=""
                     id="filter_user_id"
                     value={filters.user_id}
-                    onChange={(e) => setFilters((prev) => ({ ...prev, user_id: e.target.value }))}
+                    onChange={(e) => updateFilters({ ...filters, user_id: e.target.value })}
                     options={userOptions}
+                    className="!mb-0"
+                    containerClassName="mb-0"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="filter_group_id" className="text-sm font-semibold text-retro-dark whitespace-nowrap">
+                    Group:
+                  </label>
+                  <Select
+                    label=""
+                    id="filter_group_id"
+                    value={filters.group_id}
+                    onChange={(e) => updateFilters({ ...filters, group_id: e.target.value })}
+                    options={groupOptions}
                     className="!mb-0"
                     containerClassName="mb-0"
                   />
@@ -787,7 +850,7 @@ export default function SessionMatchPage() {
                     label=""
                     id="filter_inningOver"
                     value={filters.inningOver}
-                    onChange={(e) => setFilters((prev) => ({ ...prev, inningOver: e.target.value }))}
+                    onChange={(e) => updateFilters({ ...filters, inningOver: e.target.value })}
                     options={inningOverOptions}
                     className="!mb-0"
                     containerClassName="mb-0"
@@ -801,7 +864,7 @@ export default function SessionMatchPage() {
                     label=""
                     id="filter_isYes"
                     value={filters.isYes}
-                    onChange={(e) => setFilters((prev) => ({ ...prev, isYes: e.target.value }))}
+                    onChange={(e) => updateFilters({ ...filters, isYes: e.target.value })}
                     options={[
                       { value: '', label: '--SELECT--' },
                       { value: 'yes', label: 'Yes' },
@@ -811,10 +874,10 @@ export default function SessionMatchPage() {
                     containerClassName="mb-0"
                   />
                 </div>
-                {(filters.user_id || filters.inningOver || filters.isYes) && (
+                {(filters.user_id || filters.group_id || filters.inningOver || filters.isYes) && (
                   <button
                     type="button"
-                    onClick={() => setFilters({ user_id: '', inningOver: '', isYes: '' })}
+                    onClick={() => updateFilters({ ...filters, user_id: '', group_id: '', inningOver: '', isYes: '' })}
                     className="px-4 py-2 bg-gray-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity whitespace-nowrap"
                   >
                     Clear Filters

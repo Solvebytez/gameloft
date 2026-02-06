@@ -275,7 +275,7 @@ const groupColumns: Column<Group>[] = [
         : (group.total_commission || 0);
       return (
         <span className="font-semibold text-retro-accent">
-          {!isNaN(commission) ? `${commission.toFixed(2)}%` : '0.00%'}
+          {!isNaN(commission) ? `${commission.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : '0.00%'}
         </span>
       );
     },
