@@ -331,15 +331,19 @@ export default function CreateUserPage() {
           toast('No changes to save', { duration: 2000 });
         }
       } else {
-        // Create mode
+        // Create mode - ensure all required fields are present
+        // After validation, we know session_commission_type is not empty
+        const sessionCommissionType: 'no_commission' | 'profit_loss' | 'entrywise' = formData.session_commission_type as 'no_commission' | 'profit_loss' | 'entrywise';
+        const commissionType: 'no_commission' | 'profit_loss' | 'entrywise' = formData.commission_type as 'no_commission' | 'profit_loss' | 'entrywise';
+        
         const payload: CreateUserPayload = {
           name: formData.name.trim(),
           role: formData.role,
-          commission: formData.commission_type === 'no_commission' ? 0 : (formData.commission ? Number(formData.commission) : 0),
+          commission: commissionType === 'no_commission' ? 0 : (formData.commission ? Number(formData.commission) : 0),
           partnership: Number(formData.partnership),
-          commission_type: formData.commission_type as 'no_commission' | 'profit_loss' | 'entrywise',
-          session_commission: formData.session_commission_type === 'no_commission' ? 0 : (formData.session_commission ? Number(formData.session_commission) : 0),
-          session_commission_type: formData.session_commission_type as 'no_commission' | 'profit_loss' | 'entrywise',
+          commission_type: commissionType,
+          session_commission: sessionCommissionType === 'no_commission' ? 0 : (formData.session_commission && formData.session_commission.trim() ? Number(formData.session_commission) : 0),
+          session_commission_type: sessionCommissionType,
           group_id: formData.group_id ? parseInt(formData.group_id) : null,
         };
 
