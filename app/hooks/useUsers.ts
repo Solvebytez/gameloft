@@ -27,7 +27,7 @@ export interface User {
   }>;
 }
 
-interface CreateUserPayload {
+export interface CreateUserPayload {
   name: string;
   role: string;
   commission: number;

@@ -7,7 +7,7 @@ import Input from '@/app/components/ui/Input';
 import Select from '@/app/components/ui/Select';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
 import ConfirmModal from '@/app/components/ui/ConfirmModal';
-import { useUsers, useCreateUser, useUpdateUser, useUpdateUserStatus, useDeleteUser, User } from '@/app/hooks/useUsers';
+import { useUsers, useCreateUser, useUpdateUser, useUpdateUserStatus, useDeleteUser, User, CreateUserPayload } from '@/app/hooks/useUsers';
 import { useGroups } from '@/app/hooks/useGroups';
 
 const roleOptions = [
@@ -332,7 +332,7 @@ export default function CreateUserPage() {
         }
       } else {
         // Create mode
-        const payload = {
+        const payload: CreateUserPayload = {
           name: formData.name.trim(),
           role: formData.role,
           commission: formData.commission_type === 'no_commission' ? 0 : (formData.commission ? Number(formData.commission) : 0),
