@@ -119,6 +119,44 @@ export default function SessionMatchPage() {
     return options;
   }, [groups]);
 
+  // Calculate final net profit for a user based on session commission type
+  const calculateFinalNetProfit = useMemo(() => {
+    return (userId: number, userNetProfitLossSum: number): number => {
+      const user = users.find((u) => u.id === userId);
+      if (!user) {
+        return Number(userNetProfitLossSum) || 0;
+      }
+      
+      // Ensure sum is a number
+      const sum = Number(userNetProfitLossSum) || 0;
+      const partnership = Number(user.partnership) || 0;
+      const sessionCommission = Number(user.session_commission) || 0;
+      
+      // For users with no session commission, deduct partnership percentage only
+      if (user.session_commission_type === 'no_commission') {
+        // Deduct partnership: amount after cutting the partnership commission
+        return sum * (1 - partnership / 100);
+      }
+      
+      // For users with profit_loss session commission type
+      if (user.session_commission_type === 'profit_loss') {
+        // If total is negative (loss), apply session commission first, then partnership
+        if (sum < 0) {
+          // Step 1: Apply session commission on the loss
+          const afterSessionCommission = sum * (1 - sessionCommission / 100);
+          // Step 2: Apply partnership on the result
+          return afterSessionCommission * (1 - partnership / 100);
+        } else {
+          // If total is positive (profit), apply partnership only (no session commission)
+          return sum * (1 - partnership / 100);
+        }
+      }
+      
+      // For other session commission types (like 'entrywise'), return the sum as-is (will be handled later)
+      return sum;
+    };
+  }, [users]);
+
   // Transform sessions data to match table format and apply filters
   const sessionData = useMemo(() => {
     let filteredSessions: Session[] = (sessions as Session[]) || [];
@@ -157,11 +195,29 @@ export default function SessionMatchPage() {
       netProfitLoss: session.net_profit_loss,
     }));
 
-    // Apply grouping if selected
+    // Always group by user first, then apply additional grouping if selected
+    const userGrouped = new Map<number, typeof mappedSessions>();
+    mappedSessions.forEach((session) => {
+      if (!userGrouped.has(session.user_id)) {
+        userGrouped.set(session.user_id, []);
+      }
+      userGrouped.get(session.user_id)!.push(session);
+    });
+    
+    // Sort by user name and flatten
+    const sortedByUser = Array.from(userGrouped.entries())
+      .sort((a, b) => {
+        const nameA = a[1][0]?.user_name || '';
+        const nameB = b[1][0]?.user_name || '';
+        return nameA.localeCompare(nameB);
+      })
+      .flatMap(([_, sessions]) => sessions);
+
+    // Apply additional grouping if selected
     if (filters.groupBy && filters.groupBy !== '') {
       const grouped = new Map();
       
-      mappedSessions.forEach((session) => {
+      sortedByUser.forEach((session) => {
         let groupKey = '';
         if (filters.groupBy === 'user') {
           groupKey = session.user_name || `User ${session.user_id}`;
@@ -181,11 +237,66 @@ export default function SessionMatchPage() {
       
       // Sort by group key and flatten
       const sortedGroups = Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-      mappedSessions = sortedGroups.flatMap(([_, sessions]) => sessions);
+      return sortedGroups.flatMap(([_, sessions]) => sessions);
     }
     
-    return mappedSessions;
+    return sortedByUser;
   }, [sessions, filters, groups]);
+
+  // Calculate final net profit per user (using all session data, not just paginated)
+  const userFinalNetProfit = useMemo(() => {
+    const userGroups = new Map<number, typeof sessionData>();
+    sessionData.forEach((entry) => {
+      if (!userGroups.has(entry.user_id)) {
+        userGroups.set(entry.user_id, []);
+      }
+      userGroups.get(entry.user_id)!.push(entry);
+    });
+
+    const finalNetProfitMap = new Map<number, number>();
+    userGroups.forEach((entries, userId) => {
+      const user = users.find((u) => u.id === userId);
+      
+      // For entrywise, we need to separate profit and loss
+      if (user?.session_commission_type === 'entrywise') {
+        let totalProfit = 0;
+        let totalLoss = 0;
+        
+        entries.forEach((entry) => {
+          const value = Number(entry.netProfitLoss) || 0;
+          if (value >= 0) {
+            totalProfit += value;
+          } else {
+            totalLoss += value; // This will be negative
+          }
+        });
+        
+        // Apply entrywise calculation
+        const sessionCommission = Number(user.session_commission) || 0;
+        const partnership = Number(user.partnership) || 0;
+        
+        // Step 1: Apply session commission ONLY on loss (add to loss)
+        const lossCommission = Math.abs(totalLoss) * (sessionCommission / 100);
+        
+        // Step 2: Calculate net after loss commission
+        const netAfterLossCommission = totalProfit + totalLoss + lossCommission;
+        
+        // Step 3: Apply partnership percentage
+        const finalAmount = netAfterLossCommission * (1 - partnership / 100);
+        
+        finalNetProfitMap.set(userId, finalAmount);
+      } else {
+        // For other types, use the existing calculation
+        const sum = entries.reduce((acc, entry) => {
+          const value = Number(entry.netProfitLoss) || 0;
+          return acc + value;
+        }, 0);
+        finalNetProfitMap.set(userId, calculateFinalNetProfit(userId, sum));
+      }
+    });
+
+    return finalNetProfitMap;
+  }, [sessionData, calculateFinalNetProfit, users]);
 
   // Pagination logic
   const totalPages = Math.ceil(sessionData.length / entriesPerPage);
@@ -657,7 +768,12 @@ export default function SessionMatchPage() {
                     id="add_result_inning_over"
                     value={addResultFormData.inningOver}
                     onChange={(e) => {
-                      setAddResultFormData((prev) => ({ ...prev, inningOver: e.target.value }));
+                      const selectedInningOver = e.target.value;
+                      setAddResultFormData((prev) => ({ ...prev, inningOver: selectedInningOver }));
+                      
+                      // Automatically filter table by selected innings/over
+                      updateFilters({ ...filters, inningOver: selectedInningOver });
+                      
                       if (addResultErrors.inningOver) {
                         setAddResultErrors((prev) => {
                           const newErrors = { ...prev };
@@ -897,11 +1013,12 @@ export default function SessionMatchPage() {
             </div>
           )}
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse bg-transparent">
+            <table className="w-full border-collapse bg-transparent text-sm">
               {/* Table Header */}
               <thead>
                 <tr className="border-b border-gray-300 bg-[var(--header)]">
                   <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)]">Name</th>
+                  <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)]">Group</th>
                   <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)]">Inning/Over</th>
                   <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)]">Entry Run</th>
                   <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)]">
@@ -913,6 +1030,10 @@ export default function SessionMatchPage() {
                     <div>Net Profit</div>
                     <div className="text-xs font-normal">Loss</div>
                   </th>
+                  <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)] bg-amber-600">
+                    <div>Final net</div>
+                    <div className="text-xs font-normal">result</div>
+                  </th>
                   <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)]">Actions</th>
                 </tr>
               </thead>
@@ -920,98 +1041,181 @@ export default function SessionMatchPage() {
               <tbody>
                 {isLoadingSessions ? (
                   <tr>
-                    <td colSpan={7} className="px-3 py-8 text-center text-retro-dark/60">
+                    <td colSpan={9} className="px-3 py-8 text-center text-retro-dark/60">
                       Loading sessions...
                     </td>
                   </tr>
                 ) : sessionData.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-3 py-8 text-center text-retro-dark/60">
+                    <td colSpan={9} className="px-3 py-8 text-center text-retro-dark/60">
                       No entries found. Create your first entry above.
                     </td>
                   </tr>
-                ) : (
-                  paginatedEntries.map((entry) => (
-                    <tr key={entry.id} className="border-b border-gray-200 hover:bg-transparent">
-                      <td className="px-3 py-1.5 text-retro-dark">{entry.user_name}</td>
-                      <td className="px-3 py-1.5 text-retro-dark">{entry.inningOver}</td>
-                      <td className="px-3 py-1.5 text-retro-dark">{entry.entryRun}</td>
-                      <td className="px-3 py-1.5 text-retro-dark">
-                        <div>{entry.amount.toLocaleString()}</div>
-                        <div className={`text-xs font-bold ${entry.isYes ? 'text-green-600' : 'text-red-600'}`}>
-                          ({entry.isYes ? 'Y' : 'N'})
-                        </div>
-                      </td>
-                      <td className="px-3 py-1.5 text-retro-dark">{entry.result !== null && entry.result !== undefined ? entry.result : 'N/A'}</td>
-                      <td className="px-3 py-1.5 text-retro-dark">
-                        <span
-                          className={`inline-block px-3 py-1 rounded font-semibold ${
-                            entry.netProfitLoss >= 0
-                              ? 'bg-green-200 text-green-800'
-                              : 'bg-red-200 text-red-800'
-                          }`}
-                        >
-                          {entry.netProfitLoss >= 0 ? '+' : ''}
-                          {entry.netProfitLoss.toLocaleString()}
-                        </span>
-                      </td>
-                      <td className="px-3 py-1.5 text-retro-dark">
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={() => setOpenDropdownId(openDropdownId === entry.id ? null : entry.id)}
-                            className="px-2 py-1 bg-gray-200 text-gray-700 text-sm font-bold rounded hover:bg-gray-300 transition-colors"
-                            aria-label="Actions"
-                          >
-                            <svg
-                              className="w-5 h-5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                              />
-                            </svg>
-                          </button>
-                          {openDropdownId === entry.id && (
-                            <>
-                              <div
-                                className="fixed inset-0 z-10"
-                                onClick={() => setOpenDropdownId(null)}
-                              />
-                              <div className="absolute right-0 mt-1 w-32 bg-white border-2 border-retro-dark rounded-lg shadow-lg z-20">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleEdit(entry);
-                                    setOpenDropdownId(null);
-                                  }}
-                                  className="w-full text-left px-4 py-2 text-sm font-bold text-blue-600 hover:bg-blue-50 transition-colors first:rounded-t-lg"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleDelete(entry);
-                                    setOpenDropdownId(null);
-                                  }}
-                                  className="w-full text-left px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors last:rounded-b-lg"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </>
+                ) : (() => {
+                  // Group paginated entries by user_id to determine row spans for merged cells
+                  const userGroups = new Map<number, typeof paginatedEntries>();
+                  paginatedEntries.forEach((entry) => {
+                    if (!userGroups.has(entry.user_id)) {
+                      userGroups.set(entry.user_id, []);
+                    }
+                    userGroups.get(entry.user_id)!.push(entry);
+                  });
+
+                  // Track which user entries we've already rendered the merged cell for
+                  const renderedUserCells = new Set<number>();
+
+                  // Render rows with merged cells for final net profit
+                  return paginatedEntries.map((entry, index) => {
+                    const userEntries = userGroups.get(entry.user_id)!;
+                    const isFirstEntryOfUser = !renderedUserCells.has(entry.user_id);
+                    if (isFirstEntryOfUser) {
+                      renderedUserCells.add(entry.user_id);
+                    }
+                    const rowSpan = isFirstEntryOfUser ? userEntries.length : 0;
+                    const finalNetProfit = Number(userFinalNetProfit.get(entry.user_id)) || 0;
+                    
+                    // Get user data for commission type badge
+                    const user = users.find((u) => u.id === entry.user_id);
+                    const getCommissionTypeBadge = (type?: string) => {
+                      if (type === 'profit_loss') return { text: 'PL', color: 'bg-blue-200 text-blue-800' };
+                      if (type === 'no_commission') return { text: 'NC', color: 'bg-green-200 text-green-800' };
+                      if (type === 'entrywise') return { text: 'En.w', color: 'bg-purple-200 text-purple-800' };
+                      return null;
+                    };
+                    const commissionTypeBadge = getCommissionTypeBadge(user?.session_commission_type);
+                    
+                    // Check if this is the first row of a new user group (not the very first row in the table)
+                    const previousEntry = index > 0 ? paginatedEntries[index - 1] : null;
+                    const nextEntry = index < paginatedEntries.length - 1 ? paginatedEntries[index + 1] : null;
+                    const isNewUserGroup = isFirstEntryOfUser && index > 0 && previousEntry && previousEntry.user_id !== entry.user_id;
+                    const isLastRowOfUserGroup = !nextEntry || (nextEntry && nextEntry.user_id !== entry.user_id);
+
+                    // Build border classes
+                    let borderClasses = 'hover:bg-transparent';
+                    if (isNewUserGroup) {
+                      // New user group: thick top border, no bottom border
+                      borderClasses += ' border-t-4 border-gray-700 border-b-0';
+                    } else if (isLastRowOfUserGroup && index < paginatedEntries.length - 1) {
+                      // Last row of user group (but not last row of table): no bottom border (next row will have top border)
+                      borderClasses += ' border-b-0';
+                    } else if (!isLastRowOfUserGroup && nextEntry && nextEntry.user_id === entry.user_id) {
+                      // Row within same user group: no bottom border to avoid double borders
+                      borderClasses += ' border-b-0';
+                    } else {
+                      // Regular row: normal bottom border
+                      borderClasses += ' border-b border-gray-200';
+                    }
+
+                    return (
+                      <tr 
+                        key={entry.id} 
+                        className={borderClasses}
+                      >
+                        <td className="px-3 py-1.5 text-retro-dark relative">
+                          <span>{entry.user_name}</span>
+                          {commissionTypeBadge && (
+                            <span className={`absolute top-1 right-1 text-[10px] font-semibold px-1 py-0.5 rounded ${commissionTypeBadge.color}`}>
+                              {commissionTypeBadge.text}
+                            </span>
                           )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                        </td>
+                        <td className="px-3 py-1.5 text-retro-dark">{entry.group_name || '-'}</td>
+                        <td className="px-3 py-1.5 text-retro-dark">{entry.inningOver}</td>
+                        <td className="px-3 py-1.5 text-retro-dark">{entry.entryRun}</td>
+                        <td className="px-3 py-1.5 text-retro-dark">
+                          <div>{entry.amount.toLocaleString()}</div>
+                          <div className={`text-xs font-bold ${entry.isYes ? 'text-green-600' : 'text-red-600'}`}>
+                            ({entry.isYes ? 'Y' : 'N'})
+                          </div>
+                        </td>
+                        <td className="px-3 py-1.5 text-retro-dark">{entry.result !== null && entry.result !== undefined ? entry.result : 'N/A'}</td>
+                        <td className="px-3 py-1.5 text-retro-dark">
+                          <span
+                            className={`inline-block px-3 py-1 rounded font-semibold ${
+                              entry.netProfitLoss >= 0
+                                ? 'bg-green-200 text-green-800'
+                                : 'bg-red-200 text-red-800'
+                            }`}
+                          >
+                            {entry.netProfitLoss >= 0 ? '+' : ''}
+                            {entry.netProfitLoss.toLocaleString()}
+                          </span>
+                        </td>
+                        {isFirstEntryOfUser ? (
+                          <td
+                            rowSpan={rowSpan}
+                            className="px-3 py-1.5 text-retro-dark align-middle bg-amber-50"
+                          >
+                            <span
+                              className={`inline-block px-3 py-1 rounded font-semibold ${
+                                finalNetProfit >= 0
+                                  ? 'bg-blue-200 text-blue-800'
+                                  : 'bg-orange-200 text-orange-800'
+                              }`}
+                            >
+                              {finalNetProfit >= 0 ? '+' : ''}
+                              {Number(finalNetProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </td>
+                        ) : null}
+                        <td className="px-3 py-1.5 text-retro-dark">
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setOpenDropdownId(openDropdownId === entry.id ? null : entry.id)}
+                              className="px-2 py-1 bg-gray-200 text-gray-700 text-sm font-bold rounded hover:bg-gray-300 transition-colors"
+                              aria-label="Actions"
+                            >
+                              <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                                />
+                              </svg>
+                            </button>
+                            {openDropdownId === entry.id && (
+                              <>
+                                <div
+                                  className="fixed inset-0 z-10"
+                                  onClick={() => setOpenDropdownId(null)}
+                                />
+                                <div className="absolute right-0 mt-1 w-32 bg-white border-2 border-retro-dark rounded-lg shadow-lg z-20">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleEdit(entry);
+                                      setOpenDropdownId(null);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm font-bold text-blue-600 hover:bg-blue-50 transition-colors first:rounded-t-lg"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleDelete(entry);
+                                      setOpenDropdownId(null);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors last:rounded-b-lg"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>

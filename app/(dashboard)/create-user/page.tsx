@@ -25,6 +25,13 @@ const commissionTypeOptions = [
   { value: 'entrywise', label: 'Entrywise' },
 ];
 
+const sessionCommissionTypeOptions = [
+  { value: '', label: '--SELECT--' },
+  { value: 'no_commission', label: 'No commission' },
+  { value: 'profit_loss', label: 'Profit loss' },
+  { value: 'entrywise', label: 'Entrywise' },
+];
+
 export default function CreateUserPage() {
   const [formData, setFormData] = useState({
     role: 'user',
@@ -32,6 +39,8 @@ export default function CreateUserPage() {
     commission: '',
     partnership: '',
     commission_type: '',
+    session_commission: '',
+    session_commission_type: '',
     group_id: '',
   });
 
@@ -54,6 +63,8 @@ export default function CreateUserPage() {
   const commissionTypeInputRef = useRef<HTMLSelectElement>(null);
   const commissionInputRef = useRef<HTMLInputElement>(null);
   const partnershipInputRef = useRef<HTMLInputElement>(null);
+  const sessionCommissionTypeInputRef = useRef<HTMLSelectElement>(null);
+  const sessionCommissionInputRef = useRef<HTMLInputElement>(null);
   const groupInputRef = useRef<HTMLSelectElement>(null);
 
   // Fetch users from API
@@ -83,21 +94,43 @@ export default function CreateUserPage() {
     if (e.key === 'Enter') {
       e.preventDefault();
       
-      // Define the order of fields
-      const fieldOrder = ['role', 'name', 'commission_type', 'commission', 'partnership', 'group'];
+      // Define the order of fields (matching visual layout)
+      const fieldOrder = ['role', 'name', 'commission_type', 'commission', 'partnership', 'group', 'session_commission_type', 'session_commission'];
       const currentIndex = fieldOrder.indexOf(currentField);
       
       if (currentIndex < fieldOrder.length - 1) {
-        // Move to next field
-        const nextField = fieldOrder[currentIndex + 1];
+        // Find the next visible field
+        let nextIndex = currentIndex + 1;
+        let nextField = fieldOrder[nextIndex];
         
-        // Check if next field should be visible (commission is hidden when no_commission is selected)
-        if (nextField === 'commission' && formData.commission_type === 'no_commission') {
-          // Skip commission and go to partnership
-          partnershipInputRef.current?.focus();
-        } else {
-          // Focus the next field based on ref
-          switch (nextField) {
+        // Skip hidden fields
+        while (nextIndex < fieldOrder.length) {
+          nextField = fieldOrder[nextIndex];
+          
+          // Skip commission if commission_type is no_commission
+          if (nextField === 'commission' && formData.commission_type === 'no_commission') {
+            nextIndex++;
+            continue;
+          }
+          
+          // Skip session_commission if session_commission_type is no_commission
+          if (nextField === 'session_commission' && formData.session_commission_type === 'no_commission') {
+            nextIndex++;
+            continue;
+          }
+          
+          // Found a visible field
+          break;
+        }
+        
+        // If we've reached the end, submit the form
+        if (nextIndex >= fieldOrder.length) {
+          handleSave();
+          return;
+        }
+        
+        // Focus the next field based on ref
+        switch (nextField) {
             case 'role':
               roleInputRef.current?.focus();
               // Open dropdown for select fields
@@ -125,6 +158,18 @@ export default function CreateUserPage() {
             case 'partnership':
               partnershipInputRef.current?.focus();
               break;
+            case 'session_commission_type':
+              sessionCommissionTypeInputRef.current?.focus();
+              // Open dropdown for select fields
+              setTimeout(() => {
+                if (sessionCommissionTypeInputRef.current) {
+                  sessionCommissionTypeInputRef.current.click();
+                }
+              }, 50);
+              break;
+            case 'session_commission':
+              sessionCommissionInputRef.current?.focus();
+              break;
             case 'group':
               groupInputRef.current?.focus();
               // Open dropdown for select fields
@@ -134,7 +179,6 @@ export default function CreateUserPage() {
                 }
               }, 50);
               break;
-          }
         }
       } else {
         // Last field - submit the form
@@ -144,12 +188,14 @@ export default function CreateUserPage() {
   };
 
   // Handle focus on select fields to auto-open dropdown
-  const handleSelectFocus = (field: 'role' | 'commission_type' | 'group') => {
+  const handleSelectFocus = (field: 'role' | 'commission_type' | 'session_commission_type' | 'group') => {
     setTimeout(() => {
       if (field === 'role' && roleInputRef.current) {
         roleInputRef.current.click();
       } else if (field === 'commission_type' && commissionTypeInputRef.current) {
         commissionTypeInputRef.current.click();
+      } else if (field === 'session_commission_type' && sessionCommissionTypeInputRef.current) {
+        sessionCommissionTypeInputRef.current.click();
       } else if (field === 'group' && groupInputRef.current) {
         groupInputRef.current.click();
       }
@@ -177,6 +223,18 @@ export default function CreateUserPage() {
     }
     if (!formData.commission_type) {
       newErrors.commission_type = 'Commission type is required';
+    }
+    if (!formData.session_commission_type) {
+      newErrors.session_commission_type = 'Session commission type is required';
+    }
+    
+    // Session Commission is required if session_commission_type is not 'no_commission'
+    if (formData.session_commission_type !== 'no_commission') {
+      if (!formData.session_commission.trim()) {
+        newErrors.session_commission = 'Session commission is required';
+      } else if (isNaN(Number(formData.session_commission)) || Number(formData.session_commission) < 0 || Number(formData.session_commission) > 100) {
+        newErrors.session_commission = 'Session commission must be a number between 0 and 100';
+      }
     }
     
     // Commission is required if commission_type is not 'no_commission' (including when empty/not selected)
@@ -215,6 +273,8 @@ export default function CreateUserPage() {
           commission?: number;
           partnership?: number;
           commission_type?: 'no_commission' | 'profit_loss' | 'entrywise';
+          session_commission?: number;
+          session_commission_type?: 'no_commission' | 'profit_loss' | 'entrywise';
           group_id?: number | null;
         } = {};
 
@@ -236,6 +296,20 @@ export default function CreateUserPage() {
         }
         if (formData.partnership.trim() && Number(formData.partnership) !== editingUser.partnership) {
           updatePayload.partnership = Number(formData.partnership);
+        }
+        if (formData.session_commission_type !== editingUser.session_commission_type) {
+          updatePayload.session_commission_type = formData.session_commission_type as 'no_commission' | 'profit_loss' | 'entrywise';
+          if (formData.session_commission_type === 'no_commission') {
+            updatePayload.session_commission = 0;
+          } else {
+            // Always send session_commission when type is not no_commission
+            // Use form value if provided, otherwise keep existing value or default to 0
+            updatePayload.session_commission = formData.session_commission.trim() 
+              ? Number(formData.session_commission) 
+              : (editingUser.session_commission || 0);
+          }
+        } else if (formData.session_commission_type !== 'no_commission' && formData.session_commission.trim() && Number(formData.session_commission) !== (editingUser.session_commission || 0)) {
+          updatePayload.session_commission = Number(formData.session_commission);
         }
         
         // Handle group_id - check if it changed
@@ -264,6 +338,8 @@ export default function CreateUserPage() {
           commission: formData.commission_type === 'no_commission' ? 0 : (formData.commission ? Number(formData.commission) : 0),
           partnership: Number(formData.partnership),
           commission_type: formData.commission_type as 'no_commission' | 'profit_loss' | 'entrywise',
+          session_commission: formData.session_commission_type === 'no_commission' ? 0 : (formData.session_commission ? Number(formData.session_commission) : 0),
+          session_commission_type: formData.session_commission_type as 'no_commission' | 'profit_loss' | 'entrywise',
           group_id: formData.group_id ? parseInt(formData.group_id) : null,
         };
 
@@ -303,6 +379,8 @@ export default function CreateUserPage() {
       commission: originalUser.commission.toString(),
       partnership: originalUser.partnership.toString(),
       commission_type: originalUser.commission_type || '',
+      session_commission: (originalUser.session_commission || 0).toString(),
+      session_commission_type: originalUser.session_commission_type || '',
       group_id: originalUser.group_id ? String(originalUser.group_id) : '',
     });
     setErrors({});
@@ -317,6 +395,8 @@ export default function CreateUserPage() {
       commission: '',
       partnership: '',
       commission_type: '',
+      session_commission: '',
+      session_commission_type: '',
       group_id: '',
     });
     setErrors({});
@@ -336,6 +416,13 @@ export default function CreateUserPage() {
       partnership: `${user.partnership}%`,
       commissionType: user.commission_type
         ? user.commission_type
+            .split('_')
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ')
+        : '-',
+      sessionCommission: `${user.session_commission || 0}%`,
+      sessionCommissionType: user.session_commission_type
+        ? user.session_commission_type
             .split('_')
             .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
             .join(' ')
@@ -378,6 +465,21 @@ export default function CreateUserPage() {
       sortable: true,
       render: (value) => (
         <span className="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-semibold">
+          {value}
+        </span>
+      ),
+    },
+    {
+      key: 'sessionCommission',
+      label: 'Session Commission',
+      sortable: true,
+    },
+    {
+      key: 'sessionCommissionType',
+      label: 'Session Commission Type',
+      sortable: true,
+      render: (value) => (
+        <span className="inline-block px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-semibold">
           {value}
         </span>
       ),
@@ -536,6 +638,32 @@ export default function CreateUserPage() {
               options={groupOptions}
               disabled={isLoadingGroups}
             />
+            
+            <Select
+              ref={sessionCommissionTypeInputRef}
+              label="Session Commission Type*"
+              id="session_commission_type"
+              value={formData.session_commission_type}
+              onChange={(e) => handleInputChange('session_commission_type', e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, 'session_commission_type')}
+              onFocus={() => handleSelectFocus('session_commission_type')}
+              options={sessionCommissionTypeOptions}
+              error={errors.session_commission_type}
+            />
+            
+            {/* Session Commission (hidden only when no_commission is selected) */}
+            {formData.session_commission_type !== 'no_commission' && (
+              <Input
+                ref={sessionCommissionInputRef}
+                type="text"
+                label="Session Commission*"
+                id="session_commission"
+                value={formData.session_commission}
+                onChange={(e) => handleInputChange('session_commission', e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, 'session_commission')}
+                error={errors.session_commission}
+              />
+            )}
           </div>
 
           {/* Action Buttons - Right Aligned */}

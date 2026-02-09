@@ -14,6 +14,8 @@ export interface User {
   commission: number;
   partnership: number;
   commission_type: 'no_commission' | 'profit_loss' | 'entrywise';
+  session_commission?: number;
+  session_commission_type?: 'no_commission' | 'profit_loss' | 'entrywise';
   last_login: string | null;
   status: 'active' | 'inactive';
   created_at: string;
@@ -31,6 +33,8 @@ interface CreateUserPayload {
   commission: number;
   partnership: number;
   commission_type: 'no_commission' | 'profit_loss' | 'entrywise';
+  session_commission: number;
+  session_commission_type: 'no_commission' | 'profit_loss' | 'entrywise';
   group_id?: number | null;
 }
 
@@ -40,6 +44,8 @@ interface UpdateUserPayload {
   commission?: number;
   partnership?: number;
   commission_type?: 'no_commission' | 'profit_loss' | 'entrywise';
+  session_commission?: number;
+  session_commission_type?: 'no_commission' | 'profit_loss' | 'entrywise';
   group_id?: number | null;
 }
 
@@ -182,6 +188,8 @@ export function useCreateUser() {
         commission: newUser.commission,
         partnership: newUser.partnership,
         commission_type: newUser.commission_type,
+        session_commission: newUser.session_commission,
+        session_commission_type: newUser.session_commission_type,
         last_login: null,
         status: 'active', // Default status
         created_at: new Date().toISOString(),
@@ -269,7 +277,15 @@ export function useUpdateUser() {
       }
       toast.error(err instanceof Error ? err.message : 'Failed to update user');
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Update cache with the returned data from server
+      queryClient.setQueryData<User[]>(userKeys.list(), (old = []) =>
+        old.map((user) =>
+          user.id === data.id
+            ? { ...user, ...data }
+            : user
+        )
+      );
       toast.success('User updated successfully!');
     },
     onSettled: () => {
