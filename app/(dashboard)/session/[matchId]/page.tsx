@@ -313,18 +313,126 @@ export default function SessionMatchPage() {
 
   // Calculate summary totals
   const summary = useMemo(() => {
-    const totalSale = sessionData.reduce((sum, entry) => sum + entry.amount, 0);
-    const totalProfitLoss = sessionData.reduce((sum, entry) => sum + entry.netProfitLoss, 0);
-    const commission = totalSale * 0.05; // 5% commission
-    const profitLossAfterCommission = totalProfitLoss - commission;
+    // Ensure proper number conversion to avoid string concatenation
+    const totalAmount = sessionData.reduce((sum, entry) => {
+      const amount = Number(entry.amount) || 0;
+      return sum + amount;
+    }, 0);
+    
+    const rawProfitLoss = sessionData.reduce((sum, entry) => {
+      const profitLoss = Number(entry.netProfitLoss) || 0;
+      return sum + profitLoss;
+    }, 0);
+    
+    // Calculate total final net result (sum of all user final net results)
+    const totalFinalNetResult = Array.from(userFinalNetProfit.values()).reduce((sum, value) => {
+      const numValue = Number(value) || 0;
+      return sum + numValue;
+    }, 0);
+
+    // Calculate additional statistics
+    const totalEntries = sessionData.length;
+    const uniqueUserIds = new Set(sessionData.map(entry => entry.user_id));
+    const totalUsers = uniqueUserIds.size;
+    
+    const totalProfit = sessionData.reduce((sum, entry) => {
+      const profitLoss = Number(entry.netProfitLoss) || 0;
+      return sum + (profitLoss > 0 ? profitLoss : 0);
+    }, 0);
+    const totalLoss = sessionData.reduce((sum, entry) => {
+      const profitLoss = Number(entry.netProfitLoss) || 0;
+      return sum + (profitLoss < 0 ? Math.abs(profitLoss) : 0);
+    }, 0);
+
+    // Count users and calculate commission by commission type
+    let noCommissionCount = 0;
+    let entrywiseCount = 0;
+    let profitLossCount = 0;
+    
+    let noCommissionRawTotal = 0;
+    let entrywiseRawTotal = 0;
+    let profitLossRawTotal = 0;
+    
+    let noCommissionFinalTotal = 0;
+    let entrywiseFinalTotal = 0;
+    let profitLossFinalTotal = 0;
+    
+    uniqueUserIds.forEach(userId => {
+      const user = users.find((u) => u.id === userId);
+      if (user) {
+        // Calculate raw total for this user
+        const userRawTotal = sessionData
+          .filter(entry => entry.user_id === userId)
+          .reduce((sum, entry) => sum + (Number(entry.netProfitLoss) || 0), 0);
+        
+        // Get final total for this user
+        const userFinalTotal = Number(userFinalNetProfit.get(userId)) || 0;
+        
+        if (user.session_commission_type === 'no_commission') {
+          noCommissionCount++;
+          noCommissionRawTotal += userRawTotal;
+          noCommissionFinalTotal += userFinalTotal;
+        } else if (user.session_commission_type === 'entrywise') {
+          entrywiseCount++;
+          entrywiseRawTotal += userRawTotal;
+          entrywiseFinalTotal += userFinalTotal;
+        } else if (user.session_commission_type === 'profit_loss') {
+          profitLossCount++;
+          profitLossRawTotal += userRawTotal;
+          profitLossFinalTotal += userFinalTotal;
+        }
+      }
+    });
+
+    // Calculate commission amounts (difference between raw and final)
+    const noCommissionAmount = noCommissionRawTotal - noCommissionFinalTotal;
+    const entrywiseCommissionAmount = entrywiseRawTotal - entrywiseFinalTotal;
+    const profitLossCommissionAmount = profitLossRawTotal - profitLossFinalTotal;
+
+    // Calculate average partnership and session commission percentages
+    let totalPartnership = 0;
+    let totalSessionCommission = 0;
+    let usersWithPartnership = 0;
+    let usersWithSessionCommission = 0;
+    
+    uniqueUserIds.forEach(userId => {
+      const user = users.find((u) => u.id === userId);
+      if (user) {
+        const partnership = Number(user.partnership) || 0;
+        if (partnership > 0) {
+          totalPartnership += partnership;
+          usersWithPartnership++;
+        }
+        
+        const sessionCommission = Number(user.session_commission) || 0;
+        if (sessionCommission > 0 && user.session_commission_type !== 'no_commission') {
+          totalSessionCommission += sessionCommission;
+          usersWithSessionCommission++;
+        }
+      }
+    });
+
+    const avgPartnership = usersWithPartnership > 0 ? totalPartnership / usersWithPartnership : 0;
+    const avgSessionCommission = usersWithSessionCommission > 0 ? totalSessionCommission / usersWithSessionCommission : 0;
 
     return {
-      totalSale,
-      profitLoss: totalProfitLoss,
-      commission,
-      profitLossAfterCommission,
+      totalAmount: Number(totalAmount) || 0,
+      rawProfitLoss: Number(rawProfitLoss) || 0,
+      totalFinalNetResult: Number(totalFinalNetResult) || 0,
+      totalEntries,
+      totalUsers,
+      totalProfit: Number(totalProfit) || 0,
+      totalLoss: Number(totalLoss) || 0,
+      noCommissionCount,
+      entrywiseCount,
+      profitLossCount,
+      noCommissionAmount: Number(noCommissionAmount) || 0,
+      entrywiseCommissionAmount: Number(entrywiseCommissionAmount) || 0,
+      profitLossCommissionAmount: Number(profitLossCommissionAmount) || 0,
+      avgPartnership: Number(avgPartnership) || 0,
+      avgSessionCommission: Number(avgSessionCommission) || 0,
     };
-  }, [sessionData]);
+  }, [sessionData, userFinalNetProfit, users]);
 
   // Calculate net profit/loss based on entry run, result, amount, and yes/no
   // Note: Result is not in form, calculation happens on backend
@@ -1318,31 +1426,82 @@ export default function SessionMatchPage() {
               <table className="w-full border-collapse">
                 <tbody>
                   <tr className="border-b-2 border-[var(--retro-dark)]/30">
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Total Sale:</td>
-                    <td className="px-4 py-2 text-right font-bold text-retro-dark">{summary.totalSale.toLocaleString()}</td>
+                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Total Entries:</td>
+                    <td className="px-4 py-2 text-right font-bold text-retro-dark">{summary.totalEntries}</td>
                   </tr>
                   <tr className="border-b-2 border-[var(--retro-dark)]/30">
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Profit/Loss:</td>
-                    <td className="px-4 py-2 text-right font-bold text-retro-dark">{summary.profitLoss.toLocaleString()}</td>
+                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Total Users:</td>
+                    <td className="px-4 py-2 text-right font-bold text-retro-dark">{summary.totalUsers}</td>
                   </tr>
                   <tr className="border-b-2 border-[var(--retro-dark)]/30">
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Com (5%):</td>
-                    <td className="px-4 py-2 text-right font-bold text-retro-dark">{summary.commission.toLocaleString()}</td>
+                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Total Amount:</td>
+                    <td className="px-4 py-2 text-right font-bold text-retro-dark">
+                      {Number(summary.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
                   </tr>
                   <tr className="border-b-2 border-[var(--retro-dark)]/30">
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Profit/Loss (0%):</td>
-                    <td className="px-4 py-2 text-right font-bold text-retro-dark">0</td>
+                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">No Commission Users:</td>
+                    <td className="px-4 py-2 text-right font-bold text-retro-dark">
+                      {summary.noCommissionCount} (Comm: {Number(summary.noCommissionAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                    </td>
+                  </tr>
+                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
+                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Entrywise Commission Users:</td>
+                    <td className="px-4 py-2 text-right font-bold text-retro-dark">
+                      {summary.entrywiseCount} (Comm: {Number(summary.entrywiseCommissionAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                    </td>
+                  </tr>
+                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
+                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Profit Loss Commission Users:</td>
+                    <td className="px-4 py-2 text-right font-bold text-retro-dark">
+                      {summary.profitLossCount} (Comm: {Number(summary.profitLossCommissionAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                    </td>
+                  </tr>
+                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
+                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Total Profit:</td>
+                    <td className="px-4 py-2 text-right font-bold text-green-600">
+                      +{Number(summary.totalProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
+                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Total Loss:</td>
+                    <td className="px-4 py-2 text-right font-bold text-red-600">
+                      -{Number(summary.totalLoss).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
+                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Avg Partnership %:</td>
+                    <td className="px-4 py-2 text-right font-bold text-retro-dark">
+                      {Number(summary.avgPartnership).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                    </td>
+                  </tr>
+                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
+                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Avg Session Commission %:</td>
+                    <td className="px-4 py-2 text-right font-bold text-retro-dark">
+                      {Number(summary.avgSessionCommission).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                    </td>
+                  </tr>
+                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
+                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Raw Profit/Loss:</td>
+                    <td className="px-4 py-2 text-right font-bold">
+                      <span
+                        className={summary.rawProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}
+                      >
+                        {summary.rawProfitLoss >= 0 ? '+' : ''}
+                        {Number(summary.rawProfitLoss).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </td>
                   </tr>
                   <tr>
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Profit Loss:</td>
+                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Total Final Net Result:</td>
                     <td className="px-4 py-2 text-right">
                       <span
                         className={`font-bold ${
-                          summary.profitLossAfterCommission >= 0 ? 'text-green-600' : 'text-red-600'
+                          summary.totalFinalNetResult >= 0 ? 'text-green-600' : 'text-red-600'
                         }`}
                       >
-                        {summary.profitLossAfterCommission >= 0 ? '+' : ''}
-                        {summary.profitLossAfterCommission.toLocaleString()}
+                        {summary.totalFinalNetResult >= 0 ? '+' : ''}
+                        {Number(summary.totalFinalNetResult).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </td>
                   </tr>
