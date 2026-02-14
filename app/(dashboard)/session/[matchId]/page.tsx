@@ -26,9 +26,10 @@ export default function SessionMatchPage() {
     match_id: matchIdNumber ? String(matchIdNumber) : '',
     user_id: '',
     inningOver: '',
-    entryRun: '',
-    amount: '',
-    isYes: '',
+    yesEntryRun: '',
+    yesAmount: '',
+    noEntryRun: '',
+    noAmount: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -37,7 +38,7 @@ export default function SessionMatchPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
-  const [isAddResultFormOpen, setIsAddResultFormOpen] = useState(false);
+  const [isAddResultFormOpen, setIsAddResultFormOpen] = useState(true);
   const [addResultFormData, setAddResultFormData] = useState({
     inningOver: '',
     result: '',
@@ -70,9 +71,10 @@ export default function SessionMatchPage() {
   // Refs for keyboard navigation
   const userSelectRef = useRef<HTMLSelectElement>(null);
   const inningOverSelectRef = useRef<HTMLSelectElement>(null);
-  const entryRunInputRef = useRef<HTMLInputElement>(null);
-  const amountInputRef = useRef<HTMLInputElement>(null);
-  const isYesSelectRef = useRef<HTMLSelectElement>(null);
+  const yesEntryRunInputRef = useRef<HTMLInputElement>(null);
+  const yesAmountInputRef = useRef<HTMLInputElement>(null);
+  const noEntryRunInputRef = useRef<HTMLInputElement>(null);
+  const noAmountInputRef = useRef<HTMLInputElement>(null);
   // Refs for Add result form
   const addResultInningOverSelectRef = useRef<HTMLSelectElement>(null);
   const addResultResultInputRef = useRef<HTMLInputElement>(null);
@@ -466,21 +468,53 @@ export default function SessionMatchPage() {
     if (!formData.inningOver) {
       newErrors.inningOver = 'Inning/Over is required';
     }
-    if (!formData.entryRun.trim()) {
-      newErrors.entryRun = 'Entry Run is required';
-    } else {
-      const entryRun = parseFloat(formData.entryRun);
-      if (isNaN(entryRun) || entryRun < 0) {
-        newErrors.entryRun = 'Entry Run must be a valid number';
+
+    // Validate Yes fields
+    const hasYesEntry = formData.yesEntryRun.trim() || formData.yesAmount.trim();
+    if (hasYesEntry) {
+      if (!formData.yesEntryRun.trim()) {
+        newErrors.yesEntryRun = 'Entry Run is required for Yes';
+      } else {
+        const entryRun = parseFloat(formData.yesEntryRun);
+        if (isNaN(entryRun) || entryRun < 0) {
+          newErrors.yesEntryRun = 'Entry Run must be a valid number';
+        }
+      }
+      if (!formData.yesAmount.trim()) {
+        newErrors.yesAmount = 'Amount is required for Yes';
+      } else {
+        const amount = parseFloat(formData.yesAmount);
+        if (isNaN(amount) || amount <= 0) {
+          newErrors.yesAmount = 'Amount must be a positive number';
+        }
       }
     }
-    if (!formData.amount.trim()) {
-      newErrors.amount = 'Amount is required';
-    } else {
-      const amount = parseFloat(formData.amount);
-      if (isNaN(amount) || amount <= 0) {
-        newErrors.amount = 'Amount must be a positive number';
+
+    // Validate No fields
+    const hasNoEntry = formData.noEntryRun.trim() || formData.noAmount.trim();
+    if (hasNoEntry) {
+      if (!formData.noEntryRun.trim()) {
+        newErrors.noEntryRun = 'Entry Run is required for No';
+      } else {
+        const entryRun = parseFloat(formData.noEntryRun);
+        if (isNaN(entryRun) || entryRun < 0) {
+          newErrors.noEntryRun = 'Entry Run must be a valid number';
+        }
       }
+      if (!formData.noAmount.trim()) {
+        newErrors.noAmount = 'Amount is required for No';
+      } else {
+        const amount = parseFloat(formData.noAmount);
+        if (isNaN(amount) || amount <= 0) {
+          newErrors.noAmount = 'Amount must be a positive number';
+        }
+      }
+    }
+
+    // At least one entry (Yes or No) must be filled
+    if (!hasYesEntry && !hasNoEntry) {
+      newErrors.yesEntryRun = 'At least one entry (Yes or No) is required';
+      newErrors.noEntryRun = 'At least one entry (Yes or No) is required';
     }
 
     // Set errors and show toast if validation fails
@@ -496,7 +530,7 @@ export default function SessionMatchPage() {
 
     try {
       if (isEditMode && editingEntry) {
-        // Update existing entry
+        // Update existing entry - determine if it's Yes or No based on editingEntry
         const updatePayload: {
           match_id?: number;
           user_id?: number;
@@ -507,6 +541,10 @@ export default function SessionMatchPage() {
           result?: number | null;
         } = {};
 
+        const isYesEntry = editingEntry.is_yes;
+        const entryRun = isYesEntry ? formData.yesEntryRun : formData.noEntryRun;
+        const amount = isYesEntry ? formData.yesAmount : formData.noAmount;
+
         if (formData.match_id !== editingEntry.match_id.toString()) {
           updatePayload.match_id = parseInt(formData.match_id);
         }
@@ -516,14 +554,11 @@ export default function SessionMatchPage() {
         if (formData.inningOver !== editingEntry.inning_over) {
           updatePayload.inning_over = formData.inningOver;
         }
-        if (formData.entryRun !== editingEntry.entry_run.toString()) {
-          updatePayload.entry_run = parseFloat(formData.entryRun);
+        if (entryRun !== editingEntry.entry_run.toString()) {
+          updatePayload.entry_run = parseFloat(entryRun);
         }
-        if (formData.amount !== editingEntry.amount.toString()) {
-          updatePayload.amount = parseFloat(formData.amount);
-        }
-        if ((formData.isYes === 'yes') !== editingEntry.is_yes) {
-          updatePayload.is_yes = formData.isYes === 'yes';
+        if (amount !== editingEntry.amount.toString()) {
+          updatePayload.amount = parseFloat(amount);
         }
 
         if (Object.keys(updatePayload).length > 0) {
@@ -539,15 +574,35 @@ export default function SessionMatchPage() {
         setEditingEntry(null);
         // Don't reset form - keep the data
       } else {
-        // Create new entry
-        await createSessionMutation.mutateAsync({
-          match_id: parseInt(formData.match_id),
-          user_id: parseInt(formData.user_id),
-          inning_over: formData.inningOver,
-          entry_run: parseFloat(formData.entryRun),
-          amount: parseFloat(formData.amount),
-          is_yes: formData.isYes === 'yes',
-        });
+        // Create new entries - create both Yes and No entries if they have values
+        const entriesToCreate = [];
+
+        if (formData.yesEntryRun.trim() && formData.yesAmount.trim()) {
+          entriesToCreate.push({
+            match_id: parseInt(formData.match_id),
+            user_id: parseInt(formData.user_id),
+            inning_over: formData.inningOver,
+            entry_run: parseFloat(formData.yesEntryRun),
+            amount: parseFloat(formData.yesAmount),
+            is_yes: true,
+          });
+        }
+
+        if (formData.noEntryRun.trim() && formData.noAmount.trim()) {
+          entriesToCreate.push({
+            match_id: parseInt(formData.match_id),
+            user_id: parseInt(formData.user_id),
+            inning_over: formData.inningOver,
+            entry_run: parseFloat(formData.noEntryRun),
+            amount: parseFloat(formData.noAmount),
+            is_yes: false,
+          });
+        }
+
+        // Create all entries
+        for (const entry of entriesToCreate) {
+          await createSessionMutation.mutateAsync(entry);
+        }
         // Don't reset form - keep the data for next entry
       }
     } catch (error) {
@@ -561,9 +616,10 @@ export default function SessionMatchPage() {
       match_id: matchIdNumber ? String(matchIdNumber) : '',
       user_id: '',
       inningOver: '',
-      entryRun: '',
-      amount: '',
-      isYes: '',
+      yesEntryRun: '',
+      yesAmount: '',
+      noEntryRun: '',
+      noAmount: '',
     });
     setErrors({});
     setIsEditMode(false);
@@ -580,14 +636,29 @@ export default function SessionMatchPage() {
 
     setIsEditMode(true);
     setEditingEntry(session);
-    setFormData({
-      match_id: session.match_id.toString(),
-      user_id: session.user_id.toString(),
-      inningOver: session.inning_over,
-      entryRun: session.entry_run.toString(),
-      amount: session.amount.toString(),
-      isYes: session.is_yes ? 'yes' : 'no',
-    });
+    
+    // Set form data based on whether it's a Yes or No entry
+    if (session.is_yes) {
+      setFormData({
+        match_id: session.match_id.toString(),
+        user_id: session.user_id.toString(),
+        inningOver: session.inning_over,
+        yesEntryRun: session.entry_run.toString(),
+        yesAmount: session.amount.toString(),
+        noEntryRun: '',
+        noAmount: '',
+      });
+    } else {
+      setFormData({
+        match_id: session.match_id.toString(),
+        user_id: session.user_id.toString(),
+        inningOver: session.inning_over,
+        yesEntryRun: '',
+        yesAmount: '',
+        noEntryRun: session.entry_run.toString(),
+        noAmount: session.amount.toString(),
+      });
+    }
     setErrors({});
     
     // Scroll to form
@@ -601,9 +672,10 @@ export default function SessionMatchPage() {
       match_id: matchIdNumber ? String(matchIdNumber) : '',
       user_id: '',
       inningOver: '',
-      entryRun: '',
-      amount: '',
-      isYes: '',
+      yesEntryRun: '',
+      yesAmount: '',
+      noEntryRun: '',
+      noAmount: '',
     });
     setErrors({});
   };
@@ -620,27 +692,33 @@ export default function SessionMatchPage() {
       e.preventDefault();
       e.stopPropagation();
       
-      // Navigation flow: User → Inning/Over → Entry Run → Amount → Yes/No → Submit
+      // Navigation flow: User → Inning/Over → Yes Entry Run → Yes Amount → No Entry Run → No Amount → Submit
       if (field === 'user_id') {
         requestAnimationFrame(() => {
           inningOverSelectRef.current?.focus();
         });
       } else if (field === 'inningOver') {
         requestAnimationFrame(() => {
-          entryRunInputRef.current?.focus();
-          entryRunInputRef.current?.select();
+          yesEntryRunInputRef.current?.focus();
+          yesEntryRunInputRef.current?.select();
         });
-      } else if (field === 'entryRun') {
+      } else if (field === 'yesEntryRun') {
         requestAnimationFrame(() => {
-          amountInputRef.current?.focus();
-          amountInputRef.current?.select();
+          yesAmountInputRef.current?.focus();
+          yesAmountInputRef.current?.select();
         });
-      } else if (field === 'amount') {
+      } else if (field === 'yesAmount') {
         requestAnimationFrame(() => {
-          isYesSelectRef.current?.focus();
+          noEntryRunInputRef.current?.focus();
+          noEntryRunInputRef.current?.select();
         });
-      } else if (field === 'isYes') {
-        // Submit form when Enter is pressed on Yes/No field
+      } else if (field === 'noEntryRun') {
+        requestAnimationFrame(() => {
+          noAmountInputRef.current?.focus();
+          noAmountInputRef.current?.select();
+        });
+      } else if (field === 'noAmount') {
+        // Submit form when Enter is pressed on No Amount field
         handleSave();
       }
     }
@@ -667,7 +745,7 @@ export default function SessionMatchPage() {
       </div>
 
       {/* Form and Table Side by Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_3fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[30%_70%] gap-6">
         {/* Form Card */}
         <Card>
         <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
@@ -733,71 +811,111 @@ export default function SessionMatchPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              ref={userSelectRef}
-              label="User*"
-              id="user_id"
-              value={formData.user_id}
-              onChange={(e) => handleInputChange('user_id', e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, 'user_id')}
-              options={userOptions}
-              error={errors.user_id}
-            />
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                ref={userSelectRef}
+                label="User*"
+                id="user_id"
+                value={formData.user_id}
+                onChange={(e) => handleInputChange('user_id', e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, 'user_id')}
+                options={userOptions}
+                error={errors.user_id}
+              />
 
-            <Select
-              ref={inningOverSelectRef}
-              label="Inning/Over*"
-              id="inningOver"
-              value={formData.inningOver}
-              onChange={(e) => handleInputChange('inningOver', e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, 'inningOver')}
-              options={inningOverOptions}
-              error={errors.inningOver}
-            />
+              <Select
+                ref={inningOverSelectRef}
+                label="Inning/Over*"
+                id="inningOver"
+                value={formData.inningOver}
+                onChange={(e) => handleInputChange('inningOver', e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, 'inningOver')}
+                options={inningOverOptions}
+                error={errors.inningOver}
+              />
+            </div>
 
-            <Input
-              ref={entryRunInputRef}
-              type="number"
-              label="Entry Run*"
-              id="entryRun"
-              value={formData.entryRun}
-              onChange={(e) => handleInputChange('entryRun', e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, 'entryRun')}
-              error={errors.entryRun}
-              placeholder="Enter entry run"
-              min="0"
-              className="placeholder:text-sm"
-            />
-
-            <Input
-              ref={amountInputRef}
-              type="number"
-              label="Amount*"
-              id="amount"
-              value={formData.amount}
-              onChange={(e) => handleInputChange('amount', e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, 'amount')}
-              error={errors.amount}
-              placeholder="Enter amount"
-              min="0"
-              className="placeholder:text-sm"
-            />
-
-            <Select
-              ref={isYesSelectRef}
-              label="Yes/No*"
-              id="isYes"
-              value={formData.isYes}
-              onChange={(e) => handleInputChange('isYes', e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, 'isYes')}
-              options={[
-                { value: '', label: '--SELECT--' },
-                { value: 'yes', label: 'Yes' },
-                { value: 'no', label: 'No' },
-              ]}
-              error={errors.isYes}
-            />
+            {/* Yes/No Two Column Layout */}
+            <div className="space-y-4">
+              {/* Section Headers */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Yes Column Header */}
+                <div className="text-center">
+                  <h3 className="text-base font-bold mb-1 text-green-700" style={{ fontSize: '16px' }}>
+                    YES
+                  </h3>
+                </div>
+                {/* No Column Header */}
+                <div className="text-center">
+                  <h3 className="text-base font-bold mb-1 text-red-700" style={{ fontSize: '16px' }}>
+                    NO
+                  </h3>
+                </div>
+              </div>
+              
+              {/* Input Fields - Two Columns: Each column has Entry Run and Amount */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Yes Column */}
+                <div className="space-y-4">
+                  <Input
+                    ref={yesEntryRunInputRef}
+                    type="number"
+                    label="Entry Run"
+                    id="yesEntryRun"
+                    value={formData.yesEntryRun}
+                    onChange={(e) => handleInputChange('yesEntryRun', e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, 'yesEntryRun')}
+                    error={errors.yesEntryRun}
+                    placeholder="Enter entry run"
+                    min="0"
+                    className="placeholder:text-sm !bg-green-100 !border-green-600 !border-[3px] focus:!ring-green-500 focus:!border-green-600"
+                  />
+                  <Input
+                    ref={yesAmountInputRef}
+                    type="number"
+                    label="Amount"
+                    id="yesAmount"
+                    value={formData.yesAmount}
+                    onChange={(e) => handleInputChange('yesAmount', e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, 'yesAmount')}
+                    error={errors.yesAmount}
+                    placeholder="Enter amount"
+                    min="0"
+                    className="placeholder:text-sm !bg-green-100 !border-green-600 !border-[3px] focus:!ring-green-500 focus:!border-green-600"
+                  />
+                </div>
+                {/* No Column */}
+                <div className="space-y-4">
+                  <Input
+                    ref={noEntryRunInputRef}
+                    type="number"
+                    label="Entry Run"
+                    id="noEntryRun"
+                    value={formData.noEntryRun}
+                    onChange={(e) => handleInputChange('noEntryRun', e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, 'noEntryRun')}
+                    error={errors.noEntryRun}
+                    placeholder="Enter entry run"
+                    min="0"
+                    className="placeholder:text-sm !bg-red-100 !border-red-600 !border-[3px] focus:!ring-red-500 focus:!border-red-600"
+                  />
+                  <Input
+                    ref={noAmountInputRef}
+                    type="number"
+                    label="Amount"
+                    id="noAmount"
+                    value={formData.noAmount}
+                    onChange={(e) => handleInputChange('noAmount', e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, 'noAmount')}
+                    error={errors.noAmount}
+                    placeholder="Enter amount"
+                    min="0"
+                    className="placeholder:text-sm !bg-red-100 !border-red-600 !border-[3px] focus:!ring-red-500 focus:!border-red-600"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Calculated Net Profit/Loss Display */}
@@ -858,119 +976,112 @@ export default function SessionMatchPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsAddResultFormOpen(!isAddResultFormOpen)}
-                className="px-4 py-2 bg-retro-accent text-white font-bold text-sm rounded hover:opacity-90 transition-opacity flex-shrink-0"
-              >
-                Add result
-              </button>
-              <div className={`flex items-center gap-2 bg-white border-2 border-retro-dark rounded-lg p-2 transition-all duration-300 ease-in-out ${
-                isAddResultFormOpen 
-                  ? 'opacity-100 max-w-[800px] visible' 
-                  : 'opacity-0 max-w-0 invisible overflow-hidden p-0 border-0'
-              }`}>
-                  <Select
-                    ref={addResultInningOverSelectRef}
-                    label=""
-                    id="add_result_inning_over"
-                    value={addResultFormData.inningOver}
-                    onChange={(e) => {
-                      const selectedInningOver = e.target.value;
-                      setAddResultFormData((prev) => ({ ...prev, inningOver: selectedInningOver }));
-                      
-                      // Automatically filter table by selected innings/over
-                      updateFilters({ ...filters, inningOver: selectedInningOver });
-                      
-                      if (addResultErrors.inningOver) {
-                        setAddResultErrors((prev) => {
-                          const newErrors = { ...prev };
-                          delete newErrors.inningOver;
-                          return newErrors;
-                        });
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        requestAnimationFrame(() => {
-                          addResultResultInputRef.current?.focus();
-                          addResultResultInputRef.current?.select();
-                        });
-                      }
-                    }}
-                    options={inningOverOptions}
-                    error={addResultErrors.inningOver}
-                    className="!mb-0"
-                    containerClassName="mb-0"
-                  />
-                  <Input
-                    ref={addResultResultInputRef}
-                    type="number"
-                    label=""
-                    id="add_result_result"
-                    value={addResultFormData.result}
-                    onChange={(e) => {
-                      setAddResultFormData((prev) => ({ ...prev, result: e.target.value }));
-                      if (addResultErrors.result) {
-                        setAddResultErrors((prev) => {
-                          const newErrors = { ...prev };
-                          delete newErrors.result;
-                          return newErrors;
-                        });
-                      }
-                    }}
-                    onKeyDown={async (e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        // Submit form when Enter is pressed on result field
-                        const newErrors: Record<string, string> = {};
+              <div className="flex items-stretch gap-2 bg-white border-2 border-retro-dark rounded-lg p-2">
+                  <div className="flex-1">
+                    <Select
+                      ref={addResultInningOverSelectRef}
+                      label=""
+                      id="add_result_inning_over"
+                      value={addResultFormData.inningOver}
+                      onChange={(e) => {
+                        const selectedInningOver = e.target.value;
+                        setAddResultFormData((prev) => ({ ...prev, inningOver: selectedInningOver }));
                         
-                        if (!addResultFormData.inningOver) {
-                          newErrors.inningOver = 'Inning/Over is required';
+                        // Automatically filter table by selected innings/over
+                        updateFilters({ ...filters, inningOver: selectedInningOver });
+                        
+                        if (addResultErrors.inningOver) {
+                          setAddResultErrors((prev) => {
+                            const newErrors = { ...prev };
+                            delete newErrors.inningOver;
+                            return newErrors;
+                          });
                         }
-                        if (!addResultFormData.result.trim()) {
-                          newErrors.result = 'Result is required';
-                        } else {
-                          const result = parseFloat(addResultFormData.result);
-                          if (isNaN(result) || result < 0) {
-                            newErrors.result = 'Result must be a valid number';
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          requestAnimationFrame(() => {
+                            addResultResultInputRef.current?.focus();
+                            addResultResultInputRef.current?.select();
+                          });
+                        }
+                      }}
+                      options={inningOverOptions}
+                      error={addResultErrors.inningOver}
+                      className="!mb-0 h-10 !text-base !font-semibold !leading-[40px] !py-0"
+                      containerClassName="mb-0"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Input
+                      ref={addResultResultInputRef}
+                      type="number"
+                      label=""
+                      id="add_result_result"
+                      value={addResultFormData.result}
+                      onChange={(e) => {
+                        setAddResultFormData((prev) => ({ ...prev, result: e.target.value }));
+                        if (addResultErrors.result) {
+                          setAddResultErrors((prev) => {
+                            const newErrors = { ...prev };
+                            delete newErrors.result;
+                            return newErrors;
+                          });
+                        }
+                      }}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          // Submit form when Enter is pressed on result field
+                          const newErrors: Record<string, string> = {};
+                          
+                          if (!addResultFormData.inningOver) {
+                            newErrors.inningOver = 'Inning/Over is required';
+                          }
+                          if (!addResultFormData.result.trim()) {
+                            newErrors.result = 'Result is required';
+                          } else {
+                            const result = parseFloat(addResultFormData.result);
+                            if (isNaN(result) || result < 0) {
+                              newErrors.result = 'Result must be a valid number';
+                            }
+                          }
+
+                          if (Object.keys(newErrors).length > 0) {
+                            setAddResultErrors(newErrors);
+                            const firstError = Object.values(newErrors)[0];
+                            toast.error(firstError, { duration: 3000 });
+                            return;
+                          }
+
+                          try {
+                            // Call backend to update all entries matching this innings/over
+                            await updateResultByInningsOverMutation.mutateAsync({
+                              inning_over: addResultFormData.inningOver,
+                              result: parseFloat(addResultFormData.result),
+                            });
+                            
+                            // Clear only the result field, keep innings/over selected and form open
+                            setAddResultFormData((prev) => ({ ...prev, result: '' }));
+                            setAddResultErrors({});
+                            // Keep form open - don't close it
+                            // Success toast is handled in the mutation's onSuccess
+                          } catch (error) {
+                            console.error('Error updating result:', error);
+                            // Error toast is handled in the mutation's onError
                           }
                         }
-
-                        if (Object.keys(newErrors).length > 0) {
-                          setAddResultErrors(newErrors);
-                          const firstError = Object.values(newErrors)[0];
-                          toast.error(firstError, { duration: 3000 });
-                          return;
-                        }
-
-                        try {
-                          // Call backend to update all entries matching this innings/over
-                          await updateResultByInningsOverMutation.mutateAsync({
-                            inning_over: addResultFormData.inningOver,
-                            result: parseFloat(addResultFormData.result),
-                          });
-                          
-                          // Clear only the result field, keep innings/over selected and form open
-                          setAddResultFormData((prev) => ({ ...prev, result: '' }));
-                          setAddResultErrors({});
-                          // Keep form open - don't close it
-                          // Success toast is handled in the mutation's onSuccess
-                        } catch (error) {
-                          console.error('Error updating result:', error);
-                          // Error toast is handled in the mutation's onError
-                        }
-                      }
-                    }}
-                    error={addResultErrors.result}
-                    placeholder="Result"
-                    min="0"
-                    className="placeholder:text-sm !mb-0"
-                    containerClassName="mb-0"
-                  />
+                      }}
+                      error={addResultErrors.result}
+                      placeholder="Result"
+                      min="0"
+                      className="placeholder:text-sm !mb-0 h-10"
+                      containerClassName="mb-0"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={async () => {
@@ -1012,7 +1123,7 @@ export default function SessionMatchPage() {
                         // Error toast is handled in the mutation's onError
                       }
                     }}
-                    className="px-4 py-2 bg-green-600 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity whitespace-nowrap"
+                    className="px-4 py-2 bg-green-600 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity whitespace-nowrap h-10 flex items-center justify-center"
                   >
                     Submit
                   </button>
@@ -1023,7 +1134,7 @@ export default function SessionMatchPage() {
                       setAddResultFormData({ inningOver: '', result: '' });
                       setAddResultErrors({});
                     }}
-                    className="px-4 py-2 bg-gray-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity whitespace-nowrap"
+                    className="px-4 py-2 bg-gray-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity whitespace-nowrap h-10 flex items-center justify-center"
                   >
                     Cancel
                   </button>
@@ -1035,70 +1146,80 @@ export default function SessionMatchPage() {
         <div className="p-4 pr-6">
           {/* Filter Section - Card */}
           <Card className="mb-4">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-lg font-bold text-retro-dark whitespace-nowrap">Filter by:</span>
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <label htmlFor="filter_user_id" className="text-sm font-semibold text-retro-dark whitespace-nowrap">
+            <div className="space-y-3">
+              <span className="text-lg font-bold text-retro-dark block">Filter by:</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+                  <label htmlFor="filter_user_id" className="text-sm font-semibold text-retro-dark whitespace-nowrap sm:w-20 w-full">
                     User:
                   </label>
-                  <Select
-                    label=""
-                    id="filter_user_id"
-                    value={filters.user_id}
-                    onChange={(e) => updateFilters({ ...filters, user_id: e.target.value })}
-                    options={userOptions}
-                    className="!mb-0"
-                    containerClassName="mb-0"
-                  />
+                  <div className="flex-1 w-full">
+                    <Select
+                      label=""
+                      id="filter_user_id"
+                      value={filters.user_id}
+                      onChange={(e) => updateFilters({ ...filters, user_id: e.target.value })}
+                      options={userOptions}
+                      className="!mb-0 w-full"
+                      containerClassName="mb-0 w-full"
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <label htmlFor="filter_group_id" className="text-sm font-semibold text-retro-dark whitespace-nowrap">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+                  <label htmlFor="filter_group_id" className="text-sm font-semibold text-retro-dark whitespace-nowrap sm:w-20 w-full">
                     Group:
                   </label>
-                  <Select
-                    label=""
-                    id="filter_group_id"
-                    value={filters.group_id}
-                    onChange={(e) => updateFilters({ ...filters, group_id: e.target.value })}
-                    options={groupOptions}
-                    className="!mb-0"
-                    containerClassName="mb-0"
-                  />
+                  <div className="flex-1 w-full">
+                    <Select
+                      label=""
+                      id="filter_group_id"
+                      value={filters.group_id}
+                      onChange={(e) => updateFilters({ ...filters, group_id: e.target.value })}
+                      options={groupOptions}
+                      className="!mb-0 w-full"
+                      containerClassName="mb-0 w-full"
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <label htmlFor="filter_inningOver" className="text-sm font-semibold text-retro-dark whitespace-nowrap">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+                  <label htmlFor="filter_inningOver" className="text-sm font-semibold text-retro-dark whitespace-nowrap sm:w-24 w-full">
                     Inning/Over:
                   </label>
-                  <Select
-                    label=""
-                    id="filter_inningOver"
-                    value={filters.inningOver}
-                    onChange={(e) => updateFilters({ ...filters, inningOver: e.target.value })}
-                    options={inningOverOptions}
-                    className="!mb-0"
-                    containerClassName="mb-0"
-                  />
+                  <div className="flex-1 w-full">
+                    <Select
+                      label=""
+                      id="filter_inningOver"
+                      value={filters.inningOver}
+                      onChange={(e) => updateFilters({ ...filters, inningOver: e.target.value })}
+                      options={inningOverOptions}
+                      className="!mb-0 w-full"
+                      containerClassName="mb-0 w-full"
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <label htmlFor="filter_isYes" className="text-sm font-semibold text-retro-dark whitespace-nowrap">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+                  <label htmlFor="filter_isYes" className="text-sm font-semibold text-retro-dark whitespace-nowrap sm:w-20 w-full">
                     Yes/No:
                   </label>
-                  <Select
-                    label=""
-                    id="filter_isYes"
-                    value={filters.isYes}
-                    onChange={(e) => updateFilters({ ...filters, isYes: e.target.value })}
-                    options={[
-                      { value: '', label: '--SELECT--' },
-                      { value: 'yes', label: 'Yes' },
-                      { value: 'no', label: 'No' },
-                    ]}
-                    className="!mb-0"
-                    containerClassName="mb-0"
-                  />
+                  <div className="flex-1 w-full">
+                    <Select
+                      label=""
+                      id="filter_isYes"
+                      value={filters.isYes}
+                      onChange={(e) => updateFilters({ ...filters, isYes: e.target.value })}
+                      options={[
+                        { value: '', label: '--SELECT--' },
+                        { value: 'yes', label: 'Yes' },
+                        { value: 'no', label: 'No' },
+                      ]}
+                      className="!mb-0 w-full"
+                      containerClassName="mb-0 w-full"
+                    />
+                  </div>
                 </div>
-                {(filters.user_id || filters.group_id || filters.inningOver || filters.isYes) && (
+              </div>
+              {(filters.user_id || filters.group_id || filters.inningOver || filters.isYes) && (
+                <div className="flex justify-start sm:justify-end">
                   <button
                     type="button"
                     onClick={() => updateFilters({ ...filters, user_id: '', group_id: '', inningOver: '', isYes: '' })}
@@ -1106,8 +1227,8 @@ export default function SessionMatchPage() {
                   >
                     Clear Filters
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -1241,8 +1362,8 @@ export default function SessionMatchPage() {
                           <span
                             className={`inline-block px-3 py-1 rounded font-semibold ${
                               entry.netProfitLoss >= 0
-                                ? 'bg-green-200 text-green-800'
-                                : 'bg-red-200 text-red-800'
+                                ? 'bg-red-200 text-red-800'
+                                : 'bg-green-200 text-green-800'
                             }`}
                           >
                             {entry.netProfitLoss >= 0 ? '+' : ''}
@@ -1257,8 +1378,8 @@ export default function SessionMatchPage() {
                             <span
                               className={`inline-block px-3 py-1 rounded font-semibold ${
                                 finalNetProfit >= 0
-                                  ? 'bg-blue-200 text-blue-800'
-                                  : 'bg-orange-200 text-orange-800'
+                                  ? 'bg-red-700 text-white'
+                                  : 'bg-green-700 text-white'
                               }`}
                             >
                               {finalNetProfit >= 0 ? '+' : ''}
@@ -1421,83 +1542,65 @@ export default function SessionMatchPage() {
           )}
 
           {/* Summary Section */}
-          <div className="mt-6 flex justify-center">
-            <div className="w-full max-w-md bg-[var(--retro-cream)] border-4 border-[var(--retro-dark)] rounded-lg">
-              <table className="w-full border-collapse">
+          <div className="mt-6">
+            <div className="w-full bg-[var(--retro-cream)] border-2 border-[var(--retro-dark)] rounded-lg overflow-x-auto">
+              <table className="w-full border-collapse min-w-full text-xs">
+                <thead>
+                  <tr className="border-b-2 border-[var(--retro-dark)]">
+                    <th className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">Total Entries</th>
+                    <th className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">Total Users</th>
+                    <th className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">Total Amount</th>
+                    <th className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">No Commission Users</th>
+                    <th className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">Entrywise Commission Users</th>
+                    <th className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">P/L Commission Users</th>
+                    <th className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">Total Profit</th>
+                    <th className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">Total Loss</th>
+                    <th className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">Avg Partnership %</th>
+                    <th className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">Avg Session Commission %</th>
+                    <th className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">Raw Profit/Loss</th>
+                    <th className="px-2 py-1 text-center font-bold text-retro-dark text-xs">Total Final Net Result</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Total Entries:</td>
-                    <td className="px-4 py-2 text-right font-bold text-retro-dark">{summary.totalEntries}</td>
-                  </tr>
-                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Total Users:</td>
-                    <td className="px-4 py-2 text-right font-bold text-retro-dark">{summary.totalUsers}</td>
-                  </tr>
-                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Total Amount:</td>
-                    <td className="px-4 py-2 text-right font-bold text-retro-dark">
+                  <tr>
+                    <td className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">{summary.totalEntries}</td>
+                    <td className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">{summary.totalUsers}</td>
+                    <td className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">
                       {Number(summary.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
-                  </tr>
-                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">No Commission Users:</td>
-                    <td className="px-4 py-2 text-right font-bold text-retro-dark">
+                    <td className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">
                       {summary.noCommissionCount} (Comm: {Number(summary.noCommissionAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                     </td>
-                  </tr>
-                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Entrywise Commission Users:</td>
-                    <td className="px-4 py-2 text-right font-bold text-retro-dark">
+                    <td className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">
                       {summary.entrywiseCount} (Comm: {Number(summary.entrywiseCommissionAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                     </td>
-                  </tr>
-                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Profit Loss Commission Users:</td>
-                    <td className="px-4 py-2 text-right font-bold text-retro-dark">
+                    <td className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">
                       {summary.profitLossCount} (Comm: {Number(summary.profitLossCommissionAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                     </td>
-                  </tr>
-                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Total Profit:</td>
-                    <td className="px-4 py-2 text-right font-bold text-green-600">
+                    <td className="px-2 py-1 text-center font-bold text-red-600 text-xs border-r border-[var(--retro-dark)]/30">
                       +{Number(summary.totalProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
-                  </tr>
-                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Total Loss:</td>
-                    <td className="px-4 py-2 text-right font-bold text-red-600">
+                    <td className="px-2 py-1 text-center font-bold text-green-600 text-xs border-r border-[var(--retro-dark)]/30">
                       -{Number(summary.totalLoss).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
-                  </tr>
-                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Avg Partnership %:</td>
-                    <td className="px-4 py-2 text-right font-bold text-retro-dark">
+                    <td className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">
                       {Number(summary.avgPartnership).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
                     </td>
-                  </tr>
-                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Avg Session Commission %:</td>
-                    <td className="px-4 py-2 text-right font-bold text-retro-dark">
+                    <td className="px-2 py-1 text-center font-bold text-retro-dark text-xs border-r border-[var(--retro-dark)]/30">
                       {Number(summary.avgSessionCommission).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
                     </td>
-                  </tr>
-                  <tr className="border-b-2 border-[var(--retro-dark)]/30">
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Raw Profit/Loss:</td>
-                    <td className="px-4 py-2 text-right font-bold">
+                    <td className="px-2 py-1 text-center font-bold text-xs border-r border-[var(--retro-dark)]/30">
                       <span
-                        className={summary.rawProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}
+                        className={summary.rawProfitLoss >= 0 ? 'text-red-600' : 'text-green-600'}
                       >
                         {summary.rawProfitLoss >= 0 ? '+' : ''}
                         {Number(summary.rawProfitLoss).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-2 text-left font-semibold text-retro-dark border-r-2 border-[var(--retro-dark)]/30">Total Final Net Result:</td>
-                    <td className="px-4 py-2 text-right">
+                    <td className="px-2 py-1 text-center font-bold text-xs">
                       <span
-                        className={`font-bold ${
-                          summary.totalFinalNetResult >= 0 ? 'text-green-600' : 'text-red-600'
+                        className={`${
+                          summary.totalFinalNetResult >= 0 ? 'text-red-600' : 'text-green-600'
                         }`}
                       >
                         {summary.totalFinalNetResult >= 0 ? '+' : ''}

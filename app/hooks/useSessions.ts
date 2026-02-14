@@ -68,12 +68,15 @@ export function useSessions(matchId?: number | null) {
           params.match_id = matchId;
         }
         
+        console.log('Fetching sessions with params:', { matchId, params });
+        
         const response = await api.get('/v1/admin/sessions', {
           params,
           timeout: 10000,
         });
         
         console.log('Sessions API Response:', response.data);
+        console.log('Sessions count:', response.data.data?.length || 0);
         
         if (response.data.success) {
           const sessions = response.data.data || [];
