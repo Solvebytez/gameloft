@@ -1259,12 +1259,12 @@ export default function BusinessReportPage() {
       render: (value, row) => {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
-        // For total rows, always show background (even if 0). For individual rows, only if value > 0
+        // Only show background for total rows, not for individual rows
         const bgColor = isEmptyRow
           ? ''
           : row.isTotal 
             ? 'bg-green-100'
-            : (value > 0 ? 'bg-green-100' : '');
+            : '';
         const commissionPercent = Number(row.commissionPercent) || 0;
         const formattedPercent = commissionPercent.toFixed(2);
         return (
@@ -1289,9 +1289,11 @@ export default function BusinessReportPage() {
       render: (value, row) => {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
-        // Only show background if there's a value (team name or percentage)
+        // For total rows with team name (string), use blue background. For individual rows, no background
         const hasValue = value && (typeof value === 'string' ? value.trim() !== '' : true);
-        const bgColor = (row.isTotal && hasValue) ? 'bg-green-100' : '';
+        const bgColor = (row.isTotal && hasValue && typeof value === 'string') 
+          ? 'bg-blue-100' 
+          : '';
         // For total rows, show team name (string), for individual rows show percentage with 2 decimals
         // For empty rows, show dash
         const displayValue = isEmptyRow
