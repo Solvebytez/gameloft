@@ -6,10 +6,11 @@ import Card from '@/app/components/ui/Card';
 import Select from '@/app/components/ui/Select';
 import DatePicker from '@/app/components/ui/DatePicker';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
-import { useMatchesByDate, Match } from '@/app/hooks/useMatches';
+import { useMatchesByDate } from '@/app/hooks/useMatches';
 import { useUsers } from '@/app/hooks/useUsers';
 import { useSessions, Session } from '@/app/hooks/useSessions';
 import { useEntries, Entry } from '@/app/hooks/useEntries';
+import { calculateFinalNetProfit, calculateEntrywiseCommission } from '@/app/utils/commissionCalculator';
 
 export default function BusinessReportPage() {
   const [formData, setFormData] = useState({
@@ -198,15 +199,18 @@ export default function BusinessReportPage() {
     const rows: MatchSummaryRow[] = [];
     let rowIndex = 1;
 
+    // Create user map for O(1) lookups (performance improvement)
+    const userMapById = new Map(users.map((u) => [u.id, u]));
+    const userMapByName = new Map(users.map((u) => [u.name, u]));
+
     // Process each user
     userGroups.forEach((userEntries, userKey) => {
-      // Find user by id or by customer name
+      // Find user by id or by customer name (O(1) lookup)
       let user = null;
       if (typeof userKey === 'number') {
-        user = users.find((u) => u.id === userKey);
+        user = userMapById.get(userKey) || null;
       } else {
-        // Try to find user by name
-        user = users.find((u) => u.name === userKey);
+        user = userMapByName.get(userKey) || null;
       }
 
       // Calculate profit/loss from match entries using favorite/non-favorite logic
@@ -259,14 +263,16 @@ export default function BusinessReportPage() {
             // Use team1FavAmount (from team1Fav string) for favorite entries
             winningTeamFav += (team1Rate / 100) * team1FavAmount;
             // Team 2 Loss + Non-Favorite entries (favourite_team === 'team1', but bet on Team2)
+            // Losing non-favorite: multiply rate% with amount
             losingTeamNonFav += (team2Rate / 100) * team2NfavAmount;
           }
           
           // Team 1 Win + Non-Favorite entries (favourite_team === 'team2', but bet on Team1)
           if (favouriteTeam === 'team2') {
-            // Sum all amounts (no rate multiplication)
+            // Non-favorite winning: just the amount (no rate multiplication, no × 100)
             winningTeamNonFav += team1NfavAmount;
             // Team 2 Loss + Favorite entries (favourite_team === 'team2')
+            // Losing favorite: just amount (no rate multiplication)
             losingTeamFav += team2FavAmount;
           }
         } else if (isTeam2Winner) {
@@ -275,25 +281,27 @@ export default function BusinessReportPage() {
             // Calculate: (rate / 100) × amount, then sum
             winningTeamFav += (team2Rate / 100) * team2FavAmount;
             // Team 1 Loss + Non-Favorite entries (favourite_team === 'team2', but bet on Team1)
+            // Losing non-favorite: multiply rate% with amount
             losingTeamNonFav += (team1Rate / 100) * team1NfavAmount;
           }
           
           // Team 2 Win + Non-Favorite entries (favourite_team === 'team1', but bet on Team2)
           if (favouriteTeam === 'team1') {
-            // Sum all amounts (no rate multiplication)
+            // Non-favorite winning: just the amount (no rate multiplication, no × 100)
             winningTeamNonFav += team2NfavAmount;
             // Team 1 Loss + Favorite entries (favourite_team === 'team1')
+            // Losing favorite: just amount (no rate multiplication)
             losingTeamFav += team1FavAmount;
           }
         }
       });
 
       // Calculate totals
-      const winningTeamTotal = winningTeamFav + winningTeamNonFav;
-      const losingTeamTotal = losingTeamFav + losingTeamNonFav;
+      const winningTeamTotal = winningTeamFav + winningTeamNonFav;  // What we PAY OUT (liability)
+      const losingTeamTotal = losingTeamFav + losingTeamNonFav;        // What we RECEIVE (asset)
       
-      // Net profit/loss = Winning Team Total - Losing Team Total
-      profitLoss = winningTeamTotal - losingTeamTotal;
+      // Net profit/loss = What we RECEIVE - What we PAY OUT = Losing Team Total - Winning Team Total
+      profitLoss = losingTeamTotal - winningTeamTotal;
 
       // If no user found, use customer name from entry
       const custName = user ? user.name : (userEntries[0]?.customer || 'Unknown');
@@ -317,51 +325,19 @@ export default function BusinessReportPage() {
         return;
       }
 
-      // Calculate commission based on commission_type
-      // Reference formula:
-      // Partnership Amount = Profit/Loss × (Partnership / 100)
-      // Cust Net With Comm = Partnership Amount + Total Commission
-      // Net Profit/Loss = Profit/Loss - Partnership Amount - Total Commission
-      
+      // Calculate commission using utility function
       let totalCommission = 0;
-      let commissionPercent = user.commission || 0;
+      const commissionPercent = user.commission || 0;
       let custNetWithComm = 0;
       let netProfitLoss = 0;
-      const partnership = Number(user.partnership) || 0;
 
-      if (user.commission_type === 'no_commission') {
-        // No commission, only partnership
-        const partnershipAmount = profitLoss * (partnership / 100);
-        totalCommission = 0;
-        custNetWithComm = partnershipAmount + totalCommission;
-        netProfitLoss = profitLoss - partnershipAmount - totalCommission;
-      } else if (user.commission_type === 'profit_loss') {
-        // Commission on losses only
-        const commission = Number(user.commission) || 0;
-        
-        if (profitLoss < 0) {
-          // Loss: calculate commission on loss
-          totalCommission = Math.abs(profitLoss) * (commission / 100);
-        } else {
-          // Profit: no commission
-          totalCommission = 0;
-        }
-        
-        // Calculate partnership amount and final values
-        const partnershipAmount = profitLoss * (partnership / 100);
-        custNetWithComm = partnershipAmount + totalCommission;
-        netProfitLoss = profitLoss - partnershipAmount - totalCommission;
-      } else if (user.commission_type === 'entrywise') {
-        // Entrywise: commission only on loss amount
-        const partnership = Number(user.partnership) || 0;
-        const commission = Number(user.commission) || 0;
-        
-        // Calculate profit/loss for each entry using favorite/non-favorite logic
+      if (user.commission_type === 'entrywise') {
+        // Handle entrywise commission separately (needs per-entry calculation)
         let totalProfit = 0;
         let totalLoss = 0;
         
         userEntries.forEach((entry) => {
-          // Parse amounts from formatted strings to match match entry table display
+          // Parse amounts from formatted strings
           const parseAmountFromString = (formattedString: string | null | undefined): number => {
             if (!formattedString || formattedString === '0' || formattedString === '0/0000') return 0;
             try {
@@ -380,46 +356,34 @@ export default function BusinessReportPage() {
           const team2FavAmount = parseAmountFromString(entry.team2Fav);
           const team2NfavAmount = parseAmountFromString(entry.team2Nfav);
 
-          const team1Amount = team1FavAmount + team1NfavAmount;
           const team1Rate = Number(entry.team1_rate) || 0;
-          const team2Amount = team2FavAmount + team2NfavAmount;
           const team2Rate = Number(entry.team2_rate) || 0;
           const favouriteTeam = entry.favourite_team;
           
           let entryProfitLoss = 0;
           
           if (isTeam1Winner) {
-            // Calculate based on favorite/non-favorite logic
             let team1Win = 0;
             let team2Loss = 0;
             
             if (favouriteTeam === 'team1') {
-              // Team 1 Win + Fav: (rate / 100) × amount
               team1Win = (team1Rate / 100) * team1FavAmount;
-              // Team 2 Loss + Non-Fav: (rate / 100) × amount
               team2Loss = (team2Rate / 100) * team2NfavAmount;
             } else if (favouriteTeam === 'team2') {
-              // Team 1 Win + Non-Fav: just amount
               team1Win = team1NfavAmount;
-              // Team 2 Loss + Fav: just amount
               team2Loss = team2FavAmount;
             }
             
             entryProfitLoss = team1Win - team2Loss;
           } else if (isTeam2Winner) {
-            // Calculate based on favorite/non-favorite logic
             let team2Win = 0;
             let team1Loss = 0;
             
             if (favouriteTeam === 'team2') {
-              // Team 2 Win + Fav: (rate / 100) × amount
               team2Win = (team2Rate / 100) * team2FavAmount;
-              // Team 1 Loss + Non-Fav: (rate / 100) × amount
               team1Loss = (team1Rate / 100) * team1NfavAmount;
             } else if (favouriteTeam === 'team1') {
-              // Team 2 Win + Non-Fav: just amount
               team2Win = team2NfavAmount;
-              // Team 1 Loss + Fav: just amount
               team1Loss = team1FavAmount;
             }
             
@@ -433,15 +397,29 @@ export default function BusinessReportPage() {
           }
         });
         
-        // Apply commission only on loss
-        const lossCommission = Math.abs(totalLoss) * (commission / 100);
-        const netAfterLossCommission = totalProfit + totalLoss + lossCommission;
-        
-        // Apply partnership
-        const partnershipShare = netAfterLossCommission * (partnership / 100);
-        totalCommission = lossCommission;
-        custNetWithComm = netAfterLossCommission - partnershipShare;
-        netProfitLoss = netAfterLossCommission - partnershipShare;
+        // Use entrywise commission calculator
+        const entrywiseResult = calculateEntrywiseCommission({
+          totalProfit,
+          totalLoss,
+          commissionPercent: Number(user.commission) || 0,
+          partnershipPercent: Number(user.partnership) || 0,
+        });
+
+        totalCommission = entrywiseResult.totalCommissionAfterPartnership;
+        custNetWithComm = entrywiseResult.partnershipAmount;
+        netProfitLoss = entrywiseResult.netProfitLoss;
+      } else {
+        // Use standard commission calculator for no_commission and profit_loss
+        const commissionResult = calculateFinalNetProfit({
+          profitLoss,
+          commissionPercent: Number(user.commission) || 0,
+          partnershipPercent: Number(user.partnership) || 0,
+          commissionType: user.commission_type,
+        });
+
+        totalCommission = commissionResult.totalCommissionAfterPartnership;
+        custNetWithComm = commissionResult.partnershipAmount;
+        netProfitLoss = commissionResult.netProfitLoss;
       }
 
       rows.push({
@@ -495,14 +473,18 @@ export default function BusinessReportPage() {
       let winningTeamCustNetWithComm = 0;
       let winningTeamNetProfitLoss = 0;
 
+      // Use user maps for O(1) lookups (performance improvement)
+      const userMapById = new Map(users.map((u) => [u.id, u]));
+      const userMapByName = new Map(users.map((u) => [u.name, u]));
+
       // Process each user group to calculate totals
       allUserGroups.forEach((userEntries, userKey) => {
-        // Find user
+        // Find user (O(1) lookup)
         let user = null;
         if (typeof userKey === 'number') {
-          user = users.find((u) => u.id === userKey);
+          user = userMapById.get(userKey) || null;
         } else {
-          user = users.find((u) => u.name === userKey);
+          user = userMapByName.get(userKey) || null;
         }
 
         // Calculate user totals
@@ -565,28 +547,13 @@ export default function BusinessReportPage() {
           }
         });
 
-        userProfitLoss = (winningTeamFav + winningTeamNonFav) - (losingTeamFav + losingTeamNonFav);
+        // Net profit/loss = What we RECEIVE - What we PAY OUT = Losing Team Total - Winning Team Total
+        userProfitLoss = (losingTeamFav + losingTeamNonFav) - (winningTeamFav + winningTeamNonFav);
 
-        // Calculate commission and partnership based on user's commission type
+        // Calculate commission and partnership using utility function
         if (user) {
-          const partnership = Number(user.partnership) || 0;
-
-          if (user.commission_type === 'no_commission') {
-            const partnershipAmount = userProfitLoss * (partnership / 100);
-            userCommission = 0;
-            userCustNetWithComm = partnershipAmount;
-            userNetProfitLoss = userProfitLoss - partnershipAmount;
-          } else if (user.commission_type === 'profit_loss') {
-            const commission = Number(user.commission) || 0;
-            if (userProfitLoss < 0) {
-              userCommission = Math.abs(userProfitLoss) * (commission / 100);
-            }
-            const partnershipAmount = userProfitLoss * (partnership / 100);
-            userCustNetWithComm = partnershipAmount + userCommission;
-            userNetProfitLoss = userProfitLoss - partnershipAmount - userCommission;
-          } else if (user.commission_type === 'entrywise') {
+          if (user.commission_type === 'entrywise') {
             // For entrywise, calculate profit/loss per entry, then commission on total loss
-            const commission = Number(user.commission) || 0;
             let totalProfit = 0;
             let totalLoss = 0;
 
@@ -649,17 +616,32 @@ export default function BusinessReportPage() {
               }
             });
 
-            const lossCommission = Math.abs(totalLoss) * (commission / 100);
-            const netAfterLossCommission = totalProfit + totalLoss + lossCommission;
-            const partnershipShare = netAfterLossCommission * (partnership / 100);
-            userCommission = lossCommission;
-            userCustNetWithComm = netAfterLossCommission - partnershipShare;
-            userNetProfitLoss = netAfterLossCommission - partnershipShare;
+            // Use entrywise commission calculator
+            const entrywiseResult = calculateEntrywiseCommission({
+              totalProfit,
+              totalLoss,
+              commissionPercent: Number(user.commission) || 0,
+              partnershipPercent: Number(user.partnership) || 0,
+            });
+
+            userCommission = entrywiseResult.totalCommissionAfterPartnership;
+            userCustNetWithComm = entrywiseResult.partnershipAmount;
+            userNetProfitLoss = entrywiseResult.netProfitLoss;
           } else {
-            userCustNetWithComm = userProfitLoss;
-            userNetProfitLoss = userProfitLoss;
+            // Use standard commission calculator for no_commission and profit_loss
+            const commissionResult = calculateFinalNetProfit({
+              profitLoss: userProfitLoss,
+              commissionPercent: Number(user.commission) || 0,
+              partnershipPercent: Number(user.partnership) || 0,
+              commissionType: user.commission_type,
+            });
+
+            userCommission = commissionResult.totalCommissionAfterPartnership;
+            userCustNetWithComm = commissionResult.partnershipAmount;
+            userNetProfitLoss = commissionResult.netProfitLoss;
           }
         } else {
+          // No user found - no commission/partnership
           userCustNetWithComm = userProfitLoss;
           userNetProfitLoss = userProfitLoss;
         }
@@ -680,7 +662,7 @@ export default function BusinessReportPage() {
         }
       });
 
-      // Add winning team total row first (always show, even if values are 0)
+      // Add winning team total row first (immediately after individual entries, no gap)
       rows.push({
         srNo: 'Total',
         custName: '',
@@ -695,7 +677,7 @@ export default function BusinessReportPage() {
         teamName: winningTeam.name,
       });
 
-      // Add empty separator
+      // Add ONE empty separator row between team totals
       rows.push({
         srNo: '',
         custName: '',
@@ -1199,9 +1181,15 @@ export default function BusinessReportPage() {
       key: 'srNo',
       label: 'Sr No',
       sortable: true,
-      render: (value, row) => (
-        <span className={row.isTotal ? 'font-bold' : ''}>{value}</span>
-      ),
+      render: (value, row) => {
+        // Check if this is an empty separator row
+        const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
+        return (
+          <span className={row.isTotal ? 'font-bold' : ''}>
+            {isEmptyRow ? '-' : (value || '')}
+          </span>
+        );
+      },
     },
     {
       key: 'custName',
@@ -1216,10 +1204,12 @@ export default function BusinessReportPage() {
         };
         const commissionTypeBadge = getCommissionTypeBadge(row.commissionType);
         
+        // Check if this is an empty separator row
+        const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
         return (
           <div className={`${row.isTotal ? 'font-bold' : ''} relative -m-3 p-3`}>
-            {value || ''}
-            {commissionTypeBadge && !row.isTotal && (
+            {isEmptyRow ? '-' : (value || '')}
+            {commissionTypeBadge && !row.isTotal && !isEmptyRow && (
               <span className={`absolute top-1 right-1 text-[10px] font-semibold px-1 py-0.5 rounded ${commissionTypeBadge.color}`}>
                 {commissionTypeBadge.text}
               </span>
@@ -1233,10 +1223,14 @@ export default function BusinessReportPage() {
       label: 'Total Bet',
       sortable: true,
       render: (value, row) => {
-        const bgColor = row.isTotal && value > 0 ? 'bg-green-100' : '';
+        // Check if this is an empty separator row
+        const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
+        // Only show background if there's a value or it's a total row
+        const hasValue = value > 0;
+        const bgColor = (row.isTotal && hasValue) ? 'bg-green-100' : '';
         return (
           <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : ''}`}>
-            {value > 0 ? formatNumber(value) : ''}
+            {isEmptyRow ? '-' : (hasValue ? formatNumber(value) : '')}
           </div>
         );
       },
@@ -1246,10 +1240,14 @@ export default function BusinessReportPage() {
       label: 'Profit/Loss(+/-)',
       sortable: true,
       render: (value, row) => {
-        const bgColor = row.isTotal && value > 0 ? 'bg-green-100' : '';
+        // Check if this is an empty separator row
+        const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
+        // Only show background if there's a value or it's a total row with value
+        const hasValue = value !== 0;
+        const bgColor = (row.isTotal && hasValue) ? 'bg-green-100' : '';
         return (
           <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : ''}`}>
-            {value !== 0 ? formatNumber(value) : ''}
+            {isEmptyRow ? '-' : (hasValue ? formatNumber(value) : '')}
           </div>
         );
       },
@@ -1259,12 +1257,27 @@ export default function BusinessReportPage() {
       label: 'Total Commisson',
       sortable: true,
       render: (value, row) => {
-        const bgColor = row.isTotal ? 'bg-blue-100' : '';
+        // Check if this is an empty separator row
+        const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
+        // For total rows, always show background (even if 0). For individual rows, only if value > 0
+        const bgColor = isEmptyRow
+          ? ''
+          : row.isTotal 
+            ? 'bg-green-100'
+            : (value > 0 ? 'bg-green-100' : '');
         const commissionPercent = Number(row.commissionPercent) || 0;
         const formattedPercent = commissionPercent.toFixed(2);
         return (
           <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : ''}`}>
-            {value > 0 ? `${formatNumber(value)} (${formattedPercent}%)` : value === 0 ? `0 (${formattedPercent}%)` : ''}
+            {isEmptyRow 
+              ? '-'
+              : value > 0 
+                ? `${formatNumber(value)} (${formattedPercent}%)` 
+                : value === 0 && row.isTotal
+                  ? `0 (${formattedPercent}%)` 
+                  : value !== 0
+                    ? formatNumber(value)
+                    : ''}
           </div>
         );
       },
@@ -1274,10 +1287,21 @@ export default function BusinessReportPage() {
       label: 'Partnership',
       sortable: true,
       render: (value, row) => {
-        const bgColor = row.isTotal ? 'bg-blue-100' : '';
+        // Check if this is an empty separator row
+        const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
+        // Only show background if there's a value (team name or percentage)
+        const hasValue = value && (typeof value === 'string' ? value.trim() !== '' : true);
+        const bgColor = (row.isTotal && hasValue) ? 'bg-green-100' : '';
+        // For total rows, show team name (string), for individual rows show percentage with 2 decimals
+        // For empty rows, show dash
+        const displayValue = isEmptyRow
+          ? '-'
+          : row.isTotal 
+            ? value 
+            : (typeof value === 'number' ? value.toFixed(2) : value);
         return (
           <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : ''}`}>
-            {typeof value === 'number' ? value : value}
+            {displayValue || ''}
           </div>
         );
       },
@@ -1286,12 +1310,19 @@ export default function BusinessReportPage() {
       key: 'custNetWithComm',
       label: 'Cust net with comm',
       sortable: true,
-      render: (value) => {
+      render: (value, row) => {
+        // Check if this is an empty separator row
+        const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
         const isPositive = value >= 0;
-        const bgColor = isPositive ? 'bg-green-100' : value < 0 ? 'bg-red-100' : '';
+        // For total rows, always show background (even if 0). For individual rows, only if value is not 0
+        const bgColor = isEmptyRow
+          ? ''
+          : row.isTotal 
+            ? 'bg-green-100'
+            : (value !== 0 ? (isPositive ? 'bg-green-100' : 'bg-red-100') : '');
         return (
-          <div className={`-m-3 p-3 ${bgColor} font-bold`}>
-            {value !== 0 ? formatNumber(value) : '0'}
+          <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : 'font-bold'}`}>
+            {isEmptyRow ? '-' : (value !== 0 ? formatNumber(value) : '0')}
           </div>
         );
       },
@@ -1300,12 +1331,19 @@ export default function BusinessReportPage() {
       key: 'netProfitLoss',
       label: 'Net Profit/Loss',
       sortable: true,
-      render: (value) => {
+      render: (value, row) => {
+        // Check if this is an empty separator row
+        const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
         const isPositive = value >= 0;
-        const bgColor = isPositive ? 'bg-green-100' : value < 0 ? 'bg-red-100' : '';
+        // For total rows, always show background (even if 0). For individual rows, only if value is not 0
+        const bgColor = isEmptyRow
+          ? ''
+          : row.isTotal 
+            ? 'bg-green-100'
+            : (value !== 0 ? (isPositive ? 'bg-green-100' : 'bg-red-100') : '');
         return (
-          <div className={`-m-3 p-3 ${bgColor} font-bold`}>
-            {value !== 0 ? formatNumber(value) : '0'}
+          <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : 'font-bold'}`}>
+            {isEmptyRow ? '-' : (value !== 0 ? formatNumber(value) : '0')}
           </div>
         );
       },

@@ -303,13 +303,7 @@ export default function MatchDetailPage() {
 
         await createEntryMutation.mutateAsync(payload);
 
-        // Reset form after successful submission
-        setTeam1Rate('');
-        setTeam1Amount('');
-        setTeam2Rate('');
-        setTeam2Amount('');
-        setAssignedUser('');
-        setFavouriteTeam('team1');
+        // Form values are preserved after submission
       }
     } catch (error) {
       // Error is already handled by the mutation's onError callback
