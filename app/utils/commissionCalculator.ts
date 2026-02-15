@@ -51,11 +51,28 @@ export function calculateFinalNetProfit({
   let partnershipAmount = 0;
   let netProfitLoss = 0;
 
-  // Partnership deduction on main amount (always applies)
-  partnershipAmount = comparedAmount * (1 - partnershipRate);
-
-  if (commissionType === 'profit_loss' && comparedAmount > 0) {
-    // User commission only if profit is positive
+  if (comparedAmount < 0) {
+    // LOSS SCENARIO: No commission, only partnership split
+    // Partnership percentage represents USER's share
+    // Admin gets (100 - partnership)%
+    const absLoss = Math.abs(comparedAmount);
+    
+    // No commission on loss
+    userCommission = 0;
+    partnershipOnCommission = 0;
+    totalCommissionAfterPartnership = 0;
+    
+    // User's share (Cust Net with Comm) = loss × partnership%
+    partnershipAmount = -absLoss * partnershipRate;
+    
+    // Admin's share (Net Profit/Loss) = loss × (1 - partnership%)
+    netProfitLoss = -absLoss * (1 - partnershipRate);
+  } else if (commissionType === 'profit_loss' && comparedAmount > 0) {
+    // PROFIT SCENARIO: Apply commission and partnership
+    // Partnership deduction on main amount
+    partnershipAmount = comparedAmount * (1 - partnershipRate);
+    
+    // User commission on profit amount
     userCommission = comparedAmount * commissionRate;
 
     // Partnership share from commission
@@ -68,9 +85,11 @@ export function calculateFinalNetProfit({
     netProfitLoss = partnershipAmount - totalCommissionAfterPartnership;
   } else if (commissionType === 'no_commission') {
     // No commission, only partnership
+    partnershipAmount = comparedAmount * (1 - partnershipRate);
     netProfitLoss = partnershipAmount;
   } else {
-    // Entrywise or loss case - no commission on main amount
+    // Entrywise case - no commission on main amount (handled separately)
+    partnershipAmount = comparedAmount * (1 - partnershipRate);
     netProfitLoss = partnershipAmount;
   }
 

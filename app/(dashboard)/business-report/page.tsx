@@ -460,24 +460,90 @@ export default function BusinessReportPage() {
         allUserGroups.get(key)!.push(entry);
       });
 
-      // Calculate totals from all user groups
-      let losingTeamTotalBet = 0;
-      let losingTeamProfitLoss = 0;
-      let losingTeamCommission = 0;
-      let losingTeamCustNetWithComm = 0;
-      let losingTeamNetProfitLoss = 0;
-
-      let winningTeamTotalBet = 0;
-      let winningTeamProfitLoss = 0;
-      let winningTeamCommission = 0;
-      let winningTeamCustNetWithComm = 0;
-      let winningTeamNetProfitLoss = 0;
+      // Calculate team-level totals by aggregating all entries
+      // We need to aggregate winning/losing amounts separately, then apply commission/partnership
+      let totalWinningTeamFav = 0;
+      let totalWinningTeamNonFav = 0;
+      let totalLosingTeamFav = 0;
+      let totalLosingTeamNonFav = 0;
+      let totalWinningTeamBet = 0;
+      let totalLosingTeamBet = 0;
 
       // Use user maps for O(1) lookups (performance improvement)
       const userMapById = new Map(users.map((u) => [u.id, u]));
       const userMapByName = new Map(users.map((u) => [u.name, u]));
 
-      // Process each user group to calculate totals
+      // First pass: Aggregate all winning/losing amounts across all entries
+      allEntries.forEach((entry) => {
+        const parseAmountFromString = (formattedString: string | null | undefined): number => {
+          if (!formattedString || formattedString === '0' || formattedString === '0/0000') return 0;
+          try {
+            const parts = formattedString.split('/');
+            if (parts.length === 2) {
+              return Number(parts[1]) || 0;
+            }
+            return 0;
+          } catch {
+            return 0;
+          }
+        };
+
+        const team1FavAmount = parseAmountFromString(entry.team1Fav);
+        const team1NfavAmount = parseAmountFromString(entry.team1Nfav);
+        const team2FavAmount = parseAmountFromString(entry.team2Fav);
+        const team2NfavAmount = parseAmountFromString(entry.team2Nfav);
+
+        const team1Rate = Number(entry.team1_rate) || 0;
+        const team2Rate = Number(entry.team2_rate) || 0;
+        const favouriteTeam = entry.favourite_team;
+
+        if (isTeam1Winner) {
+          if (favouriteTeam === 'team1') {
+            totalWinningTeamFav += (team1Rate / 100) * team1FavAmount;
+            totalLosingTeamNonFav += (team2Rate / 100) * team2NfavAmount;
+            totalWinningTeamBet += team1FavAmount;
+            totalLosingTeamBet += team2NfavAmount;
+          } else if (favouriteTeam === 'team2') {
+            totalWinningTeamNonFav += team1NfavAmount;
+            totalLosingTeamFav += team2FavAmount;
+            totalWinningTeamBet += team1NfavAmount;
+            totalLosingTeamBet += team2FavAmount;
+          }
+        } else if (isTeam2Winner) {
+          if (favouriteTeam === 'team2') {
+            totalWinningTeamFav += (team2Rate / 100) * team2FavAmount;
+            totalLosingTeamNonFav += (team1Rate / 100) * team1NfavAmount;
+            totalWinningTeamBet += team2FavAmount;
+            totalLosingTeamBet += team1NfavAmount;
+          } else if (favouriteTeam === 'team1') {
+            totalWinningTeamNonFav += team2NfavAmount;
+            totalLosingTeamFav += team1FavAmount;
+            totalWinningTeamBet += team2NfavAmount;
+            totalLosingTeamBet += team1FavAmount;
+          }
+        }
+      });
+
+      // Calculate team-level profit/loss
+      const winningTeamTotal = totalWinningTeamFav + totalWinningTeamNonFav; // What we PAY OUT
+      const losingTeamTotal = totalLosingTeamFav + totalLosingTeamNonFav; // What we RECEIVE
+      const winningTeamProfitLoss = losingTeamTotal - winningTeamTotal; // Positive = profit
+      const losingTeamProfitLoss = winningTeamTotal - losingTeamTotal; // Negative = loss (what we need to pay)
+
+      // For team totals, we need to apply commission/partnership at team level
+      // Use average partnership from all users, or use a default approach
+      // For now, let's calculate team totals by aggregating user-level calculations
+      let losingTeamTotalBet = 0;
+      let losingTeamCommission = 0;
+      let losingTeamCustNetWithComm = 0;
+      let losingTeamNetProfitLoss = 0;
+
+      let winningTeamTotalBet = 0;
+      let winningTeamCommission = 0;
+      let winningTeamCustNetWithComm = 0;
+      let winningTeamNetProfitLoss = 0;
+
+      // Process each user group to calculate totals for aggregation
       allUserGroups.forEach((userEntries, userKey) => {
         // Find user (O(1) lookup)
         let user = null;
@@ -646,21 +712,63 @@ export default function BusinessReportPage() {
           userNetProfitLoss = userProfitLoss;
         }
 
-        // Add to appropriate team totals based on profit/loss sign
-        if (userProfitLoss <= 0) {
-          losingTeamTotalBet += userTotalBet;
-          losingTeamProfitLoss += userProfitLoss;
-          losingTeamCommission += userCommission;
-          losingTeamCustNetWithComm += userCustNetWithComm;
-          losingTeamNetProfitLoss += userNetProfitLoss;
-        } else {
+        // Aggregate user totals into team totals
+        // Winning team: users with positive profitLoss (we made profit from them)
+        // Losing team: users with negative profitLoss (we have loss from them)
+        if (userProfitLoss > 0) {
           winningTeamTotalBet += userTotalBet;
-          winningTeamProfitLoss += userProfitLoss;
           winningTeamCommission += userCommission;
           winningTeamCustNetWithComm += userCustNetWithComm;
           winningTeamNetProfitLoss += userNetProfitLoss;
+        } else if (userProfitLoss < 0) {
+          losingTeamTotalBet += userTotalBet;
+          losingTeamCommission += userCommission;
+          losingTeamCustNetWithComm += userCustNetWithComm;
+          losingTeamNetProfitLoss += userNetProfitLoss;
         }
+        // If userProfitLoss === 0, don't add to either team (neutral)
       });
+
+      // If losing team totals are 0 but we have losing team entries, calculate from team-level aggregation
+      // This handles cases where all users have positive profitLoss but losing team still has entries
+      if (losingTeamTotalBet === 0 && totalLosingTeamBet > 0 && losingTeamProfitLoss < 0) {
+        // Use average partnership from all users, or first user's partnership
+        const representativeUser = users.length > 0 ? users[0] : null;
+        const partnershipPercent = representativeUser ? Number(representativeUser.partnership) || 0 : 0;
+        
+        // Apply loss calculation logic: no commission, only partnership split
+        const lossResult = calculateFinalNetProfit({
+          profitLoss: losingTeamProfitLoss,
+          commissionPercent: 0, // No commission on loss
+          partnershipPercent: partnershipPercent,
+          commissionType: 'no_commission',
+        });
+
+        losingTeamTotalBet = totalLosingTeamBet;
+        losingTeamCommission = 0;
+        losingTeamCustNetWithComm = lossResult.partnershipAmount;
+        losingTeamNetProfitLoss = lossResult.netProfitLoss;
+      }
+
+      // Similarly for winning team if it has no individual users but has entries
+      if (winningTeamTotalBet === 0 && totalWinningTeamBet > 0 && winningTeamProfitLoss > 0) {
+        const representativeUser = users.length > 0 ? users[0] : null;
+        const partnershipPercent = representativeUser ? Number(representativeUser.partnership) || 0 : 0;
+        const commissionPercent = representativeUser ? Number(representativeUser.commission) || 0 : 0;
+        const commissionType = representativeUser?.commission_type || 'no_commission';
+
+        const profitResult = calculateFinalNetProfit({
+          profitLoss: winningTeamProfitLoss,
+          commissionPercent: commissionPercent,
+          partnershipPercent: partnershipPercent,
+          commissionType: commissionType,
+        });
+
+        winningTeamTotalBet = totalWinningTeamBet;
+        winningTeamCommission = profitResult.totalCommissionAfterPartnership;
+        winningTeamCustNetWithComm = profitResult.partnershipAmount;
+        winningTeamNetProfitLoss = profitResult.netProfitLoss;
+      }
 
       // Add winning team total row first (immediately after individual entries, no gap)
       rows.push({
@@ -1244,7 +1352,12 @@ export default function BusinessReportPage() {
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
         // Only show background if there's a value or it's a total row with value
         const hasValue = value !== 0;
-        const bgColor = (row.isTotal && hasValue) ? 'bg-green-100' : '';
+        const isPositive = value >= 0;
+        const bgColor = isEmptyRow
+          ? ''
+          : (row.isTotal && hasValue)
+            ? (isPositive ? 'bg-green-100' : 'bg-red-100')
+            : '';
         return (
           <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : ''}`}>
             {isEmptyRow ? '-' : (hasValue ? formatNumber(value) : '')}
@@ -1316,11 +1429,11 @@ export default function BusinessReportPage() {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
         const isPositive = value >= 0;
-        // For total rows, always show background (even if 0). For individual rows, only if value is not 0
+        // For total rows, show red for negative, green for positive/zero. For individual rows, only if value is not 0
         const bgColor = isEmptyRow
           ? ''
           : row.isTotal 
-            ? 'bg-green-100'
+            ? (isPositive ? 'bg-green-100' : 'bg-red-100')
             : (value !== 0 ? (isPositive ? 'bg-green-100' : 'bg-red-100') : '');
         return (
           <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : 'font-bold'}`}>
@@ -1337,11 +1450,11 @@ export default function BusinessReportPage() {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
         const isPositive = value >= 0;
-        // For total rows, always show background (even if 0). For individual rows, only if value is not 0
+        // For total rows, show red for negative, green for positive/zero. For individual rows, only if value is not 0
         const bgColor = isEmptyRow
           ? ''
           : row.isTotal 
-            ? 'bg-green-100'
+            ? (isPositive ? 'bg-green-100' : 'bg-red-100')
             : (value !== 0 ? (isPositive ? 'bg-green-100' : 'bg-red-100') : '');
         return (
           <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : 'font-bold'}`}>
