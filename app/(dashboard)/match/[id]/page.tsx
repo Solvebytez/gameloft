@@ -229,6 +229,7 @@ export default function MatchDetailPage() {
     }
   };
 
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -697,12 +698,28 @@ export default function MatchDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {entries.map((entry) => (
+                    {entries.map((entry) => {
+                      // Get user data for commission type badge
+                      const user = entry.user_id ? users.find((u) => u.id === entry.user_id) : null;
+                      const getCommissionTypeBadge = (type?: string) => {
+                        if (type === 'profit_loss') return { text: 'PL', color: 'bg-blue-200 text-blue-800' };
+                        if (type === 'no_commission') return { text: 'NC', color: 'bg-green-200 text-green-800' };
+                        if (type === 'entrywise') return { text: 'En.w', color: 'bg-purple-200 text-purple-800' };
+                        return null;
+                      };
+                      const commissionTypeBadge = getCommissionTypeBadge(user?.commission_type);
+                      
+                      return (
                       <tr key={entry.id} className="border-b border-retro-dark/20 hover:bg-retro-cream/50">
-                        <td className="px-1 py-1.5">
+                        <td className="px-1 py-1.5 relative">
                           <span className="inline-block px-1.5 py-0.5 bg-blue-500 text-white font-semibold text-xs rounded">
                             {entry.customer ? entry.customer.split(' ')[0] : 'N/A'}
                           </span>
+                          {commissionTypeBadge && (
+                            <span className={`absolute top-1 right-1 text-[10px] font-semibold px-1 py-0.5 rounded ${commissionTypeBadge.color}`}>
+                              {commissionTypeBadge.text}
+                            </span>
+                          )}
                         </td>
                         <td className="px-1 py-1.5 text-center border-l-2 border-retro-dark">
                           {entry.team1Fav && entry.team1Fav !== '0' && entry.team1Fav !== '0/0000' ? (
@@ -767,7 +784,8 @@ export default function MatchDetailPage() {
                           </span>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

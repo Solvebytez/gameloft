@@ -220,63 +220,70 @@ export default function BusinessReportPage() {
       let losingTeamNonFav = 0;    // Losing team + Non-Favorite entries
 
       userEntries.forEach((entry) => {
-        const team1Amount = Number(entry.team1_amount) || 0;
+        // Parse amounts from formatted strings (team1Fav, team1Nfav, etc.) to match what's displayed in match entry table
+        const parseAmountFromString = (formattedString: string | null | undefined): number => {
+          if (!formattedString || formattedString === '0' || formattedString === '0/0000') return 0;
+          try {
+            const parts = formattedString.split('/');
+            if (parts.length === 2) {
+              return Number(parts[1]) || 0; // Extract amount part (after the slash)
+            }
+            return 0;
+          } catch {
+            return 0;
+          }
+        };
+
+        // Get amounts from formatted strings to match match entry table display
+        const team1FavAmount = parseAmountFromString(entry.team1Fav);
+        const team1NfavAmount = parseAmountFromString(entry.team1Nfav);
+        const team2FavAmount = parseAmountFromString(entry.team2Fav);
+        const team2NfavAmount = parseAmountFromString(entry.team2Nfav);
+
+        // Use the displayed amounts (from formatted strings) instead of raw team1_amount/team2_amount
+        const team1Amount = team1FavAmount + team1NfavAmount;
+        const team2Amount = team2FavAmount + team2NfavAmount;
         const team1Rate = Number(entry.team1_rate) || 0;
-        const team2Amount = Number(entry.team2_amount) || 0;
         const team2Rate = Number(entry.team2_rate) || 0;
         const favouriteTeam = entry.favourite_team;
 
-        // Total bet is sum of all amounts
+        // Total bet is sum of all amounts (using displayed amounts)
         totalBet += team1Amount + team2Amount;
 
         // Calculate profit/loss based on winning team and favorite/non-favorite
+        // Use the parsed amounts from formatted strings (team1FavAmount, team1NfavAmount, etc.)
         if (isTeam1Winner) {
           // Team 1 Win + Favorite entries (favourite_team === 'team1')
           if (favouriteTeam === 'team1') {
             // Calculate: (rate / 100) × amount, then sum
-            winningTeamFav += (team1Rate / 100) * team1Amount;
+            // Use team1FavAmount (from team1Fav string) for favorite entries
+            winningTeamFav += (team1Rate / 100) * team1FavAmount;
+            // Team 2 Loss + Non-Favorite entries (favourite_team === 'team1', but bet on Team2)
+            losingTeamNonFav += (team2Rate / 100) * team2NfavAmount;
           }
           
           // Team 1 Win + Non-Favorite entries (favourite_team === 'team2', but bet on Team1)
           if (favouriteTeam === 'team2') {
             // Sum all amounts (no rate multiplication)
-            winningTeamNonFav += team1Amount;
-          }
-          
-          // Team 2 Loss + Favorite entries (favourite_team === 'team2')
-          if (favouriteTeam === 'team2') {
-            // Sum all amounts (no rate multiplication)
-            losingTeamFav += team2Amount;
-          }
-          
-          // Team 2 Loss + Non-Favorite entries (favourite_team === 'team1', but bet on Team2)
-          if (favouriteTeam === 'team1') {
-            // Calculate: (rate / 100) × amount, then sum
-            losingTeamNonFav += (team2Rate / 100) * team2Amount;
+            winningTeamNonFav += team1NfavAmount;
+            // Team 2 Loss + Favorite entries (favourite_team === 'team2')
+            losingTeamFav += team2FavAmount;
           }
         } else if (isTeam2Winner) {
           // Team 2 Win + Favorite entries (favourite_team === 'team2')
           if (favouriteTeam === 'team2') {
             // Calculate: (rate / 100) × amount, then sum
-            winningTeamFav += (team2Rate / 100) * team2Amount;
+            winningTeamFav += (team2Rate / 100) * team2FavAmount;
+            // Team 1 Loss + Non-Favorite entries (favourite_team === 'team2', but bet on Team1)
+            losingTeamNonFav += (team1Rate / 100) * team1NfavAmount;
           }
           
           // Team 2 Win + Non-Favorite entries (favourite_team === 'team1', but bet on Team2)
           if (favouriteTeam === 'team1') {
             // Sum all amounts (no rate multiplication)
-            winningTeamNonFav += team2Amount;
-          }
-          
-          // Team 1 Loss + Favorite entries (favourite_team === 'team1')
-          if (favouriteTeam === 'team1') {
-            // Sum all amounts (no rate multiplication)
-            losingTeamFav += team1Amount;
-          }
-          
-          // Team 1 Loss + Non-Favorite entries (favourite_team === 'team2', but bet on Team1)
-          if (favouriteTeam === 'team2') {
-            // Calculate: (rate / 100) × amount, then sum
-            losingTeamNonFav += (team1Rate / 100) * team1Amount;
+            winningTeamNonFav += team2NfavAmount;
+            // Team 1 Loss + Favorite entries (favourite_team === 'team1')
+            losingTeamFav += team1FavAmount;
           }
         }
       });
@@ -305,6 +312,7 @@ export default function BusinessReportPage() {
           partnership: '',
           custNetWithComm: profitLoss,
           netProfitLoss: profitLoss,
+          commissionType: undefined,
         });
         return;
       }
@@ -353,9 +361,28 @@ export default function BusinessReportPage() {
         let totalLoss = 0;
         
         userEntries.forEach((entry) => {
-          const team1Amount = Number(entry.team1_amount) || 0;
+          // Parse amounts from formatted strings to match match entry table display
+          const parseAmountFromString = (formattedString: string | null | undefined): number => {
+            if (!formattedString || formattedString === '0' || formattedString === '0/0000') return 0;
+            try {
+              const parts = formattedString.split('/');
+              if (parts.length === 2) {
+                return Number(parts[1]) || 0;
+              }
+              return 0;
+            } catch {
+              return 0;
+            }
+          };
+
+          const team1FavAmount = parseAmountFromString(entry.team1Fav);
+          const team1NfavAmount = parseAmountFromString(entry.team1Nfav);
+          const team2FavAmount = parseAmountFromString(entry.team2Fav);
+          const team2NfavAmount = parseAmountFromString(entry.team2Nfav);
+
+          const team1Amount = team1FavAmount + team1NfavAmount;
           const team1Rate = Number(entry.team1_rate) || 0;
-          const team2Amount = Number(entry.team2_amount) || 0;
+          const team2Amount = team2FavAmount + team2NfavAmount;
           const team2Rate = Number(entry.team2_rate) || 0;
           const favouriteTeam = entry.favourite_team;
           
@@ -368,14 +395,14 @@ export default function BusinessReportPage() {
             
             if (favouriteTeam === 'team1') {
               // Team 1 Win + Fav: (rate / 100) × amount
-              team1Win = (team1Rate / 100) * team1Amount;
+              team1Win = (team1Rate / 100) * team1FavAmount;
               // Team 2 Loss + Non-Fav: (rate / 100) × amount
-              team2Loss = (team2Rate / 100) * team2Amount;
+              team2Loss = (team2Rate / 100) * team2NfavAmount;
             } else if (favouriteTeam === 'team2') {
               // Team 1 Win + Non-Fav: just amount
-              team1Win = team1Amount;
+              team1Win = team1NfavAmount;
               // Team 2 Loss + Fav: just amount
-              team2Loss = team2Amount;
+              team2Loss = team2FavAmount;
             }
             
             entryProfitLoss = team1Win - team2Loss;
@@ -386,14 +413,14 @@ export default function BusinessReportPage() {
             
             if (favouriteTeam === 'team2') {
               // Team 2 Win + Fav: (rate / 100) × amount
-              team2Win = (team2Rate / 100) * team2Amount;
+              team2Win = (team2Rate / 100) * team2FavAmount;
               // Team 1 Loss + Non-Fav: (rate / 100) × amount
-              team1Loss = (team1Rate / 100) * team1Amount;
+              team1Loss = (team1Rate / 100) * team1NfavAmount;
             } else if (favouriteTeam === 'team1') {
               // Team 2 Win + Non-Fav: just amount
-              team2Win = team2Amount;
+              team2Win = team2NfavAmount;
               // Team 1 Loss + Fav: just amount
-              team1Loss = team1Amount;
+              team1Loss = team1FavAmount;
             }
             
             entryProfitLoss = team2Win - team1Loss;
@@ -427,6 +454,7 @@ export default function BusinessReportPage() {
         partnership: user.partnership,
         custNetWithComm,
         netProfitLoss,
+        commissionType: user.commission_type,
       });
     });
 
@@ -439,28 +467,218 @@ export default function BusinessReportPage() {
     });
 
     // Calculate team totals - need both losing team and winning team totals
+    // Calculate totals from ALL entries (allEntries), not just filtered entries
     const winningTeam = isTeam1Winner ? selectedMatch.team1 : selectedMatch.team2;
     const losingTeam = isTeam1Winner ? selectedMatch.team2 : selectedMatch.team1;
 
     if (winningTeam && losingTeam) {
-      // Filter rows to get only user entries (exclude totals and separators)
-      const userRows = rows.filter(r => r.srNo !== '' && typeof r.srNo === 'number');
+      // Group all entries by user for proper commission calculation (especially entrywise)
+      const allUserGroups = new Map<number | string, Entry[]>();
+      allEntries.forEach((entry) => {
+        const key = entry.user_id || entry.customer;
+        if (!allUserGroups.has(key)) {
+          allUserGroups.set(key, []);
+        }
+        allUserGroups.get(key)!.push(entry);
+      });
 
-      // Calculate losing team totals (negative profit/loss values or zero)
-      const losingTeamRows = userRows.filter(r => r.profitLoss <= 0);
-      const losingTeamTotalBet = losingTeamRows.reduce((sum, r) => sum + r.totalBet, 0);
-      const losingTeamProfitLoss = losingTeamRows.reduce((sum, r) => sum + r.profitLoss, 0);
-      const losingTeamCommission = losingTeamRows.reduce((sum, r) => sum + r.totalCommission, 0);
-      const losingTeamCustNetWithComm = losingTeamRows.reduce((sum, r) => sum + r.custNetWithComm, 0);
-      const losingTeamNetProfitLoss = losingTeamRows.reduce((sum, r) => sum + r.netProfitLoss, 0);
+      // Calculate totals from all user groups
+      let losingTeamTotalBet = 0;
+      let losingTeamProfitLoss = 0;
+      let losingTeamCommission = 0;
+      let losingTeamCustNetWithComm = 0;
+      let losingTeamNetProfitLoss = 0;
 
-      // Calculate winning team totals (positive profit/loss values)
-      const winningTeamRows = userRows.filter(r => r.profitLoss > 0);
-      const winningTeamTotalBet = winningTeamRows.reduce((sum, r) => sum + r.totalBet, 0);
-      const winningTeamProfitLoss = winningTeamRows.reduce((sum, r) => sum + r.profitLoss, 0);
-      const winningTeamCommission = winningTeamRows.reduce((sum, r) => sum + r.totalCommission, 0);
-      const winningTeamCustNetWithComm = winningTeamRows.reduce((sum, r) => sum + r.custNetWithComm, 0);
-      const winningTeamNetProfitLoss = winningTeamRows.reduce((sum, r) => sum + r.netProfitLoss, 0);
+      let winningTeamTotalBet = 0;
+      let winningTeamProfitLoss = 0;
+      let winningTeamCommission = 0;
+      let winningTeamCustNetWithComm = 0;
+      let winningTeamNetProfitLoss = 0;
+
+      // Process each user group to calculate totals
+      allUserGroups.forEach((userEntries, userKey) => {
+        // Find user
+        let user = null;
+        if (typeof userKey === 'number') {
+          user = users.find((u) => u.id === userKey);
+        } else {
+          user = users.find((u) => u.name === userKey);
+        }
+
+        // Calculate user totals
+        let userTotalBet = 0;
+        let userProfitLoss = 0;
+        let userCommission = 0;
+        let userCustNetWithComm = 0;
+        let userNetProfitLoss = 0;
+
+        // Calculate profit/loss for all entries of this user
+        let winningTeamFav = 0;
+        let winningTeamNonFav = 0;
+        let losingTeamFav = 0;
+        let losingTeamNonFav = 0;
+
+        userEntries.forEach((entry) => {
+          // Parse amounts from formatted strings to match match entry table display
+          const parseAmountFromString = (formattedString: string | null | undefined): number => {
+            if (!formattedString || formattedString === '0' || formattedString === '0/0000') return 0;
+            try {
+              const parts = formattedString.split('/');
+              if (parts.length === 2) {
+                return Number(parts[1]) || 0;
+              }
+              return 0;
+            } catch {
+              return 0;
+            }
+          };
+
+          const team1FavAmount = parseAmountFromString(entry.team1Fav);
+          const team1NfavAmount = parseAmountFromString(entry.team1Nfav);
+          const team2FavAmount = parseAmountFromString(entry.team2Fav);
+          const team2NfavAmount = parseAmountFromString(entry.team2Nfav);
+
+          const team1Amount = team1FavAmount + team1NfavAmount;
+          const team1Rate = Number(entry.team1_rate) || 0;
+          const team2Amount = team2FavAmount + team2NfavAmount;
+          const team2Rate = Number(entry.team2_rate) || 0;
+          const favouriteTeam = entry.favourite_team;
+
+          userTotalBet += team1Amount + team2Amount;
+
+          if (isTeam1Winner) {
+            if (favouriteTeam === 'team1') {
+              winningTeamFav += (team1Rate / 100) * team1FavAmount;
+              losingTeamNonFav += (team2Rate / 100) * team2NfavAmount;
+            } else if (favouriteTeam === 'team2') {
+              winningTeamNonFav += team1NfavAmount;
+              losingTeamFav += team2FavAmount;
+            }
+          } else if (isTeam2Winner) {
+            if (favouriteTeam === 'team2') {
+              winningTeamFav += (team2Rate / 100) * team2FavAmount;
+              losingTeamNonFav += (team1Rate / 100) * team1NfavAmount;
+            } else if (favouriteTeam === 'team1') {
+              winningTeamNonFav += team2NfavAmount;
+              losingTeamFav += team1FavAmount;
+            }
+          }
+        });
+
+        userProfitLoss = (winningTeamFav + winningTeamNonFav) - (losingTeamFav + losingTeamNonFav);
+
+        // Calculate commission and partnership based on user's commission type
+        if (user) {
+          const partnership = Number(user.partnership) || 0;
+
+          if (user.commission_type === 'no_commission') {
+            const partnershipAmount = userProfitLoss * (partnership / 100);
+            userCommission = 0;
+            userCustNetWithComm = partnershipAmount;
+            userNetProfitLoss = userProfitLoss - partnershipAmount;
+          } else if (user.commission_type === 'profit_loss') {
+            const commission = Number(user.commission) || 0;
+            if (userProfitLoss < 0) {
+              userCommission = Math.abs(userProfitLoss) * (commission / 100);
+            }
+            const partnershipAmount = userProfitLoss * (partnership / 100);
+            userCustNetWithComm = partnershipAmount + userCommission;
+            userNetProfitLoss = userProfitLoss - partnershipAmount - userCommission;
+          } else if (user.commission_type === 'entrywise') {
+            // For entrywise, calculate profit/loss per entry, then commission on total loss
+            const commission = Number(user.commission) || 0;
+            let totalProfit = 0;
+            let totalLoss = 0;
+
+            userEntries.forEach((entry) => {
+              // Parse amounts from formatted strings to match match entry table display
+              const parseAmountFromString = (formattedString: string | null | undefined): number => {
+                if (!formattedString || formattedString === '0' || formattedString === '0/0000') return 0;
+                try {
+                  const parts = formattedString.split('/');
+                  if (parts.length === 2) {
+                    return Number(parts[1]) || 0;
+                  }
+                  return 0;
+                } catch {
+                  return 0;
+                }
+              };
+
+              const team1FavAmount = parseAmountFromString(entry.team1Fav);
+              const team1NfavAmount = parseAmountFromString(entry.team1Nfav);
+              const team2FavAmount = parseAmountFromString(entry.team2Fav);
+              const team2NfavAmount = parseAmountFromString(entry.team2Nfav);
+
+              const team1Amount = team1FavAmount + team1NfavAmount;
+              const team1Rate = Number(entry.team1_rate) || 0;
+              const team2Amount = team2FavAmount + team2NfavAmount;
+              const team2Rate = Number(entry.team2_rate) || 0;
+              const favouriteTeam = entry.favourite_team;
+
+              let entryProfitLoss = 0;
+
+              if (isTeam1Winner) {
+                let team1Win = 0;
+                let team2Loss = 0;
+                if (favouriteTeam === 'team1') {
+                  team1Win = (team1Rate / 100) * team1FavAmount;
+                  team2Loss = (team2Rate / 100) * team2NfavAmount;
+                } else if (favouriteTeam === 'team2') {
+                  team1Win = team1NfavAmount;
+                  team2Loss = team2FavAmount;
+                }
+                entryProfitLoss = team1Win - team2Loss;
+              } else if (isTeam2Winner) {
+                let team2Win = 0;
+                let team1Loss = 0;
+                if (favouriteTeam === 'team2') {
+                  team2Win = (team2Rate / 100) * team2FavAmount;
+                  team1Loss = (team1Rate / 100) * team1NfavAmount;
+                } else if (favouriteTeam === 'team1') {
+                  team2Win = team2NfavAmount;
+                  team1Loss = team1FavAmount;
+                }
+                entryProfitLoss = team2Win - team1Loss;
+              }
+
+              if (entryProfitLoss >= 0) {
+                totalProfit += entryProfitLoss;
+              } else {
+                totalLoss += entryProfitLoss; // negative
+              }
+            });
+
+            const lossCommission = Math.abs(totalLoss) * (commission / 100);
+            const netAfterLossCommission = totalProfit + totalLoss + lossCommission;
+            const partnershipShare = netAfterLossCommission * (partnership / 100);
+            userCommission = lossCommission;
+            userCustNetWithComm = netAfterLossCommission - partnershipShare;
+            userNetProfitLoss = netAfterLossCommission - partnershipShare;
+          } else {
+            userCustNetWithComm = userProfitLoss;
+            userNetProfitLoss = userProfitLoss;
+          }
+        } else {
+          userCustNetWithComm = userProfitLoss;
+          userNetProfitLoss = userProfitLoss;
+        }
+
+        // Add to appropriate team totals based on profit/loss sign
+        if (userProfitLoss <= 0) {
+          losingTeamTotalBet += userTotalBet;
+          losingTeamProfitLoss += userProfitLoss;
+          losingTeamCommission += userCommission;
+          losingTeamCustNetWithComm += userCustNetWithComm;
+          losingTeamNetProfitLoss += userNetProfitLoss;
+        } else {
+          winningTeamTotalBet += userTotalBet;
+          winningTeamProfitLoss += userProfitLoss;
+          winningTeamCommission += userCommission;
+          winningTeamCustNetWithComm += userCustNetWithComm;
+          winningTeamNetProfitLoss += userNetProfitLoss;
+        }
+      });
 
       // Add winning team total row first (always show, even if values are 0)
       rows.push({
@@ -678,6 +896,7 @@ export default function BusinessReportPage() {
     netProfitLoss: number;
     isTotal?: boolean;
     teamName?: string;
+    commissionType?: string;
   }
 
   // Use calculated data when report is generated, otherwise use empty array
@@ -988,9 +1207,26 @@ export default function BusinessReportPage() {
       key: 'custName',
       label: 'Cust Name',
       sortable: true,
-      render: (value, row) => (
-        <span className={row.isTotal ? 'font-bold' : ''}>{value || ''}</span>
-      ),
+      render: (value, row) => {
+        const getCommissionTypeBadge = (type?: string) => {
+          if (type === 'profit_loss') return { text: 'PL', color: 'bg-blue-200 text-blue-800' };
+          if (type === 'no_commission') return { text: 'NC', color: 'bg-green-200 text-green-800' };
+          if (type === 'entrywise') return { text: 'En.w', color: 'bg-purple-200 text-purple-800' };
+          return null;
+        };
+        const commissionTypeBadge = getCommissionTypeBadge(row.commissionType);
+        
+        return (
+          <div className={`${row.isTotal ? 'font-bold' : ''} relative -m-3 p-3`}>
+            {value || ''}
+            {commissionTypeBadge && !row.isTotal && (
+              <span className={`absolute top-1 right-1 text-[10px] font-semibold px-1 py-0.5 rounded ${commissionTypeBadge.color}`}>
+                {commissionTypeBadge.text}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'totalBet',
