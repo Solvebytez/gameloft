@@ -395,19 +395,39 @@ export default function BusinessReportPage() {
         return;
       }
 
-      // Calculate commission using new required logic
+      // Calculate commission based on commission type
       const commissionPercent = user.commission || 0;
       const partnershipPercent = Number(user.partnership) || 0;
+      const commissionType = user.commission_type;
       
-      const result = calculateRowResult({
-        profitLoss,
-        commissionPercent,
-        partnershipPercent,
-      });
+      let totalCommission = 0;
+      let custNetWithComm = 0;
+      let netProfitLoss = 0;
 
-      const totalCommission = result.commissionAfterPartnership;
-      const custNetWithComm = result.custNetWithComm;
-      const netProfitLoss = result.netProfitLoss;
+      // Only apply calculateRowResult for profit_loss commission type
+      if (commissionType === 'profit_loss') {
+        const result = calculateRowResult({
+          profitLoss,
+          commissionPercent,
+          partnershipPercent,
+        });
+        totalCommission = result.commissionAfterPartnership;
+        custNetWithComm = result.custNetWithComm;
+        netProfitLoss = result.netProfitLoss;
+      } else if (commissionType === 'no_commission') {
+        // No commission, only partnership
+        const partnershipRate = partnershipPercent / 100;
+        totalCommission = 0;
+        custNetWithComm = profitLoss * (1 - partnershipRate);
+        netProfitLoss = profitLoss * (1 - partnershipRate);
+      } else {
+        // entrywise or other types - for now, treat similar to no_commission
+        // (entrywise should be handled entry-by-entry, but for totals we'll use partnership only)
+        const partnershipRate = partnershipPercent / 100;
+        totalCommission = 0;
+        custNetWithComm = profitLoss * (1 - partnershipRate);
+        netProfitLoss = profitLoss * (1 - partnershipRate);
+      }
 
       rows.push({
         srNo: rowIndex++,
@@ -561,52 +581,106 @@ export default function BusinessReportPage() {
         // Team2 profit/loss = what we receive from Team1 - what we pay to Team2
         const userTeam2ProfitLoss = team1Receive - team2PayOut;
 
-        // Calculate commission and partnership using new required logic
+        // Calculate commission and partnership based on commission type
         if (user) {
           const commissionPercent = Number(user.commission) || 0;
           const partnershipPercent = Number(user.partnership) || 0;
+          const commissionType = user.commission_type;
 
-          // Calculate user's total values (for individual row display)
-          const userResult = calculateRowResult({
-            profitLoss: userProfitLoss,
-            commissionPercent,
-            partnershipPercent,
-          });
+          // Only apply calculateRowResult for profit_loss commission type
+          if (commissionType === 'profit_loss') {
+            // Calculate user's total values (for individual row display)
+            const userResult = calculateRowResult({
+              profitLoss: userProfitLoss,
+              commissionPercent,
+              partnershipPercent,
+            });
 
-          userCommission = userResult.commissionAfterPartnership;
-          userCustNetWithComm = userResult.custNetWithComm;
-          userNetProfitLoss = userResult.netProfitLoss;
+            userCommission = userResult.commissionAfterPartnership;
+            userCustNetWithComm = userResult.custNetWithComm;
+            userNetProfitLoss = userResult.netProfitLoss;
 
-          // Calculate FIXED Team1 totals for this user (regardless of winner selection)
-          const team1Result = calculateRowResult({
-            profitLoss: userTeam1ProfitLoss,
-            commissionPercent,
-            partnershipPercent,
-          });
+            // Calculate FIXED Team1 totals for this user (regardless of winner selection)
+            const team1Result = calculateRowResult({
+              profitLoss: userTeam1ProfitLoss,
+              commissionPercent,
+              partnershipPercent,
+            });
 
-          // Calculate FIXED Team2 totals for this user (regardless of winner selection)
-          const team2Result = calculateRowResult({
-            profitLoss: userTeam2ProfitLoss,
-            commissionPercent,
-            partnershipPercent,
-          });
+            // Calculate FIXED Team2 totals for this user (regardless of winner selection)
+            const team2Result = calculateRowResult({
+              profitLoss: userTeam2ProfitLoss,
+              commissionPercent,
+              partnershipPercent,
+            });
 
-          // Aggregate to FIXED team totals
-          team1TotalBet += userTeam1Bet;
-          team1ProfitLoss += userTeam1ProfitLoss; // Accumulate user's Team1 profit/loss
-          team1Commission += team1Result.commissionAfterPartnership;
-          team1CustNetWithComm += team1Result.custNetWithComm;
-          team1NetProfitLoss += team1Result.netProfitLoss;
+            // Aggregate to FIXED team totals
+            team1TotalBet += userTeam1Bet;
+            team1ProfitLoss += userTeam1ProfitLoss; // Accumulate user's Team1 profit/loss
+            team1Commission += team1Result.commissionAfterPartnership;
+            team1CustNetWithComm += team1Result.custNetWithComm;
+            team1NetProfitLoss += team1Result.netProfitLoss;
 
-          team2TotalBet += userTeam2Bet;
-          team2ProfitLoss += userTeam2ProfitLoss; // Accumulate user's Team2 profit/loss
-          team2Commission += team2Result.commissionAfterPartnership;
-          team2CustNetWithComm += team2Result.custNetWithComm;
-          team2NetProfitLoss += team2Result.netProfitLoss;
+            team2TotalBet += userTeam2Bet;
+            team2ProfitLoss += userTeam2ProfitLoss; // Accumulate user's Team2 profit/loss
+            team2Commission += team2Result.commissionAfterPartnership;
+            team2CustNetWithComm += team2Result.custNetWithComm;
+            team2NetProfitLoss += team2Result.netProfitLoss;
+          } else if (commissionType === 'no_commission') {
+            // No commission, only partnership
+            const partnershipRate = partnershipPercent / 100;
+            userCustNetWithComm = userProfitLoss * (1 - partnershipRate);
+            userNetProfitLoss = userProfitLoss * (1 - partnershipRate);
+            userCommission = 0;
+
+            // Team totals for no_commission
+            const team1CustNet = userTeam1ProfitLoss * (1 - partnershipRate);
+            const team1Net = userTeam1ProfitLoss * (1 - partnershipRate);
+            const team2CustNet = userTeam2ProfitLoss * (1 - partnershipRate);
+            const team2Net = userTeam2ProfitLoss * (1 - partnershipRate);
+
+            team1TotalBet += userTeam1Bet;
+            team1ProfitLoss += userTeam1ProfitLoss;
+            team1Commission += 0;
+            team1CustNetWithComm += team1CustNet;
+            team1NetProfitLoss += team1Net;
+
+            team2TotalBet += userTeam2Bet;
+            team2ProfitLoss += userTeam2ProfitLoss;
+            team2Commission += 0;
+            team2CustNetWithComm += team2CustNet;
+            team2NetProfitLoss += team2Net;
+          } else {
+            // entrywise or other types - for now, treat similar to no_commission
+            // (entrywise should be handled entry-by-entry, but for totals we'll use partnership only)
+            const partnershipRate = partnershipPercent / 100;
+            userCustNetWithComm = userProfitLoss * (1 - partnershipRate);
+            userNetProfitLoss = userProfitLoss * (1 - partnershipRate);
+            userCommission = 0;
+
+            // Team totals
+            const team1CustNet = userTeam1ProfitLoss * (1 - partnershipRate);
+            const team1Net = userTeam1ProfitLoss * (1 - partnershipRate);
+            const team2CustNet = userTeam2ProfitLoss * (1 - partnershipRate);
+            const team2Net = userTeam2ProfitLoss * (1 - partnershipRate);
+
+            team1TotalBet += userTeam1Bet;
+            team1ProfitLoss += userTeam1ProfitLoss;
+            team1Commission += 0;
+            team1CustNetWithComm += team1CustNet;
+            team1NetProfitLoss += team1Net;
+
+            team2TotalBet += userTeam2Bet;
+            team2ProfitLoss += userTeam2ProfitLoss;
+            team2Commission += 0;
+            team2CustNetWithComm += team2CustNet;
+            team2NetProfitLoss += team2Net;
+          }
         } else {
           // No user found - no commission/partnership
           userCustNetWithComm = userProfitLoss;
           userNetProfitLoss = userProfitLoss;
+          userCommission = 0;
 
           // Still aggregate bets to team totals (no commission/partnership)
           team1TotalBet += userTeam1Bet;
