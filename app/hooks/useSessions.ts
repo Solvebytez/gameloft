@@ -58,7 +58,7 @@ export const sessionKeys = {
 };
 
 // Fetch all sessions
-export function useSessions(matchId?: number | null) {
+export function useSessions(matchId?: number | null, enabled: boolean = true) {
   return useQuery({
     queryKey: sessionKeys.list(matchId),
     queryFn: async (): Promise<Session[]> => {
@@ -90,6 +90,7 @@ export function useSessions(matchId?: number | null) {
         return [];
       }
     },
+    enabled: enabled && (matchId !== undefined),
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     staleTime: 0,

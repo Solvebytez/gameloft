@@ -10,6 +10,7 @@ import { useMatchesByDate } from '@/app/hooks/useMatches';
 import { useUsers } from '@/app/hooks/useUsers';
 import { useSessions, Session } from '@/app/hooks/useSessions';
 import { useEntries, Entry } from '@/app/hooks/useEntries';
+import { calculateEntrywise } from '@/app/utils/entrywiseCalculator';
 // Removed unused imports - now using calculateRowResult() function
 
 // Production-ready calculation function with validation and rounding
@@ -111,30 +112,25 @@ export default function BusinessReportPage() {
   const { data: users = [], isLoading: isLoadingUsers } = useUsers();
 
   // Fetch sessions for the selected match (when report type is "session" and report is generated)
-  const shouldFetchSessions = reportGenerated && reportFormData && reportFormData.selectMatch && reportFormData.reportType === 'session';
+  const shouldFetchSessions = !!(reportGenerated && reportFormData && reportFormData.selectMatch && reportFormData.reportType === 'session');
   const { data: allSessions = [], isLoading: isLoadingSessions } = useSessions(
-    shouldFetchSessions ? Number(reportFormData.selectMatch) : null
+    shouldFetchSessions ? Number(reportFormData!.selectMatch) : null,
+    shouldFetchSessions // Only enable when shouldFetchSessions is true
   );
 
   // Fetch match entries for the selected match (when report type is "match" and report is generated)
   const shouldFetchEntries = reportGenerated && reportFormData && reportFormData.selectMatch && reportFormData.reportType === 'match';
+  // Get selected user from reportFormData (use 'all' if not specified or 'all' is selected)
+  const selectedUserId = shouldFetchEntries && reportFormData.selectUser && reportFormData.selectUser !== 'all' 
+    ? reportFormData.selectUser 
+    : undefined;
   const { data: entriesData, isLoading: isLoadingEntries } = useEntries(
-    shouldFetchEntries ? reportFormData.selectMatch : undefined
+    shouldFetchEntries ? reportFormData.selectMatch : undefined,
+    selectedUserId
   );
   const allEntries: Entry[] = entriesData?.data || [];
 
-  // Debug: Log session fetching
-  useEffect(() => {
-    if (reportGenerated && formData.selectMatch) {
-      console.log('Session Fetch Status:', {
-        shouldFetchSessions,
-        matchId: formData.selectMatch,
-        isLoadingSessions,
-        allSessionsCount: allSessions.length,
-        sessions: allSessions,
-      });
-    }
-  }, [reportGenerated, formData.selectMatch, shouldFetchSessions, isLoadingSessions, allSessions]);
+
 
   // Filter sessions by selected user if not "all" (use reportFormData when report is generated)
   const sessions = useMemo(() => {
@@ -206,27 +202,14 @@ export default function BusinessReportPage() {
       return [];
     }
 
-    // Debug logging
-    console.log('Match Summary Calculation (from entries):', {
-      reportGenerated,
-      reportType: reportFormData.reportType,
-      selectMatch: reportFormData.selectMatch,
-      allEntriesCount: allEntries.length,
-      entriesCount: entries.length,
-      usersCount: users.length,
-      matchesCount: matches.length,
-    });
-
     // If no entries found, return empty (will show no data message)
     if (entries.length === 0) {
-      console.log('No entries found for match:', reportFormData.selectMatch);
       return [];
     }
 
     // Get selected match to find teams and winning team
     const selectedMatch = matches.find((m) => String(m.id) === reportFormData.selectMatch);
     if (!selectedMatch) {
-      console.log('Selected match not found in matches list');
       return [];
     }
 
@@ -236,19 +219,8 @@ export default function BusinessReportPage() {
     const isTeam2Winner = winningTeamId === selectedMatch.team2.id;
 
     if (!isTeam1Winner && !isTeam2Winner) {
-      console.log('Winning team not selected or invalid');
       return [];
     }
-
-    console.log('Team Assignment:', {
-      winningTeamId,
-      team1Id: selectedMatch.team1.id,
-      team2Id: selectedMatch.team2.id,
-      team1Name: selectedMatch.team1.name,
-      team2Name: selectedMatch.team2.name,
-      isTeam1Winner,
-      isTeam2Winner,
-    });
 
     // Group entries by user_id (or customer name if user_id is null)
     const userGroups = new Map<number | string, Entry[]>();
@@ -262,7 +234,6 @@ export default function BusinessReportPage() {
 
     // If no users found in entries, return empty
     if (userGroups.size === 0) {
-      console.log('No users found in entries');
       return [];
     }
 
@@ -378,7 +349,6 @@ export default function BusinessReportPage() {
 
       // Skip if no user found and we need commission/partnership info
       if (!user) {
-        console.log('User not found for entry:', userKey);
         // Still add row but without commission calculations
         rows.push({
           srNo: rowIndex++,
@@ -414,6 +384,17 @@ export default function BusinessReportPage() {
         totalCommission = result.commissionAfterPartnership;
         custNetWithComm = result.custNetWithComm;
         netProfitLoss = result.netProfitLoss;
+      } else if (commissionType === 'entrywise') {
+        // Entrywise calculation: commission on losing team total, then apply to gross difference
+        const entrywiseResult = calculateEntrywise({
+          winningTeamTotal,
+          losingTeamTotal,
+          commissionPercent,
+          partnershipPercent,
+        });
+        totalCommission = entrywiseResult.commissionAfterPartnership;
+        custNetWithComm = entrywiseResult.custNetWithComm;
+        netProfitLoss = entrywiseResult.netProfitLoss;
       } else if (commissionType === 'no_commission') {
         // No commission, only partnership
         const partnershipRate = partnershipPercent / 100;
@@ -421,8 +402,7 @@ export default function BusinessReportPage() {
         custNetWithComm = profitLoss * (1 - partnershipRate);
         netProfitLoss = profitLoss * (1 - partnershipRate);
       } else {
-        // entrywise or other types - for now, treat similar to no_commission
-        // (entrywise should be handled entry-by-entry, but for totals we'll use partnership only)
+        // Other types - treat similar to no_commission
         const partnershipRate = partnershipPercent / 100;
         totalCommission = 0;
         custNetWithComm = profitLoss * (1 - partnershipRate);
@@ -457,18 +437,13 @@ export default function BusinessReportPage() {
     const winningTeam = winningTeamId === selectedMatch.team1.id ? selectedMatch.team1 : selectedMatch.team2;
     const losingTeam = winningTeamId === selectedMatch.team1.id ? selectedMatch.team2 : selectedMatch.team1;
 
-    console.log('Team Assignment for Totals:', {
-      winningTeamId,
-      selectedWinningTeamName: winningTeam.name,
-      selectedLosingTeamName: losingTeam.name,
-      team1Name: selectedMatch.team1.name,
-      team2Name: selectedMatch.team2.name,
-    });
 
     if (winningTeam && losingTeam) {
-      // Group all entries by user for proper commission calculation (especially entrywise)
+      // Group entries by user for proper commission calculation (especially entrywise)
+      // For team totals: use 'allEntries' if "all users" selected, otherwise use filtered 'entries'
+      const entriesForTeamTotals = reportFormData.selectUser === 'all' ? allEntries : entries;
       const allUserGroups = new Map<number | string, Entry[]>();
-      allEntries.forEach((entry) => {
+      entriesForTeamTotals.forEach((entry) => {
         const key = entry.user_id || entry.customer;
         if (!allUserGroups.has(key)) {
           allUserGroups.set(key, []);
@@ -491,6 +466,9 @@ export default function BusinessReportPage() {
       let team2CustNetWithComm = 0;
       let team2NetProfitLoss = 0;
 
+      // Track if we have any entrywise/no_commission users (affects how we handle signs)
+      let hasEntrywiseOrNoCommission = false;
+
       // Use user maps for O(1) lookups (performance improvement)
       const userMapById = new Map(users.map((u) => [u.id, u]));
       const userMapByName = new Map(users.map((u) => [u.name, u]));
@@ -505,12 +483,8 @@ export default function BusinessReportPage() {
           user = userMapByName.get(userKey) || null;
         }
 
-        // Calculate user totals
-        let userTotalBet = 0;
+        // Calculate user totals (for team aggregation only)
         let userProfitLoss = 0;
-        let userCommission = 0;
-        let userCustNetWithComm = 0;
-        let userNetProfitLoss = 0;
 
         // Calculate profit/loss for all entries of this user
         // Calculate Team1 and Team2 contributions separately (fixed, regardless of winner)
@@ -547,24 +521,23 @@ export default function BusinessReportPage() {
           const team2Rate = Number(entry.team2_rate) || 0;
           const favouriteTeam = entry.favourite_team;
 
-          userTotalBet += team1Amount + team2Amount;
           userTeam1Bet += team1Amount;
           userTeam2Bet += team2Amount;
 
           // Calculate what happens if Team1 wins
-          if (favouriteTeam === 'team1') {
+            if (favouriteTeam === 'team1') {
             team1PayOut += (team1Rate / 100) * team1FavAmount; // Team1 favorite wins
             team2Receive += (team2Rate / 100) * team2NfavAmount; // Team2 non-favorite loses
-          } else if (favouriteTeam === 'team2') {
+            } else if (favouriteTeam === 'team2') {
             team1PayOut += team1NfavAmount; // Team1 non-favorite wins
             team2Receive += team2FavAmount; // Team2 favorite loses
-          }
+            }
 
           // Calculate what happens if Team2 wins
-          if (favouriteTeam === 'team2') {
+            if (favouriteTeam === 'team2') {
             team2PayOut += (team2Rate / 100) * team2FavAmount; // Team2 favorite wins
             team1Receive += (team1Rate / 100) * team1NfavAmount; // Team1 non-favorite loses
-          } else if (favouriteTeam === 'team1') {
+            } else if (favouriteTeam === 'team1') {
             team2PayOut += team2NfavAmount; // Team2 non-favorite wins
             team1Receive += team1FavAmount; // Team1 favorite loses
           }
@@ -581,6 +554,175 @@ export default function BusinessReportPage() {
         // Team2 profit/loss = what we receive from Team1 - what we pay to Team2
         const userTeam2ProfitLoss = team1Receive - team2PayOut;
 
+        // For entrywise: Calculate Win Side and Lost Side totals for this user based on selected winner
+        // This uses the same logic as individual user rows
+        let userWinningTeamFav = 0;
+        let userWinningTeamNonFav = 0;
+        let userLosingTeamFav = 0;
+        let userLosingTeamNonFav = 0;
+        
+        // Arrays to store individual entry details for logging
+        interface EntryLog {
+          entryId: number;
+          formatted: string;
+          rate?: number;
+          amount: number;
+          calculated: number;
+        }
+        const winFavEntries: EntryLog[] = [];
+        const winNonFavEntries: EntryLog[] = [];
+        const lostFavEntries: EntryLog[] = [];
+        const lostNonFavEntries: EntryLog[] = [];
+        
+        userEntries.forEach((entry) => {
+          const parseAmountFromString = (formattedString: string | null | undefined): number => {
+            if (!formattedString || formattedString === '0' || formattedString === '0/0000') return 0;
+            try {
+              const parts = formattedString.split('/');
+              if (parts.length === 2) {
+                return Number(parts[1]) || 0;
+              }
+              return 0;
+            } catch {
+              return 0;
+            }
+          };
+          
+          const team1FavAmount = parseAmountFromString(entry.team1Fav);
+          const team1NfavAmount = parseAmountFromString(entry.team1Nfav);
+          const team2FavAmount = parseAmountFromString(entry.team2Fav);
+          const team2NfavAmount = parseAmountFromString(entry.team2Nfav);
+          const team1Rate = Number(entry.team1_rate) || 0;
+          const team2Rate = Number(entry.team2_rate) || 0;
+          const favouriteTeam = entry.favourite_team;
+          
+          if (isTeam1Winner) {
+            // Team1 wins: Team1 is winning team, Team2 is losing team
+            if (favouriteTeam === 'team1') {
+              // Team1 Win + Favorite: Green Fav × Rate (Win + Fav)
+              const winFavValue = (team1Rate / 100) * team1FavAmount;
+              userWinningTeamFav += winFavValue;
+              winFavEntries.push({
+                entryId: entry.id,
+                formatted: entry.team1Fav,
+                rate: team1Rate,
+                amount: team1FavAmount,
+                calculated: winFavValue,
+              });
+              // Team2 Loss + Non-Favorite: Red Non-Fav × Rate (Lost + Non-Fav)
+              const lostNonFavValue = (team2Rate / 100) * team2NfavAmount;
+              userLosingTeamNonFav += lostNonFavValue;
+              if (lostNonFavValue > 0) {
+                lostNonFavEntries.push({
+                  entryId: entry.id,
+                  formatted: entry.team2Nfav,
+                  rate: team2Rate,
+                  amount: team2NfavAmount,
+                  calculated: lostNonFavValue,
+                });
+              }
+            } else if (favouriteTeam === 'team2') {
+              // Team1 Win + Non-Favorite: Red Non-Fav Amount (only amount) (Win + Non-Fav)
+              userWinningTeamNonFav += team1NfavAmount;
+              if (team1NfavAmount > 0) {
+                winNonFavEntries.push({
+                  entryId: entry.id,
+                  formatted: entry.team1Nfav,
+                  amount: team1NfavAmount,
+                  calculated: team1NfavAmount,
+                });
+              }
+              // Team2 Loss + Favorite: Green Fav Amount (only amount) (Lost + Fav)
+              userLosingTeamFav += team2FavAmount;
+              if (team2FavAmount > 0) {
+                lostFavEntries.push({
+                  entryId: entry.id,
+                  formatted: entry.team2Fav,
+                  amount: team2FavAmount,
+                  calculated: team2FavAmount,
+                });
+              }
+            }
+          } else {
+            // Team2 wins: Team2 is winning team, Team1 is losing team
+            if (favouriteTeam === 'team2') {
+              // Team2 Win + Favorite: Green Fav × Rate (Win + Fav)
+              const winFavValue = (team2Rate / 100) * team2FavAmount;
+              userWinningTeamFav += winFavValue;
+              winFavEntries.push({
+                entryId: entry.id,
+                formatted: entry.team2Fav,
+                rate: team2Rate,
+                amount: team2FavAmount,
+                calculated: winFavValue,
+              });
+              // Team1 Loss + Non-Favorite: Red Non-Fav × Rate (Lost + Non-Fav)
+              const lostNonFavValue = (team1Rate / 100) * team1NfavAmount;
+              userLosingTeamNonFav += lostNonFavValue;
+              if (lostNonFavValue > 0) {
+                lostNonFavEntries.push({
+                  entryId: entry.id,
+                  formatted: entry.team1Nfav,
+                  rate: team1Rate,
+                  amount: team1NfavAmount,
+                  calculated: lostNonFavValue,
+                });
+              }
+            } else if (favouriteTeam === 'team1') {
+              // Team2 Win + Non-Favorite: Red Non-Fav Amount (only amount) (Win + Non-Fav)
+              userWinningTeamNonFav += team2NfavAmount;
+              if (team2NfavAmount > 0) {
+                winNonFavEntries.push({
+                  entryId: entry.id,
+                  formatted: entry.team2Nfav,
+                  amount: team2NfavAmount,
+                  calculated: team2NfavAmount,
+                });
+              }
+              // Team1 Loss + Favorite: Green Fav Amount (only amount) (Lost + Fav)
+              userLosingTeamFav += team1FavAmount;
+              if (team1FavAmount > 0) {
+                lostFavEntries.push({
+                  entryId: entry.id,
+                  formatted: entry.team1Fav,
+                  amount: team1FavAmount,
+                  calculated: team1FavAmount,
+                });
+              }
+            }
+          }
+        });
+        
+        // Log Win Team entries (only for entrywise users)
+        if (user && user.commission_type === 'entrywise') {
+          console.log('🟢 WIN TEAM ENTRIES (Fav):', {
+            userId: user.id,
+            userName: user.name,
+            entries: winFavEntries,
+            total: userWinningTeamFav,
+          });
+          console.log('🔴 WIN TEAM ENTRIES (Non-Fav):', {
+            userId: user.id,
+            userName: user.name,
+            entries: winNonFavEntries,
+            total: userWinningTeamNonFav,
+          });
+          
+          // Log Lost Team entries (only for entrywise users)
+          console.log('🟢 LOST TEAM ENTRIES (Fav):', {
+            userId: user.id,
+            userName: user.name,
+            entries: lostFavEntries,
+            total: userLosingTeamFav,
+          });
+          console.log('🔴 LOST TEAM ENTRIES (Non-Fav):', {
+            userId: user.id,
+            userName: user.name,
+            entries: lostNonFavEntries,
+            total: userLosingTeamNonFav,
+          });
+        }
+        
         // Calculate commission and partnership based on commission type
         if (user) {
           const commissionPercent = Number(user.commission) || 0;
@@ -589,17 +731,6 @@ export default function BusinessReportPage() {
 
           // Only apply calculateRowResult for profit_loss commission type
           if (commissionType === 'profit_loss') {
-            // Calculate user's total values (for individual row display)
-            const userResult = calculateRowResult({
-              profitLoss: userProfitLoss,
-              commissionPercent,
-              partnershipPercent,
-            });
-
-            userCommission = userResult.commissionAfterPartnership;
-            userCustNetWithComm = userResult.custNetWithComm;
-            userNetProfitLoss = userResult.netProfitLoss;
-
             // Calculate FIXED Team1 totals for this user (regardless of winner selection)
             const team1Result = calculateRowResult({
               profitLoss: userTeam1ProfitLoss,
@@ -627,36 +758,191 @@ export default function BusinessReportPage() {
             team2CustNetWithComm += team2Result.custNetWithComm;
             team2NetProfitLoss += team2Result.netProfitLoss;
           } else if (commissionType === 'no_commission') {
+            hasEntrywiseOrNoCommission = true;
             // No commission, only partnership
             const partnershipRate = partnershipPercent / 100;
-            userCustNetWithComm = userProfitLoss * (1 - partnershipRate);
-            userNetProfitLoss = userProfitLoss * (1 - partnershipRate);
-            userCommission = 0;
 
-            // Team totals for no_commission
-            const team1CustNet = userTeam1ProfitLoss * (1 - partnershipRate);
-            const team1Net = userTeam1ProfitLoss * (1 - partnershipRate);
-            const team2CustNet = userTeam2ProfitLoss * (1 - partnershipRate);
-            const team2Net = userTeam2ProfitLoss * (1 - partnershipRate);
+            // Calculate Team1 and Team2 Win/Lost Side totals for this user (fixed, regardless of winner)
+            // Same logic as entrywise for Win/Lost Side calculation
+            let team1WinSideFav = 0;
+            let team1WinSideNonFav = 0;
+            let team1LostSideFav = 0;
+            let team1LostSideNonFav = 0;
+            let team2WinSideFav = 0;
+            let team2WinSideNonFav = 0;
+            let team2LostSideFav = 0;
+            let team2LostSideNonFav = 0;
+            
+            userEntries.forEach((entry) => {
+              const parseAmountFromString = (formattedString: string | null | undefined): number => {
+                if (!formattedString || formattedString === '0' || formattedString === '0/0000') return 0;
+                try {
+                  const parts = formattedString.split('/');
+                  if (parts.length === 2) {
+                    return Number(parts[1]) || 0;
+                  }
+                  return 0;
+                } catch {
+                  return 0;
+                }
+              };
+              
+              const team1FavAmount = parseAmountFromString(entry.team1Fav);
+              const team1NfavAmount = parseAmountFromString(entry.team1Nfav);
+              const team2FavAmount = parseAmountFromString(entry.team2Fav);
+              const team2NfavAmount = parseAmountFromString(entry.team2Nfav);
+              const team1Rate = Number(entry.team1_rate) || 0;
+              const team2Rate = Number(entry.team2_rate) || 0;
+              const favouriteTeam = entry.favourite_team;
+              
+              // Team1 Win Side (when Team1 wins)
+              if (favouriteTeam === 'team1') {
+                team1WinSideFav += (team1Rate / 100) * team1FavAmount;
+                team1LostSideNonFav += (team2Rate / 100) * team2NfavAmount;
+              } else if (favouriteTeam === 'team2') {
+                team1WinSideNonFav += team1NfavAmount;
+                team1LostSideFav += team2FavAmount;
+              }
+              
+              // Team2 Win Side (when Team2 wins)
+              if (favouriteTeam === 'team2') {
+                team2WinSideFav += (team2Rate / 100) * team2FavAmount;
+                team2LostSideNonFav += (team1Rate / 100) * team1NfavAmount;
+              } else if (favouriteTeam === 'team1') {
+                team2WinSideNonFav += team2NfavAmount;
+                team2LostSideFav += team1FavAmount;
+              }
+            });
+            
+            // Calculate Team1 gross difference (when Team1 wins)
+            const team1WinSideTotal = team1WinSideFav + team1WinSideNonFav;
+            const team1LostSideTotal = team1LostSideFav + team1LostSideNonFav;
+            const team1GrossDifference = team1LostSideTotal - team1WinSideTotal;
+            
+            // Calculate Team2 gross difference (when Team2 wins)
+            const team2WinSideTotal = team2WinSideFav + team2WinSideNonFav;
+            const team2LostSideTotal = team2LostSideFav + team2LostSideNonFav;
+            const team2GrossDifference = team2LostSideTotal - team2WinSideTotal;
+            
+            // Apply partnership on gross difference (no commission)
+            const team1CustNet = team1GrossDifference * partnershipRate;
+            const team1Net = team1GrossDifference * (1 - partnershipRate);
+            const team2CustNet = team2GrossDifference * partnershipRate;
+            const team2Net = team2GrossDifference * (1 - partnershipRate);
 
+            // Aggregate Team1 and Team2 contributions to team totals
             team1TotalBet += userTeam1Bet;
-            team1ProfitLoss += userTeam1ProfitLoss;
+            team1ProfitLoss += team1GrossDifference;
             team1Commission += 0;
             team1CustNetWithComm += team1CustNet;
             team1NetProfitLoss += team1Net;
 
             team2TotalBet += userTeam2Bet;
-            team2ProfitLoss += userTeam2ProfitLoss;
+            team2ProfitLoss += team2GrossDifference;
             team2Commission += 0;
             team2CustNetWithComm += team2CustNet;
             team2NetProfitLoss += team2Net;
+        } else if (commissionType === 'entrywise') {
+          hasEntrywiseOrNoCommission = true;
+          // Entrywise calculation: commission on losing team total, then apply to gross difference
+          // Calculate Team1 and Team2 Win/Lost Side totals for this user (fixed, regardless of winner)
+          // Team1 Win Side (when Team1 wins): Team1 Fav × Rate + Team1 Non-Fav Amount
+          // Team1 Lost Side (when Team1 wins): Team2 Fav Amount + Team2 Non-Fav × Rate
+          // Team2 Win Side (when Team2 wins): Team2 Fav × Rate + Team2 Non-Fav Amount
+          // Team2 Lost Side (when Team2 wins): Team1 Fav Amount + Team1 Non-Fav × Rate
+          let team1WinSideFav = 0;
+          let team1WinSideNonFav = 0;
+          let team1LostSideFav = 0;
+          let team1LostSideNonFav = 0;
+          let team2WinSideFav = 0;
+          let team2WinSideNonFav = 0;
+          let team2LostSideFav = 0;
+          let team2LostSideNonFav = 0;
+          
+          userEntries.forEach((entry) => {
+            const parseAmountFromString = (formattedString: string | null | undefined): number => {
+              if (!formattedString || formattedString === '0' || formattedString === '0/0000') return 0;
+              try {
+                const parts = formattedString.split('/');
+                if (parts.length === 2) {
+                  return Number(parts[1]) || 0;
+                }
+                return 0;
+              } catch {
+                return 0;
+              }
+            };
+            
+            const team1FavAmount = parseAmountFromString(entry.team1Fav);
+            const team1NfavAmount = parseAmountFromString(entry.team1Nfav);
+            const team2FavAmount = parseAmountFromString(entry.team2Fav);
+            const team2NfavAmount = parseAmountFromString(entry.team2Nfav);
+            const team1Rate = Number(entry.team1_rate) || 0;
+            const team2Rate = Number(entry.team2_rate) || 0;
+            const favouriteTeam = entry.favourite_team;
+            
+            // Team1 Win Side (when Team1 wins)
+            if (favouriteTeam === 'team1') {
+              // Team1 Fav × Rate
+              team1WinSideFav += (team1Rate / 100) * team1FavAmount;
+              // Team2 Non-Fav × Rate (for Lost Side)
+              team1LostSideNonFav += (team2Rate / 100) * team2NfavAmount;
+            } else if (favouriteTeam === 'team2') {
+              // Team1 Non-Fav Amount
+              team1WinSideNonFav += team1NfavAmount;
+              // Team2 Fav Amount (for Lost Side)
+              team1LostSideFav += team2FavAmount;
+            }
+            
+            // Team2 Win Side (when Team2 wins)
+            if (favouriteTeam === 'team2') {
+              // Team2 Fav × Rate
+              team2WinSideFav += (team2Rate / 100) * team2FavAmount;
+              // Team1 Non-Fav × Rate (for Lost Side)
+              team2LostSideNonFav += (team1Rate / 100) * team1NfavAmount;
+            } else if (favouriteTeam === 'team1') {
+              // Team2 Non-Fav Amount
+              team2WinSideNonFav += team2NfavAmount;
+              // Team1 Fav Amount (for Lost Side)
+              team2LostSideFav += team1FavAmount;
+            }
+          });
+          
+          // Calculate Team1 entrywise result (when Team1 wins)
+          const team1WinSideTotal = team1WinSideFav + team1WinSideNonFav;
+          const team1LostSideTotal = team1LostSideFav + team1LostSideNonFav;
+          const team1EntrywiseResult = calculateEntrywise({
+            winningTeamTotal: team1WinSideTotal,
+            losingTeamTotal: team1LostSideTotal,
+            commissionPercent,
+            partnershipPercent,
+          });
+          
+          // Calculate Team2 entrywise result (when Team2 wins)
+          const team2WinSideTotal = team2WinSideFav + team2WinSideNonFav;
+          const team2LostSideTotal = team2LostSideFav + team2LostSideNonFav;
+          const team2EntrywiseResult = calculateEntrywise({
+            winningTeamTotal: team2WinSideTotal,
+            losingTeamTotal: team2LostSideTotal,
+            commissionPercent,
+            partnershipPercent,
+          });
+          
+          // Aggregate Team1 and Team2 contributions to team totals
+          team1TotalBet += userTeam1Bet;
+          team1ProfitLoss += team1EntrywiseResult.grossDifference; // Use gross difference for profitLoss
+          team1Commission += team1EntrywiseResult.commissionAfterPartnership;
+          team1CustNetWithComm += team1EntrywiseResult.custNetWithComm;
+          team1NetProfitLoss += team1EntrywiseResult.netProfitLoss;
+          
+          team2TotalBet += userTeam2Bet;
+          team2ProfitLoss += team2EntrywiseResult.grossDifference; // Use gross difference for profitLoss
+          team2Commission += team2EntrywiseResult.commissionAfterPartnership;
+          team2CustNetWithComm += team2EntrywiseResult.custNetWithComm;
+          team2NetProfitLoss += team2EntrywiseResult.netProfitLoss;
           } else {
-            // entrywise or other types - for now, treat similar to no_commission
-            // (entrywise should be handled entry-by-entry, but for totals we'll use partnership only)
+            // Other types - treat similar to no_commission
             const partnershipRate = partnershipPercent / 100;
-            userCustNetWithComm = userProfitLoss * (1 - partnershipRate);
-            userNetProfitLoss = userProfitLoss * (1 - partnershipRate);
-            userCommission = 0;
 
             // Team totals
             const team1CustNet = userTeam1ProfitLoss * (1 - partnershipRate);
@@ -678,9 +964,6 @@ export default function BusinessReportPage() {
           }
         } else {
           // No user found - no commission/partnership
-          userCustNetWithComm = userProfitLoss;
-          userNetProfitLoss = userProfitLoss;
-          userCommission = 0;
 
           // Still aggregate bets to team totals (no commission/partnership)
           team1TotalBet += userTeam1Bet;
@@ -690,15 +973,14 @@ export default function BusinessReportPage() {
         }
       });
 
-      // Determine which team totals to use based on winner selection
-      // Get representative user for commission percentage display
-      const representativeUser = users.length > 0 ? users[0] : null;
-      const commissionPercent = representativeUser ? Number(representativeUser.commission) || 0 : 0;
 
       // Select fixed team totals based on winner
+      // firstTeamTotals = winning team totals
+      // secondTeamTotals = losing team totals
+      // NOTE: This must be AFTER entrywise calculation so team1Commission/team2Commission are set
       const firstTeamTotals = isTeam1Winner
         ? {
-            name: selectedMatch.team1.name,
+            name: winningTeam.name,
             totalBet: team1TotalBet,
             profitLoss: team1ProfitLoss,
             commission: team1Commission,
@@ -706,7 +988,7 @@ export default function BusinessReportPage() {
             netProfitLoss: team1NetProfitLoss,
           }
         : {
-            name: selectedMatch.team2.name,
+            name: winningTeam.name,
             totalBet: team2TotalBet,
             profitLoss: team2ProfitLoss,
             commission: team2Commission,
@@ -714,32 +996,31 @@ export default function BusinessReportPage() {
             netProfitLoss: team2NetProfitLoss,
           };
 
+      // Calculate losing team totals from pre-aggregated values
+      // Team totals are now sums of individual user calculations
+      // For profit_loss: team1ProfitLoss and team2ProfitLoss are already correctly signed (can be + or -)
+      // For entrywise/no_commission: team1ProfitLoss and team2ProfitLoss are gross differences (always positive)
+      // When we have entrywise/no_commission users, we need to negate losing team values
+      // When we only have profit_loss users, values are already correctly signed, so use as-is
       const secondTeamTotals = isTeam1Winner
         ? {
-            name: selectedMatch.team2.name,
+            name: losingTeam.name,
             totalBet: team2TotalBet,
-            profitLoss: team2ProfitLoss,
-            commission: team2Commission,
-            custNetWithComm: team2CustNetWithComm,
-            netProfitLoss: team2NetProfitLoss,
+            profitLoss: hasEntrywiseOrNoCommission ? -team2ProfitLoss : team2ProfitLoss,
+            commission: hasEntrywiseOrNoCommission ? -team2Commission : team2Commission,
+            custNetWithComm: hasEntrywiseOrNoCommission ? -team2CustNetWithComm : team2CustNetWithComm,
+            netProfitLoss: hasEntrywiseOrNoCommission ? -team2NetProfitLoss : team2NetProfitLoss,
           }
         : {
-            name: selectedMatch.team1.name,
+            name: losingTeam.name,
             totalBet: team1TotalBet,
-            profitLoss: team1ProfitLoss,
-            commission: team1Commission,
-            custNetWithComm: team1CustNetWithComm,
-            netProfitLoss: team1NetProfitLoss,
+            profitLoss: hasEntrywiseOrNoCommission ? -team1ProfitLoss : team1ProfitLoss,
+            commission: hasEntrywiseOrNoCommission ? -team1Commission : team1Commission,
+            custNetWithComm: hasEntrywiseOrNoCommission ? -team1CustNetWithComm : team1CustNetWithComm,
+            netProfitLoss: hasEntrywiseOrNoCommission ? -team1NetProfitLoss : team1NetProfitLoss,
           };
 
       // Add winning team total row first (immediately after individual entries, no gap)
-      console.log('Adding winning team row:', {
-        teamName: firstTeamTotals.name,
-        profitLoss: firstTeamTotals.profitLoss,
-        commission: firstTeamTotals.commission,
-        custNetWithComm: firstTeamTotals.custNetWithComm,
-        netProfitLoss: firstTeamTotals.netProfitLoss,
-      });
       rows.push({
         srNo: 'Total',
         custName: '',
@@ -768,13 +1049,6 @@ export default function BusinessReportPage() {
       });
 
       // Add losing team total row below (always show, even if values are 0)
-      console.log('Adding losing team row:', {
-        teamName: secondTeamTotals.name,
-        profitLoss: secondTeamTotals.profitLoss,
-        commission: secondTeamTotals.commission,
-        custNetWithComm: secondTeamTotals.custNetWithComm,
-        netProfitLoss: secondTeamTotals.netProfitLoss,
-      });
       rows.push({
         srNo: 'Total',
         custName: '',
@@ -790,8 +1064,6 @@ export default function BusinessReportPage() {
       });
     }
 
-    console.log('Calculated match summary rows from entries:', rows.length);
-    console.log('Calculation triggered with winning team:', reportFormData.winningTeam);
     return rows;
   }, [entries, users, matches, reportFormData, reportGenerated, isLoadingEntries, calculateMatchFinalNetProfit]);
 
@@ -867,10 +1139,11 @@ export default function BusinessReportPage() {
     }
   }, [formData.matchDate, isValidDate]);
 
-  // Reset report when report type changes
+  // Reset report when report type, match, or user changes
   useEffect(() => {
     setReportGenerated(false);
-  }, [formData.reportType]);
+    setReportFormData(null); // Clear old report data when form changes
+  }, [formData.reportType, formData.selectMatch, formData.selectUser]);
 
   // Reset winningTeam when match changes
   useEffect(() => {
@@ -949,8 +1222,6 @@ export default function BusinessReportPage() {
     toast.success('Report generated successfully!', { duration: 3000 });
 
     // Handle generate report logic here (in future, will use TanStack Query)
-    console.log('Report data:', formData);
-    console.log('Winning team selected:', formData.winningTeam);
   };
 
   const handlePrint = () => {
@@ -976,11 +1247,6 @@ export default function BusinessReportPage() {
 
   // Use calculated data when report is generated, otherwise use empty array
   const matchSummaryData = useMemo(() => {
-    console.log('matchSummaryData calculation:', {
-      reportType: formData.reportType,
-      calculatedDataLength: calculatedMatchSummaryData.length,
-      calculatedData: calculatedMatchSummaryData,
-    });
     if (formData.reportType === 'match' && calculatedMatchSummaryData.length > 0) {
       return calculatedMatchSummaryData;
     }
@@ -1160,10 +1426,10 @@ export default function BusinessReportPage() {
           <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : ''}`}>
             {isEmptyRow 
               ? '-'
+              : row.isTotal
+                ? formatNumber(value) // For total rows, don't show percentage
               : value > 0 
                 ? `${formatNumber(value)} (${formattedPercent}%)` 
-                : value === 0 && row.isTotal
-                  ? `0 (${formattedPercent}%)` 
                   : value !== 0
                     ? formatNumber(value)
                     : ''}

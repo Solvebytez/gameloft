@@ -45,14 +45,22 @@ export interface UpdateEntryPayload {
 
 /**
  * Fetch entries for a specific match
+ * @param matchId - The match ID
+ * @param userId - Optional user ID to filter entries. Pass 'all' or undefined to get all entries.
  */
-export function useEntries(matchId: string | number | undefined) {
+export function useEntries(matchId: string | number | undefined, userId?: string | number | 'all') {
   return useQuery({
-    queryKey: ['entries', matchId],
+    queryKey: ['entries', matchId, userId],
     queryFn: async () => {
       if (!matchId) return { success: true, data: [] };
 
-      const response = await api.get(`/v1/admin/matches/${matchId}/entries`);
+      // Build query URL with optional user_id parameter
+      let url = `/v1/admin/matches/${matchId}/entries`;
+      if (userId && userId !== 'all') {
+        url += `?user_id=${userId}`;
+      }
+
+      const response = await api.get(url);
 
       if (response.data.success) {
         return response.data;
