@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useCurrentAdmin } from '@/app/hooks/useAdmins';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -118,6 +119,28 @@ const navItems: NavItem[] = [
 
 export default function Sidebar({ isCollapsed }: SidebarProps) {
   const pathname = usePathname();
+  const { data: currentAdmin, isLoading, error } = useCurrentAdmin();
+
+  // Get initials from admin name
+  const getInitials = (name: string | undefined) => {
+    if (!name) return 'AU';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  // Debug logging
+  if (error) {
+    console.error('Sidebar: Error fetching admin:', error);
+  }
+  if (currentAdmin) {
+    console.log('Sidebar: Current admin data:', currentAdmin);
+  }
+
+  const displayName = currentAdmin?.name || 'Admin';
+  const initials = getInitials(currentAdmin?.name);
 
   return (
     <aside
@@ -129,12 +152,12 @@ export default function Sidebar({ isCollapsed }: SidebarProps) {
       <div className="p-4 border-b border-[var(--sidebar-border)]">
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'}`}>
           <div className="w-12 h-12 rounded-full bg-[var(--sidebar-primary)] flex items-center justify-center text-[var(--sidebar-primary-foreground)] font-semibold text-lg flex-shrink-0">
-            AU
+            {isLoading ? '...' : initials}
           </div>
           {!isCollapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-[var(--sidebar-foreground)] truncate">
-                Admin001
+                {isLoading ? 'Loading...' : displayName}
               </p>
               <div className="flex items-center space-x-1 mt-1">
                 <span className="w-2 h-2 bg-green-500 rounded-full"></span>

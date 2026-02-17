@@ -327,3 +327,49 @@ export function useUpdateAdminStatus() {
   });
 }
 
+// Get current logged-in admin
+export interface CurrentAdmin {
+  id: number;
+  name: string;
+  email: string;
+  mobile: string | null;
+  role: string;
+  status?: 'active' | 'inactive';
+  commission: number | null;
+  partnership: number | null;
+}
+
+export function useCurrentAdmin() {
+  return useQuery({
+    queryKey: ['currentAdmin'],
+    queryFn: async (): Promise<CurrentAdmin> => {
+      try {
+        console.log('🔍 Fetching current admin from /v1/me');
+        const response = await api.get('/v1/me');
+        console.log('📥 Current admin response:', response.data);
+        if (response.data.success) {
+          return response.data.data;
+        }
+        throw new Error(response.data.message || 'Failed to fetch current admin');
+      } catch (error: unknown) {
+        console.error('❌ Error fetching current admin:', error);
+        if (
+          error &&
+          typeof error === 'object' &&
+          'response' in error &&
+          error.response &&
+          typeof error.response === 'object' &&
+          'data' in error.response &&
+          error.response.data &&
+          typeof error.response.data === 'object' &&
+          'message' in error.response.data
+        ) {
+          throw new Error(String(error.response.data.message));
+        }
+        throw error instanceof Error ? error : new Error('Failed to fetch current admin');
+      }
+    },
+    retry: false, // Don't retry on 401 errors
+  });
+}
+

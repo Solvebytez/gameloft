@@ -124,9 +124,272 @@ export default function DataTable<T extends Record<string, any>>({
     }
   };
 
+  // Helper function to extract display value from a column (handles arrays of objects)
+  const getDisplayValue = (col: Column<T>, row: T): string => {
+    const rawValue = row[col.key as string];
+    
+    // Handle null/undefined
+    if (rawValue === null || rawValue === undefined) return '';
+    
+    // Handle arrays of objects (like users array) - always check this first
+    if (Array.isArray(rawValue)) {
+      if (rawValue.length === 0) return '';
+      // Check if it's an array of objects with a 'name' property (like users)
+      if (typeof rawValue[0] === 'object' && rawValue[0] !== null && 'name' in rawValue[0]) {
+        return rawValue.map((item: any) => item.name || String(item)).join(', ');
+      }
+      // Otherwise, join array items as strings
+      return rawValue.map((item: any) => String(item)).join(', ');
+    }
+    
+    // Handle objects
+    if (typeof rawValue === 'object') {
+      // If it has a 'name' property, use that
+      if ('name' in rawValue) {
+        return String((rawValue as any).name);
+      }
+      // Otherwise, try to stringify meaningfully
+      return JSON.stringify(rawValue);
+    }
+    
+    // For regular values, convert to string
+    return String(rawValue);
+  };
+
+  // Convert data to CSV format (for file downloads)
+  const convertToCSV = (data: T[]): string => {
+    if (data.length === 0) return '';
+    
+    // Get headers from columns
+    const headers = columns.map(col => col.label);
+    const csvRows = [headers.join(',')];
+    
+    // Get data rows
+    data.forEach(row => {
+      const values = columns.map(col => {
+        const displayValue = getDisplayValue(col, row);
+        // Handle values that might contain commas or quotes
+        if (!displayValue) return '';
+        const stringValue = displayValue.replace(/"/g, '""');
+        return `"${stringValue}"`;
+      });
+      csvRows.push(values.join(','));
+    });
+    
+    return csvRows.join('\n');
+  };
+
+  // Convert data to TSV format (tab-separated, better for Excel paste)
+  const convertToTSV = (data: T[]): string => {
+    if (data.length === 0) return '';
+    
+    // Get headers from columns
+    const headers = columns.map(col => col.label);
+    const tsvRows = [headers.join('\t')];
+    
+    // Get data rows
+    data.forEach(row => {
+      const values = columns.map(col => {
+        const displayValue = getDisplayValue(col, row);
+        // For TSV, we don't need quotes, but we should clean the value
+        if (!displayValue) return '';
+        // Remove any tabs from the value and replace with space
+        return displayValue.replace(/\t/g, ' ').replace(/\n/g, ' ').replace(/\r/g, '');
+      });
+      tsvRows.push(values.join('\t'));
+    });
+    
+    return tsvRows.join('\n');
+  };
+
+  // Copy to clipboard (using TSV for better Excel compatibility)
+  const handleCopy = async () => {
+    try {
+      const tsvData = convertToTSV(sortedData);
+      await navigator.clipboard.writeText(tsvData);
+      toast.success('Data copied to clipboard! Paste into Excel to see columns.', { duration: 3000 });
+    } catch (error) {
+      console.error('Failed to copy:', error);
+      toast.error('Failed to copy data to clipboard', { duration: 2000 });
+    }
+  };
+
+  // Download CSV
+  const handleCSV = () => {
+    const csvData = convertToCSV(sortedData);
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${title || 'data'}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('CSV file downloaded!', { duration: 2000 });
+  };
+
+  // Download Excel (as CSV with .xlsx extension, or use CSV that Excel can open)
+  const handleExcel = () => {
+    const csvData = convertToCSV(sortedData);
+    // Excel can open CSV files, but we'll add BOM for UTF-8 support
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvData], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${title || 'data'}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Excel file downloaded!', { duration: 2000 });
+  };
+
+  // Download PDF
+  const handlePDF = () => {
+    // Create a new window with table content for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Please allow popups to generate PDF', { duration: 3000 });
+      return;
+    }
+
+    // Build HTML content
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${title || 'Data Export'}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1 { margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+            @media print {
+              body { margin: 0; }
+              @page { margin: 1cm; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>${title || 'Data Export'}</h1>
+          <p>Generated on: ${new Date().toLocaleString()}</p>
+          <table>
+            <thead>
+              <tr>
+                ${columns.map(col => `<th>${col.label}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${sortedData.map(row => `
+                <tr>
+                  ${columns.map(col => {
+                    const displayValue = getDisplayValue(col, row);
+                    return `<td>${displayValue ? displayValue.replace(/</g, '&lt;').replace(/>/g, '&gt;') : ''}</td>`;
+                  }).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    
+    // Wait for content to load, then trigger print
+    setTimeout(() => {
+      printWindow.print();
+      toast.success('PDF generation initiated!', { duration: 2000 });
+    }, 250);
+  };
+
+  // Print table
+  const handlePrint = () => {
+    // Create a new window with table content for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Please allow popups to print', { duration: 3000 });
+      return;
+    }
+
+    // Build HTML content
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${title || 'Data Print'}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1 { margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+            @media print {
+              body { margin: 0; }
+              @page { margin: 1cm; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>${title || 'Data Print'}</h1>
+          <p>Generated on: ${new Date().toLocaleString()}</p>
+          <table>
+            <thead>
+              <tr>
+                ${columns.map(col => `<th>${col.label}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${sortedData.map(row => `
+                <tr>
+                  ${columns.map(col => {
+                    const displayValue = getDisplayValue(col, row);
+                    return `<td>${displayValue ? displayValue.replace(/</g, '&lt;').replace(/>/g, '&gt;') : ''}</td>`;
+                  }).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    
+    // Wait for content to load, then trigger print
+    setTimeout(() => {
+      printWindow.print();
+      toast.success('Print dialog opened!', { duration: 2000 });
+    }, 250);
+  };
+
   const handleExport = (format: string) => {
-    toast.success(`Exporting to ${format}...`, { duration: 2000 });
-    // Export logic will be implemented here
+    switch (format) {
+      case 'Copy':
+        handleCopy();
+        break;
+      case 'CSV':
+        handleCSV();
+        break;
+      case 'Excel':
+        handleExcel();
+        break;
+      case 'PDF':
+        handlePDF();
+        break;
+      case 'Print':
+        handlePrint();
+        break;
+      default:
+        toast.error(`Export format "${format}" not supported`, { duration: 2000 });
+    }
   };
 
   // Close dropdown when clicking outside
@@ -243,12 +506,6 @@ export default function DataTable<T extends Record<string, any>>({
                 className="px-3 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm hover:bg-retro-accent hover:text-white transition-colors"
               >
                 Print
-              </button>
-              <button
-                type="button"
-                className="px-3 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm hover:bg-retro-accent hover:text-white transition-colors"
-              >
-                Column visibility
               </button>
             </>
           )}

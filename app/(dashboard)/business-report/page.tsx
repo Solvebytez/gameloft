@@ -8,6 +8,7 @@ import DatePicker from '@/app/components/ui/DatePicker';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
 import { useMatchesByDate } from '@/app/hooks/useMatches';
 import { useUsers } from '@/app/hooks/useUsers';
+import { useGroups } from '@/app/hooks/useGroups';
 import { useSessions, Session } from '@/app/hooks/useSessions';
 import { useEntries, Entry } from '@/app/hooks/useEntries';
 import { calculateEntrywise } from '@/app/utils/entrywiseCalculator';
@@ -75,6 +76,8 @@ export default function BusinessReportPage() {
     matchDate: '',
     selectMatch: '',
     winningTeam: '',
+    selectionType: 'user', // 'group' or 'user'
+    selectGroup: 'all',
     selectUser: 'all',
   });
 
@@ -111,6 +114,9 @@ export default function BusinessReportPage() {
   // Fetch users from API
   const { data: users = [], isLoading: isLoadingUsers } = useUsers();
 
+  // Fetch groups from API
+  const { data: groups = [], isLoading: isLoadingGroups } = useGroups();
+
   // Fetch sessions for the selected match (when report type is "session" and report is generated)
   const shouldFetchSessions = !!(reportGenerated && reportFormData && reportFormData.selectMatch && reportFormData.reportType === 'session');
   const { data: allSessions = [], isLoading: isLoadingSessions } = useSessions(
@@ -118,10 +124,21 @@ export default function BusinessReportPage() {
     shouldFetchSessions // Only enable when shouldFetchSessions is true
   );
 
+  // Fetch entries for the selected match (to filter user list) - fetch when match is selected, even before report is generated
+  const shouldFetchEntriesForUserFilter = formData.selectMatch && formData.reportType === 'match';
+  const { data: entriesDataForFilter } = useEntries(
+    shouldFetchEntriesForUserFilter ? formData.selectMatch : undefined,
+    undefined // Get all entries to see which users have entries
+  );
+  const entriesForUserFilter: Entry[] = useMemo(() => {
+    return entriesDataForFilter?.data || [];
+  }, [entriesDataForFilter?.data]);
+
   // Fetch match entries for the selected match (when report type is "match" and report is generated)
   const shouldFetchEntries = reportGenerated && reportFormData && reportFormData.selectMatch && reportFormData.reportType === 'match';
-  // Get selected user from reportFormData (use 'all' if not specified or 'all' is selected)
-  const selectedUserId = shouldFetchEntries && reportFormData.selectUser && reportFormData.selectUser !== 'all' 
+  // Get selected user from reportFormData (use 'all' if not specified or 'all' is selected, or if group is selected)
+  // Note: When group is selected, we don't pass userId to API, we filter client-side
+  const selectedUserId = shouldFetchEntries && reportFormData.selectionType === 'user' && reportFormData.selectUser && reportFormData.selectUser !== 'all' 
     ? reportFormData.selectUser 
     : undefined;
   const { data: entriesData, isLoading: isLoadingEntries } = useEntries(
@@ -132,23 +149,99 @@ export default function BusinessReportPage() {
 
 
 
-  // Filter sessions by selected user if not "all" (use reportFormData when report is generated)
+  // Filter sessions by selected user/group if not "all" (use reportFormData when report is generated)
   const sessions = useMemo(() => {
-    const selectUser = reportGenerated && reportFormData ? reportFormData.selectUser : formData.selectUser;
-    if (selectUser === 'all' || !selectUser) {
-      return allSessions;
+    if (!reportGenerated || !reportFormData) {
+      // Before report is generated, use formData
+      if (formData.selectionType === 'group') {
+        if (formData.selectGroup === 'all' || !formData.selectGroup) {
+          return allSessions;
+        }
+        // Filter by group: get users in the group, then filter sessions by those users
+        const selectedGroup = groups.find(g => String(g.id) === formData.selectGroup);
+        if (selectedGroup && selectedGroup.users) {
+          const groupUserIds = selectedGroup.users.map(u => u.id);
+          return allSessions.filter((session) => groupUserIds.includes(session.user_id));
+        }
+        return allSessions;
+      } else {
+        // User selection
+        const selectUser = formData.selectUser;
+        if (selectUser === 'all' || !selectUser) {
+          return allSessions;
+        }
+        return allSessions.filter((session) => String(session.user_id) === selectUser);
+      }
+    } else {
+      // After report is generated, use reportFormData
+      if (reportFormData.selectionType === 'group') {
+        if (reportFormData.selectGroup === 'all' || !reportFormData.selectGroup) {
+          return allSessions;
+        }
+        // Filter by group: get users in the group, then filter sessions by those users
+        const selectedGroup = groups.find(g => String(g.id) === reportFormData.selectGroup);
+        if (selectedGroup && selectedGroup.users) {
+          const groupUserIds = selectedGroup.users.map(u => u.id);
+          return allSessions.filter((session) => groupUserIds.includes(session.user_id));
+        }
+        return allSessions;
+      } else {
+        // User selection
+        const selectUser = reportFormData.selectUser;
+        if (selectUser === 'all' || !selectUser) {
+          return allSessions;
+        }
+        return allSessions.filter((session) => String(session.user_id) === selectUser);
+      }
     }
-    return allSessions.filter((session) => String(session.user_id) === selectUser);
-  }, [allSessions, formData.selectUser, reportFormData, reportGenerated]);
+  }, [allSessions, formData.selectUser, formData.selectGroup, formData.selectionType, reportFormData, reportGenerated, groups]);
 
-  // Filter entries by selected user if not "all" (use reportFormData when report is generated)
+  // Filter entries by selected user/group if not "all" (use reportFormData when report is generated)
   const entries = useMemo(() => {
-    const selectUser = reportGenerated && reportFormData ? reportFormData.selectUser : formData.selectUser;
-    if (selectUser === 'all' || !selectUser) {
-      return allEntries;
+    if (!reportGenerated || !reportFormData) {
+      // Before report is generated, use formData
+      if (formData.selectionType === 'group') {
+        if (formData.selectGroup === 'all' || !formData.selectGroup) {
+          return allEntries;
+        }
+        // Filter by group: get users in the group, then filter entries by those users
+        const selectedGroup = groups.find(g => String(g.id) === formData.selectGroup);
+        if (selectedGroup && selectedGroup.users) {
+          const groupUserIds = selectedGroup.users.map(u => u.id);
+          return allEntries.filter((entry) => entry.user_id && groupUserIds.includes(entry.user_id));
+        }
+        return allEntries;
+      } else {
+        // User selection
+        const selectUser = formData.selectUser;
+        if (selectUser === 'all' || !selectUser) {
+          return allEntries;
+        }
+        return allEntries.filter((entry) => entry.user_id && String(entry.user_id) === selectUser);
+      }
+    } else {
+      // After report is generated, use reportFormData
+      if (reportFormData.selectionType === 'group') {
+        if (reportFormData.selectGroup === 'all' || !reportFormData.selectGroup) {
+          return allEntries;
+        }
+        // Filter by group: get users in the group, then filter entries by those users
+        const selectedGroup = groups.find(g => String(g.id) === reportFormData.selectGroup);
+        if (selectedGroup && selectedGroup.users) {
+          const groupUserIds = selectedGroup.users.map(u => u.id);
+          return allEntries.filter((entry) => entry.user_id && groupUserIds.includes(entry.user_id));
+        }
+        return allEntries;
+      } else {
+        // User selection
+        const selectUser = reportFormData.selectUser;
+        if (selectUser === 'all' || !selectUser) {
+          return allEntries;
+        }
+        return allEntries.filter((entry) => entry.user_id && String(entry.user_id) === selectUser);
+      }
     }
-    return allEntries.filter((entry) => entry.user_id && String(entry.user_id) === selectUser);
-  }, [allEntries, formData.selectUser, reportFormData, reportGenerated]);
+  }, [allEntries, formData.selectUser, formData.selectGroup, formData.selectionType, reportFormData, reportGenerated, groups]);
 
   // Calculate final net profit for match summary using commission (not session_commission)
   const calculateMatchFinalNetProfit = useMemo(() => {
@@ -440,8 +533,11 @@ export default function BusinessReportPage() {
 
     if (winningTeam && losingTeam) {
       // Group entries by user for proper commission calculation (especially entrywise)
-      // For team totals: use 'allEntries' if "all users" selected, otherwise use filtered 'entries'
-      const entriesForTeamTotals = reportFormData.selectUser === 'all' ? allEntries : entries;
+      // For team totals: use 'allEntries' if "all users/groups" selected, otherwise use filtered 'entries'
+      const isAllSelected = reportFormData.selectionType === 'group' 
+        ? (reportFormData.selectGroup === 'all' || !reportFormData.selectGroup)
+        : (reportFormData.selectUser === 'all' || !reportFormData.selectUser);
+      const entriesForTeamTotals = isAllSelected ? allEntries : entries;
       const allUserGroups = new Map<number | string, Entry[]>();
       entriesForTeamTotals.forEach((entry) => {
         const key = entry.user_id || entry.customer;
@@ -1104,13 +1200,52 @@ export default function BusinessReportPage() {
     return options;
   }, [matches, formData.selectMatch]);
 
+  // Transform groups into dropdown options
+  const groupOptions = useMemo(() => {
+    const options = [{ value: 'all', label: 'All Groups' }];
+    if (isLoadingGroups) {
+      options.push({ value: 'loading', label: 'Loading groups...' });
+    } else if (groups.length > 0) {
+      groups.forEach((group) => {
+        options.push({
+          value: String(group.id),
+          label: group.name,
+        });
+      });
+    }
+    return options;
+  }, [groups, isLoadingGroups]);
+
   // Transform users into dropdown options
+  // If a group is selected, filter users by that group
+  // If a match is selected, filter users to only those who have entries for that match
   const userOptions = useMemo(() => {
     const options = [{ value: 'all', label: 'All Users' }];
     if (isLoadingUsers) {
       options.push({ value: 'loading', label: 'Loading users...' });
     } else if (users.length > 0) {
-      users.forEach((user) => {
+      let usersToShow = users;
+      
+      // If match is selected, filter users to only those who have entries for that match
+      if (formData.selectMatch && entriesForUserFilter.length > 0) {
+        const userIdsWithEntries = new Set(
+          entriesForUserFilter
+            .filter(entry => entry.user_id)
+            .map(entry => entry.user_id as number)
+        );
+        usersToShow = usersToShow.filter(user => userIdsWithEntries.has(user.id));
+      }
+      
+      // If group is selected and not 'all', filter users by group
+      if (formData.selectionType === 'group' && formData.selectGroup && formData.selectGroup !== 'all') {
+        const selectedGroup = groups.find(g => String(g.id) === formData.selectGroup);
+        if (selectedGroup && selectedGroup.users) {
+          const groupUserIds = selectedGroup.users.map(u => u.id);
+          usersToShow = usersToShow.filter(user => groupUserIds.includes(user.id));
+        }
+      }
+      
+      usersToShow.forEach((user) => {
         options.push({
           value: String(user.id),
           label: user.name,
@@ -1118,7 +1253,7 @@ export default function BusinessReportPage() {
       });
     }
     return options;
-  }, [users, isLoadingUsers]);
+  }, [users, isLoadingUsers, groups, formData.selectionType, formData.selectGroup, formData.selectMatch, entriesForUserFilter]);
 
   // Report type options
   const reportTypeOptions = [
@@ -1139,11 +1274,11 @@ export default function BusinessReportPage() {
     }
   }, [formData.matchDate, isValidDate]);
 
-  // Reset report when report type, match, or user changes
+  // Reset report when report type, match, selection type, group, or user changes
   useEffect(() => {
     setReportGenerated(false);
     setReportFormData(null); // Clear old report data when form changes
-  }, [formData.reportType, formData.selectMatch, formData.selectUser]);
+  }, [formData.reportType, formData.selectMatch, formData.selectionType, formData.selectGroup, formData.selectUser]);
 
   // Reset winningTeam when match changes
   useEffect(() => {
@@ -1197,8 +1332,14 @@ export default function BusinessReportPage() {
     if (!formData.winningTeam) {
       newErrors.winningTeam = 'Winning Team is required';
     }
-    if (!formData.selectUser) {
-      newErrors.selectUser = 'Select User is required';
+    if (formData.selectionType === 'group') {
+      if (!formData.selectGroup) {
+        newErrors.selectGroup = 'Select Group is required';
+      }
+    } else {
+      if (!formData.selectUser) {
+        newErrors.selectUser = 'Select User is required';
+      }
     }
 
     // Set errors and show toast if validation fails
@@ -1517,7 +1658,7 @@ export default function BusinessReportPage() {
           {/* Single Row - Report Type, Match Date, Select Match, WinningTeam, Select User */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
             {/* Report Type Field */}
-            <div className="md:col-span-2">
+            <div className="md:col-span-3">
               <Select
                 label="Report Type*"
                 id="report-type"
@@ -1529,7 +1670,7 @@ export default function BusinessReportPage() {
             </div>
 
             {/* Match Date Field */}
-            <div className="md:col-span-2 space-y-2">
+            <div className="md:col-span-3 space-y-2">
               <label htmlFor="match-date" className="block text-sm font-bold text-retro-dark">
                 Match Date*
               </label>
@@ -1580,7 +1721,7 @@ export default function BusinessReportPage() {
             </div>
 
             {/* Select Match Field */}
-            <div className="md:col-span-2">
+            <div className="md:col-span-3">
               <Select
                 label="Select Match*"
                 id="select-match"
@@ -1609,23 +1750,83 @@ export default function BusinessReportPage() {
                 disabled={!formData.selectMatch}
               />
             </div>
+          </div>
 
-            {/* Select User Field */}
-            <div className="md:col-span-3">
-              <Select
-                label="Select User*"
-                id="select-user"
-                value={formData.selectUser}
-                onChange={(e) => {
-                  // Prevent selecting loading option
-                  if (e.target.value !== 'loading') {
-                    handleInputChange('selectUser', e.target.value);
-                  }
-                }}
-                options={userOptions}
-                error={errors.selectUser}
-                disabled={isLoadingUsers}
-              />
+          {/* Second Row - Selection Type Radio Buttons and Conditional Dropdown */}
+          <div className="flex flex-col md:flex-row gap-2 items-start">
+            {/* Selection Type Radio Buttons */}
+            <div className="md:w-auto flex flex-col">
+              <label className="block text-sm font-semibold text-[#2d2d2d] mb-2 uppercase">
+                Selection Type*
+              </label>
+              <div className="flex gap-4 mt-3.5">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="selectionType"
+                    value="group"
+                    checked={formData.selectionType === 'group'}
+                    onChange={(e) => {
+                      handleInputChange('selectionType', e.target.value);
+                      handleInputChange('selectGroup', 'all');
+                      handleInputChange('selectUser', 'all');
+                    }}
+                    className="w-4 h-4 text-retro-accent focus:ring-retro-accent"
+                  />
+                  <span className="text-sm text-foreground">Group</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="selectionType"
+                    value="user"
+                    checked={formData.selectionType === 'user'}
+                    onChange={(e) => {
+                      handleInputChange('selectionType', e.target.value);
+                      handleInputChange('selectGroup', 'all');
+                      handleInputChange('selectUser', 'all');
+                    }}
+                    className="w-4 h-4 text-retro-accent focus:ring-retro-accent"
+                  />
+                  <span className="text-sm text-foreground">User</span>
+                </label>
+              </div>
+            </div>
+            
+            {/* Conditional Dropdown */}
+            <div className="md:w-auto md:min-w-[200px]">
+              {formData.selectionType === 'group' ? (
+                <Select
+                  label="Select Group*"
+                  id="select-group"
+                  value={formData.selectGroup}
+                  onChange={(e) => {
+                    // Prevent selecting loading option
+                    if (e.target.value !== 'loading') {
+                      handleInputChange('selectGroup', e.target.value);
+                      handleInputChange('selectUser', 'all');
+                    }
+                  }}
+                  options={groupOptions}
+                  error={errors.selectGroup}
+                  disabled={isLoadingGroups}
+                />
+              ) : (
+                <Select
+                  label="Select User*"
+                  id="select-user"
+                  value={formData.selectUser}
+                  onChange={(e) => {
+                    // Prevent selecting loading option
+                    if (e.target.value !== 'loading') {
+                      handleInputChange('selectUser', e.target.value);
+                    }
+                  }}
+                  options={userOptions}
+                  error={errors.selectUser}
+                  disabled={isLoadingUsers}
+                />
+              )}
             </div>
           </div>
 

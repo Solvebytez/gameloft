@@ -638,13 +638,15 @@ export default function SessionMatchPage() {
     setEditingEntry(session);
     
     // Set form data based on whether it's a Yes or No entry
+    // Divide amount by 1000 to show original value in form (same as match entries)
+    const originalAmount = (Number(session.amount) / 1000).toString();
     if (session.is_yes) {
       setFormData({
         match_id: session.match_id.toString(),
         user_id: session.user_id.toString(),
         inningOver: session.inning_over,
         yesEntryRun: session.entry_run.toString(),
-        yesAmount: session.amount.toString(),
+        yesAmount: originalAmount,
         noEntryRun: '',
         noAmount: '',
       });
@@ -656,7 +658,7 @@ export default function SessionMatchPage() {
         yesEntryRun: '',
         yesAmount: '',
         noEntryRun: session.entry_run.toString(),
-        noAmount: session.amount.toString(),
+        noAmount: originalAmount,
       });
     }
     setErrors({});
@@ -708,10 +710,18 @@ export default function SessionMatchPage() {
           yesAmountInputRef.current?.select();
         });
       } else if (field === 'yesAmount') {
-        requestAnimationFrame(() => {
-          noEntryRunInputRef.current?.focus();
-          noEntryRunInputRef.current?.select();
-        });
+        // Check if YES fields have values
+        const hasYesEntry = formData.yesEntryRun.trim() !== '' && formData.yesAmount.trim() !== '';
+        if (hasYesEntry) {
+          // Both YES fields have values, submit form
+          handleSave();
+        } else {
+          // YES fields are empty, move to NO Entry Run field
+          requestAnimationFrame(() => {
+            noEntryRunInputRef.current?.focus();
+            noEntryRunInputRef.current?.select();
+          });
+        }
       } else if (field === 'noEntryRun') {
         requestAnimationFrame(() => {
           noAmountInputRef.current?.focus();
