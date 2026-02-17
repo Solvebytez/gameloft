@@ -9,6 +9,7 @@ import DataTable, { Column } from '@/app/components/ui/DataTable';
 import { useMatchesByDate } from '@/app/hooks/useMatches';
 import { useUsers } from '@/app/hooks/useUsers';
 import { useGroups } from '@/app/hooks/useGroups';
+import { useInningsOvers } from '@/app/hooks/useInningsOvers';
 import { useSessions, Session } from '@/app/hooks/useSessions';
 import { useEntries, Entry } from '@/app/hooks/useEntries';
 import { calculateEntrywise } from '@/app/utils/entrywiseCalculator';
@@ -76,6 +77,7 @@ export default function BusinessReportPage() {
     matchDate: '',
     selectMatch: '',
     winningTeam: '',
+    inningOver: '',
     selectionType: 'user', // 'group' or 'user'
     selectGroup: 'all',
     selectUser: 'all',
@@ -85,6 +87,10 @@ export default function BusinessReportPage() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [reportGenerated, setReportGenerated] = useState(false);
   const [reportFormData, setReportFormData] = useState<typeof formData | null>(null);
+  
+  // Pagination state for session table
+  const [currentPage, setCurrentPage] = useState(1);
+  const [entriesPerPage, setEntriesPerPage] = useState(10);
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   // Date validation function
@@ -117,11 +123,21 @@ export default function BusinessReportPage() {
   // Fetch groups from API
   const { data: groups = [], isLoading: isLoadingGroups } = useGroups();
 
+  // Fetch innings/overs from API
+  const { data: inningsOvers = [] } = useInningsOvers();
+
   // Fetch sessions for the selected match (when report type is "session" and report is generated)
   const shouldFetchSessions = !!(reportGenerated && reportFormData && reportFormData.selectMatch && reportFormData.reportType === 'session');
   const { data: allSessions = [], isLoading: isLoadingSessions } = useSessions(
     shouldFetchSessions ? Number(reportFormData!.selectMatch) : null,
     shouldFetchSessions // Only enable when shouldFetchSessions is true
+  );
+
+  // Fetch sessions for filtering innings/overs when match is selected (even before report is generated)
+  const shouldFetchSessionsForInningFilter = !!(formData.selectMatch && formData.reportType === 'session');
+  const { data: sessionsForInningFilter = [] } = useSessions(
+    shouldFetchSessionsForInningFilter ? Number(formData.selectMatch) : null,
+    shouldFetchSessionsForInningFilter
   );
 
   // Fetch entries for the selected match (to filter user list) - fetch when match is selected, even before report is generated
@@ -149,52 +165,188 @@ export default function BusinessReportPage() {
 
 
 
-  // Filter sessions by selected user/group if not "all" (use reportFormData when report is generated)
-  const sessions = useMemo(() => {
+  // Filter sessions by selected user/group and inningOver if not "all" (use reportFormData when report is generated)
+  const filteredSessions = useMemo(() => {
+    let sessions = allSessions;
+    
+    // First filter by inningOver if selected (for session reports)
+    if (reportGenerated && reportFormData && reportFormData.reportType === 'session' && reportFormData.inningOver) {
+      sessions = sessions.filter((session) => session.inning_over === reportFormData.inningOver);
+    } else if (!reportGenerated && formData.reportType === 'session' && formData.inningOver) {
+      sessions = sessions.filter((session) => session.inning_over === formData.inningOver);
+    }
+    
+    // Then filter by user/group
     if (!reportGenerated || !reportFormData) {
       // Before report is generated, use formData
       if (formData.selectionType === 'group') {
         if (formData.selectGroup === 'all' || !formData.selectGroup) {
-          return allSessions;
+          return sessions;
         }
         // Filter by group: get users in the group, then filter sessions by those users
         const selectedGroup = groups.find(g => String(g.id) === formData.selectGroup);
         if (selectedGroup && selectedGroup.users) {
           const groupUserIds = selectedGroup.users.map(u => u.id);
-          return allSessions.filter((session) => groupUserIds.includes(session.user_id));
+          return sessions.filter((session) => groupUserIds.includes(session.user_id));
         }
-        return allSessions;
+        return sessions;
       } else {
         // User selection
         const selectUser = formData.selectUser;
         if (selectUser === 'all' || !selectUser) {
-          return allSessions;
+          return sessions;
         }
-        return allSessions.filter((session) => String(session.user_id) === selectUser);
+        return sessions.filter((session) => String(session.user_id) === selectUser);
       }
     } else {
       // After report is generated, use reportFormData
       if (reportFormData.selectionType === 'group') {
         if (reportFormData.selectGroup === 'all' || !reportFormData.selectGroup) {
-          return allSessions;
+          return sessions;
         }
         // Filter by group: get users in the group, then filter sessions by those users
         const selectedGroup = groups.find(g => String(g.id) === reportFormData.selectGroup);
         if (selectedGroup && selectedGroup.users) {
           const groupUserIds = selectedGroup.users.map(u => u.id);
-          return allSessions.filter((session) => groupUserIds.includes(session.user_id));
+          return sessions.filter((session) => groupUserIds.includes(session.user_id));
         }
-        return allSessions;
+        return sessions;
       } else {
         // User selection
         const selectUser = reportFormData.selectUser;
         if (selectUser === 'all' || !selectUser) {
-          return allSessions;
+          return sessions;
         }
-        return allSessions.filter((session) => String(session.user_id) === selectUser);
+        return sessions.filter((session) => String(session.user_id) === selectUser);
       }
     }
-  }, [allSessions, formData.selectUser, formData.selectGroup, formData.selectionType, reportFormData, reportGenerated, groups]);
+  }, [allSessions, formData.selectUser, formData.selectGroup, formData.selectionType, formData.inningOver, formData.reportType, reportFormData, reportGenerated, groups]);
+
+  // Transform sessions data to match table format (same as session detail page)
+  const sessionData = useMemo(() => {
+    const mappedSessions = filteredSessions.map((session) => ({
+      id: session.id,
+      match_id: session.match_id,
+      match_name: session.match_name,
+      user_id: session.user_id,
+      user_name: session.user_name,
+      group_name: session.group_name || null,
+      inningOver: session.inning_over,
+      entryRun: session.entry_run,
+      amount: session.amount,
+      isYes: session.is_yes,
+      result: session.result,
+      netProfitLoss: session.net_profit_loss,
+    }));
+
+    // Always group by user first, then sort by user name
+    const userGrouped = new Map<number, typeof mappedSessions>();
+    mappedSessions.forEach((session) => {
+      if (!userGrouped.has(session.user_id)) {
+        userGrouped.set(session.user_id, []);
+      }
+      userGrouped.get(session.user_id)!.push(session);
+    });
+    
+    // Sort by user name and flatten
+    const sortedByUser = Array.from(userGrouped.entries())
+      .sort((a, b) => {
+        const nameA = a[1][0]?.user_name || '';
+        const nameB = b[1][0]?.user_name || '';
+        return nameA.localeCompare(nameB);
+      })
+      .flatMap(([, sessions]) => sessions);
+
+    return sortedByUser;
+  }, [filteredSessions]);
+
+  // Calculate final net profit per user (using all session data, not just paginated) - same logic as session detail page
+  const calculateFinalNetProfit = useMemo(() => {
+    return (userId: number, userNetProfitLossSum: number): number => {
+      const user = users.find((u) => u.id === userId);
+      if (!user) {
+        return Number(userNetProfitLossSum) || 0;
+      }
+      
+      const sum = Number(userNetProfitLossSum) || 0;
+      const partnership = Number(user.partnership) || 0;
+      const sessionCommission = Number(user.session_commission) || 0;
+      
+      if (user.session_commission_type === 'no_commission') {
+        return sum * (1 - partnership / 100);
+      }
+      
+      if (user.session_commission_type === 'profit_loss') {
+        if (sum < 0) {
+          const afterSessionCommission = sum * (1 - sessionCommission / 100);
+          return afterSessionCommission * (1 - partnership / 100);
+        } else {
+          return sum * (1 - partnership / 100);
+        }
+      }
+      
+      return sum;
+    };
+  }, [users]);
+
+  const userFinalNetProfit = useMemo(() => {
+    const userGroups = new Map<number, typeof sessionData>();
+    sessionData.forEach((entry) => {
+      if (!userGroups.has(entry.user_id)) {
+        userGroups.set(entry.user_id, []);
+      }
+      userGroups.get(entry.user_id)!.push(entry);
+    });
+
+    const finalNetProfitMap = new Map<number, number>();
+    userGroups.forEach((entries, userId) => {
+      const user = users.find((u) => u.id === userId);
+      
+      if (user?.session_commission_type === 'entrywise') {
+        let totalProfit = 0;
+        let totalLoss = 0;
+        
+        entries.forEach((entry) => {
+          const value = Number(entry.netProfitLoss) || 0;
+          if (value >= 0) {
+            totalProfit += value;
+          } else {
+            totalLoss += value;
+          }
+        });
+        
+        const sessionCommission = Number(user.session_commission) || 0;
+        const partnership = Number(user.partnership) || 0;
+        
+        const lossCommission = Math.abs(totalLoss) * (sessionCommission / 100);
+        const netAfterLossCommission = totalProfit + totalLoss + lossCommission;
+        const finalAmount = netAfterLossCommission * (1 - partnership / 100);
+        
+        finalNetProfitMap.set(userId, finalAmount);
+      } else {
+        const sum = entries.reduce((acc, entry) => {
+          const value = Number(entry.netProfitLoss) || 0;
+          return acc + value;
+        }, 0);
+        finalNetProfitMap.set(userId, calculateFinalNetProfit(userId, sum));
+      }
+    });
+
+    return finalNetProfitMap;
+  }, [sessionData, calculateFinalNetProfit, users]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(sessionData.length / entriesPerPage);
+  const paginatedEntries = useMemo(() => {
+    const startIndex = (currentPage - 1) * entriesPerPage;
+    return sessionData.slice(startIndex, startIndex + entriesPerPage);
+  }, [sessionData, currentPage, entriesPerPage]);
+
+  // Reset to page 1 when entries per page changes
+  const handleEntriesPerPageChange = (value: string) => {
+    setEntriesPerPage(parseInt(value));
+    setCurrentPage(1);
+  };
 
   // Filter entries by selected user/group if not "all" (use reportFormData when report is generated)
   const entries = useMemo(() => {
@@ -1255,6 +1407,40 @@ export default function BusinessReportPage() {
     return options;
   }, [users, isLoadingUsers, groups, formData.selectionType, formData.selectGroup, formData.selectMatch, entriesForUserFilter]);
 
+  // Create innings/over options - filter by match if match is selected
+  const inningOverOptions = useMemo(() => {
+    const options = [{ value: '', label: 'Select Inning/Over' }];
+    
+    // If match is selected and reportType is session, filter innings/overs based on sessions for that match
+    if (formData.selectMatch && formData.reportType === 'session' && sessionsForInningFilter.length > 0) {
+      // Get unique inning_over values from sessions for this match
+      const uniqueInningOvers = new Set(
+        sessionsForInningFilter.map(session => session.inning_over).filter(Boolean)
+      );
+      
+      // Filter innings/overs to only show those that exist in sessions for this match
+      inningsOvers.forEach((io) => {
+        const inningOverValue = `${io.inning}/${io.over}`;
+        if (uniqueInningOvers.has(inningOverValue)) {
+          options.push({
+            value: inningOverValue,
+            label: `${io.inning}/${io.over} Over`,
+          });
+        }
+      });
+    } else {
+      // Show all innings/overs if no match selected or not session report type
+      inningsOvers.forEach((io) => {
+        options.push({
+          value: `${io.inning}/${io.over}`,
+          label: `${io.inning}/${io.over} Over`,
+        });
+      });
+    }
+    
+    return options;
+  }, [inningsOvers, formData.selectMatch, formData.reportType, sessionsForInningFilter]);
+
   // Report type options
   const reportTypeOptions = [
     { value: '', label: 'Select Type' },
@@ -1262,13 +1448,14 @@ export default function BusinessReportPage() {
     { value: 'session', label: 'Session' },
   ];
 
-  // Reset selectMatch and winningTeam when date changes
+  // Reset selectMatch, winningTeam, and inningOver when date changes
   useEffect(() => {
     if (formData.matchDate && isValidDate) {
       setFormData((prev) => ({
         ...prev,
         selectMatch: '',
         winningTeam: '',
+        inningOver: '',
       }));
       setReportGenerated(false);
     }
@@ -1280,15 +1467,25 @@ export default function BusinessReportPage() {
     setReportFormData(null); // Clear old report data when form changes
   }, [formData.reportType, formData.selectMatch, formData.selectionType, formData.selectGroup, formData.selectUser]);
 
-  // Reset winningTeam when match changes
+  // Reset winningTeam and inningOver when match changes
   useEffect(() => {
     if (formData.selectMatch) {
       setFormData((prev) => ({
         ...prev,
         winningTeam: '',
+        inningOver: '',
       }));
     }
   }, [formData.selectMatch]);
+
+  // Reset winningTeam and inningOver when reportType changes
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      winningTeam: '',
+      inningOver: '',
+    }));
+  }, [formData.reportType]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -1304,7 +1501,7 @@ export default function BusinessReportPage() {
 
 
   const handleDateChange = (date: string) => {
-    setFormData((prev) => ({ ...prev, matchDate: date, selectMatch: '', winningTeam: '' }));
+    setFormData((prev) => ({ ...prev, matchDate: date, selectMatch: '', winningTeam: '', inningOver: '' }));
     setIsCalendarOpen(false);
     // Clear error
     if (errors.matchDate) {
@@ -1329,8 +1526,15 @@ export default function BusinessReportPage() {
     if (!formData.selectMatch) {
       newErrors.selectMatch = 'Select Match is required';
     }
-    if (!formData.winningTeam) {
-      newErrors.winningTeam = 'Winning Team is required';
+    // Validate based on report type
+    if (formData.reportType === 'match') {
+      if (!formData.winningTeam) {
+        newErrors.winningTeam = 'Winning Team is required';
+      }
+    } else if (formData.reportType === 'session') {
+      if (!formData.inningOver) {
+        newErrors.inningOver = 'Inning/Over is required';
+      }
     }
     if (formData.selectionType === 'group') {
       if (!formData.selectGroup) {
@@ -1400,71 +1604,6 @@ export default function BusinessReportPage() {
     return num.toLocaleString('en-US');
   };
 
-  // Session table columns configuration
-  const sessionColumns: Column<Session>[] = [
-    {
-      key: 'id',
-      label: 'Sr No',
-      sortable: true,
-      render: (value) => <span>{value}</span>,
-    },
-    {
-      key: 'user_name',
-      label: 'User Name',
-      sortable: true,
-      render: (value) => <span>{value || '-'}</span>,
-    },
-    {
-      key: 'group_name',
-      label: 'Group',
-      sortable: true,
-      render: (value) => <span>{value || '-'}</span>,
-    },
-    {
-      key: 'inning_over',
-      label: 'Inning/Over',
-      sortable: true,
-      render: (value) => <span>{value}</span>,
-    },
-    {
-      key: 'entry_run',
-      label: 'Entry Run',
-      sortable: true,
-      render: (value) => <span>{value}</span>,
-    },
-    {
-      key: 'amount',
-      label: 'Amount',
-      sortable: true,
-      render: (value) => <span>{formatNumber(value)}</span>,
-    },
-    {
-      key: 'is_yes',
-      label: 'Type',
-      sortable: true,
-      render: (value) => <span>{value ? 'Yes' : 'No'}</span>,
-    },
-    {
-      key: 'result',
-      label: 'Result',
-      sortable: true,
-      render: (value) => <span>{value !== null ? value : '-'}</span>,
-    },
-    {
-      key: 'net_profit_loss',
-      label: 'Net Profit/Loss',
-      sortable: true,
-      render: (value) => {
-        const isPositive = value >= 0;
-        const bgColor = isPositive ? 'bg-green-100' : 'bg-red-100';
-        return (
-          <div className={`-m-3 p-3 ${bgColor} font-bold`}>
-            {formatNumber(value)}
-          </div>
-        );
-      },
-    },
-  ];
 
   // DataTable columns configuration for Match Summary
   const columns: Column<MatchSummaryRow>[] = [
@@ -1738,18 +1877,31 @@ export default function BusinessReportPage() {
               />
             </div>
 
-            {/* WinningTeam Field */}
-            <div className="md:col-span-3">
-              <Select
-                label="WinningTeam*"
-                id="winning-team"
-                value={formData.winningTeam}
-                onChange={(e) => handleInputChange('winningTeam', e.target.value)}
-                options={winningTeamOptions}
-                error={errors.winningTeam}
-                disabled={!formData.selectMatch}
-              />
-            </div>
+            {/* Conditional Field: WinningTeam for Match (default), Inning/Over for Session */}
+            {formData.reportType === 'session' ? (
+              <div className="md:col-span-3">
+                <Select
+                  label="Inning/Over*"
+                  id="inning-over"
+                  value={formData.inningOver}
+                  onChange={(e) => handleInputChange('inningOver', e.target.value)}
+                  options={inningOverOptions}
+                  error={errors.inningOver}
+                />
+              </div>
+            ) : (
+              <div className="md:col-span-3">
+                <Select
+                  label="WinningTeam*"
+                  id="winning-team"
+                  value={formData.winningTeam}
+                  onChange={(e) => handleInputChange('winningTeam', e.target.value)}
+                  options={winningTeamOptions}
+                  error={errors.winningTeam}
+                  disabled={!formData.selectMatch}
+                />
+              </div>
+            )}
           </div>
 
           {/* Second Row - Selection Type Radio Buttons and Conditional Dropdown */}
@@ -1885,24 +2037,203 @@ export default function BusinessReportPage() {
           {formData.reportType === 'session' && (
             <Card>
               <div className="p-4">
+                <div className="mb-4">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div>
+                      <h2 className="text-2xl font-bold text-foreground">Session Entries</h2>
+                      <p className="text-sm text-retro-dark/60 mt-1">
+                        {sessionData.length} {sessionData.length === 1 ? 'entry' : 'entries'} found
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pagination Controls */}
+                <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="entriesPerPage" className="text-sm font-semibold text-retro-dark">
+                      Show:
+                    </label>
+                    <select
+                      id="entriesPerPage"
+                      value={entriesPerPage}
+                      onChange={(e) => handleEntriesPerPageChange(e.target.value)}
+                      className="px-3 py-1.5 border-2 border-retro-dark rounded-lg bg-white text-sm font-semibold"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                    <span className="text-sm text-retro-dark">entries</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 bg-gray-200 text-gray-700 font-bold rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm font-semibold text-retro-dark">
+                      Page {currentPage} of {totalPages || 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage >= totalPages}
+                      className="px-3 py-1.5 bg-gray-200 text-gray-700 font-bold rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+
                 {isLoadingSessions ? (
                   <div className="py-8 text-center">
                     <p className="text-lg text-retro-dark">Loading session data...</p>
                   </div>
-                ) : sessions.length > 0 ? (
-                  <DataTable
-                    title="SESSION SUMMARY"
-                    data={sessions}
-                    columns={sessionColumns}
-                    entriesPerPageOptions={[10, 25, 50, 100]}
-                    defaultEntriesPerPage={100}
-                    showEntries={true}
-                    showExport={true}
-                    showSearch={true}
-                  />
-                ) : (
+                ) : sessionData.length === 0 ? (
                   <div className="py-8 text-center">
                     <p className="text-lg text-retro-dark">No session data found for the selected match.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse bg-transparent text-sm">
+                      {/* Table Header */}
+                      <thead>
+                        <tr className="border-b border-gray-300 bg-[var(--header)]">
+                          <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)]">Name</th>
+                          <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)]">Group</th>
+                          <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)]">Inning/Over</th>
+                          <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)]">Entry Run</th>
+                          <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)]">
+                            <div>Amount</div>
+                            <div className="text-xs font-normal">(Y/N)</div>
+                          </th>
+                          <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)]">Result</th>
+                          <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)]">
+                            <div>Net Profit</div>
+                            <div className="text-xs font-normal">Loss</div>
+                          </th>
+                          <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)] bg-amber-600">
+                            <div>Final net</div>
+                            <div className="text-xs font-normal">result</div>
+                          </th>
+                        </tr>
+                      </thead>
+                      {/* Table Body */}
+                      <tbody>
+                        {(() => {
+                          // Group paginated entries by user_id to determine row spans for merged cells
+                          const userGroups = new Map<number, typeof paginatedEntries>();
+                          paginatedEntries.forEach((entry) => {
+                            if (!userGroups.has(entry.user_id)) {
+                              userGroups.set(entry.user_id, []);
+                            }
+                            userGroups.get(entry.user_id)!.push(entry);
+                          });
+
+                          // Track which user entries we've already rendered the merged cell for
+                          const renderedUserCells = new Set<number>();
+
+                          // Render rows with merged cells for final net profit
+                          return paginatedEntries.map((entry, index) => {
+                            const userEntries = userGroups.get(entry.user_id)!;
+                            const isFirstEntryOfUser = !renderedUserCells.has(entry.user_id);
+                            if (isFirstEntryOfUser) {
+                              renderedUserCells.add(entry.user_id);
+                            }
+                            const rowSpan = isFirstEntryOfUser ? userEntries.length : 0;
+                            const finalNetProfit = Number(userFinalNetProfit.get(entry.user_id)) || 0;
+                            
+                            // Get user data for commission type badge
+                            const user = users.find((u) => u.id === entry.user_id);
+                            const getCommissionTypeBadge = (type?: string) => {
+                              if (type === 'profit_loss') return { text: 'PL', color: 'bg-blue-200 text-blue-800' };
+                              if (type === 'no_commission') return { text: 'NC', color: 'bg-green-200 text-green-800' };
+                              if (type === 'entrywise') return { text: 'En.w', color: 'bg-purple-200 text-purple-800' };
+                              return null;
+                            };
+                            const commissionTypeBadge = getCommissionTypeBadge(user?.session_commission_type);
+                            
+                            // Check if this is the first row of a new user group (not the very first row in the table)
+                            const previousEntry = index > 0 ? paginatedEntries[index - 1] : null;
+                            const nextEntry = index < paginatedEntries.length - 1 ? paginatedEntries[index + 1] : null;
+                            const isNewUserGroup = isFirstEntryOfUser && index > 0 && previousEntry && previousEntry.user_id !== entry.user_id;
+                            const isLastRowOfUserGroup = !nextEntry || (nextEntry && nextEntry.user_id !== entry.user_id);
+
+                            // Build border classes
+                            let borderClasses = 'hover:bg-transparent';
+                            if (isNewUserGroup) {
+                              borderClasses += ' border-t-4 border-gray-700 border-b-0';
+                            } else if (isLastRowOfUserGroup && index < paginatedEntries.length - 1) {
+                              borderClasses += ' border-b-0';
+                            } else if (!isLastRowOfUserGroup && nextEntry && nextEntry.user_id === entry.user_id) {
+                              borderClasses += ' border-b-0';
+                            } else {
+                              borderClasses += ' border-b border-gray-200';
+                            }
+
+                            return (
+                              <tr 
+                                key={entry.id} 
+                                className={borderClasses}
+                              >
+                                <td className="px-3 py-1.5 text-retro-dark relative">
+                                  <span>{entry.user_name}</span>
+                                  {commissionTypeBadge && (
+                                    <span className={`absolute top-1 right-1 text-[10px] font-semibold px-1 py-0.5 rounded ${commissionTypeBadge.color}`}>
+                                      {commissionTypeBadge.text}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-1.5 text-retro-dark">{entry.group_name || '-'}</td>
+                                <td className="px-3 py-1.5 text-retro-dark">{entry.inningOver}</td>
+                                <td className="px-3 py-1.5 text-retro-dark">{entry.entryRun}</td>
+                                <td className="px-3 py-1.5 text-retro-dark">
+                                  <div>{entry.amount.toLocaleString()}</div>
+                                  <div className={`text-xs font-bold ${entry.isYes ? 'text-green-600' : 'text-red-600'}`}>
+                                    ({entry.isYes ? 'Y' : 'N'})
+                                  </div>
+                                </td>
+                                <td className="px-3 py-1.5 text-retro-dark">{entry.result !== null && entry.result !== undefined ? entry.result : 'N/A'}</td>
+                                <td className="px-3 py-1.5 text-retro-dark">
+                                  <span
+                                    className={`inline-block px-3 py-1 rounded font-semibold ${
+                                      entry.netProfitLoss >= 0
+                                        ? 'bg-red-200 text-red-800'
+                                        : 'bg-green-200 text-green-800'
+                                    }`}
+                                  >
+                                    {entry.netProfitLoss >= 0 ? '+' : ''}
+                                    {entry.netProfitLoss.toLocaleString()}
+                                  </span>
+                                </td>
+                                {isFirstEntryOfUser ? (
+                                  <td
+                                    rowSpan={rowSpan}
+                                    className="px-3 py-1.5 text-retro-dark align-middle bg-amber-50"
+                                  >
+                                    <span
+                                      className={`inline-block px-3 py-1 rounded font-semibold ${
+                                        finalNetProfit >= 0
+                                          ? 'bg-red-700 text-white'
+                                          : 'bg-green-700 text-white'
+                                      }`}
+                                    >
+                                      {finalNetProfit >= 0 ? '+' : ''}
+                                      {Number(finalNetProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  </td>
+                                ) : null}
+                              </tr>
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
