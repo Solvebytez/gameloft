@@ -44,6 +44,7 @@ export default function SessionMatchPage() {
     result: '',
   });
   const [addResultErrors, setAddResultErrors] = useState<Record<string, string>>({});
+  const [showFilters, setShowFilters] = useState(true);
   // Filter state
   const [filters, setFilters] = useState({
     user_id: '',
@@ -1148,13 +1149,21 @@ export default function SessionMatchPage() {
                   >
                     Cancel
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="px-4 py-2 bg-blue-600 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity whitespace-nowrap h-10 flex items-center justify-center"
+                  >
+                    {showFilters ? 'Hide Filter' : 'Show Filter'}
+                  </button>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="p-4 pr-6">
+        <div className="py-4 px-1">
           {/* Filter Section - Card */}
+          {showFilters && (
           <Card className="mb-4">
             <div className="space-y-3">
               <span className="text-lg font-bold text-retro-dark block">Filter by:</span>
@@ -1241,6 +1250,7 @@ export default function SessionMatchPage() {
               )}
             </div>
           </Card>
+          )}
 
           {/* Loading overlay when updating results */}
           {updateResultByInningsOverMutation.isPending && (

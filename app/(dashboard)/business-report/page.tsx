@@ -1284,32 +1284,32 @@ export default function BusinessReportPage() {
       });
 
       // Add ONE empty separator row between team totals
-      rows.push({
-        srNo: '',
-        custName: '',
-        totalBet: 0,
-        profitLoss: 0,
-        totalCommission: 0,
-        commissionPercent: 0,
-        partnership: '',
-        custNetWithComm: 0,
-        netProfitLoss: 0,
-      });
+      // rows.push({
+      //   srNo: '',
+      //   custName: '',
+      //   totalBet: 0,
+      //   profitLoss: 0,
+      //   totalCommission: 0,
+      //   commissionPercent: 0,
+      //   partnership: '',
+      //   custNetWithComm: 0,
+      //   netProfitLoss: 0,
+      // });
 
       // Add losing team total row below (always show, even if values are 0)
-      rows.push({
-        srNo: 'Total',
-        custName: '',
-        totalBet: secondTeamTotals.totalBet,
-        profitLoss: secondTeamTotals.profitLoss,
-        totalCommission: secondTeamTotals.commission,
-        commissionPercent: secondTeamTotals.commission > 0 ? (secondTeamTotals.commission / secondTeamTotals.totalBet) * 100 : 0,
-        partnership: secondTeamTotals.name,
-        custNetWithComm: secondTeamTotals.custNetWithComm,
-        netProfitLoss: secondTeamTotals.netProfitLoss,
-        isTotal: true,
-        teamName: secondTeamTotals.name,
-      });
+      // rows.push({
+      //   srNo: 'Total',
+      //   custName: '',
+      //   totalBet: secondTeamTotals.totalBet,
+      //   profitLoss: secondTeamTotals.profitLoss,
+      //   totalCommission: secondTeamTotals.commission,
+      //   commissionPercent: secondTeamTotals.commission > 0 ? (secondTeamTotals.commission / secondTeamTotals.totalBet) * 100 : 0,
+      //   partnership: secondTeamTotals.name,
+      //   custNetWithComm: secondTeamTotals.custNetWithComm,
+      //   netProfitLoss: secondTeamTotals.netProfitLoss,
+      //   isTotal: true,
+      //   teamName: secondTeamTotals.name,
+      // });
     }
 
     return rows;
@@ -1678,7 +1678,7 @@ export default function BusinessReportPage() {
         const bgColor = isEmptyRow
           ? ''
           : (row.isTotal && hasValue)
-            ? (isPositive ? 'bg-green-100' : 'bg-red-100')
+            ? (isPositive ? 'bg-red-100' : 'bg-green-100')
             : '';
         return (
           <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : ''}`}>
@@ -1695,10 +1695,12 @@ export default function BusinessReportPage() {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
         // Only show background for total rows, not for individual rows
+        const hasValue = value !== 0;
+        const isPositive = value >= 0;
         const bgColor = isEmptyRow
           ? ''
-          : row.isTotal 
-            ? 'bg-green-100'
+          : row.isTotal && hasValue
+            ? (isPositive ? 'bg-red-100' : 'bg-green-100')
             : '';
         const commissionPercent = Number(row.commissionPercent) || 0;
         const formattedPercent = commissionPercent.toFixed(2);
@@ -1755,8 +1757,8 @@ export default function BusinessReportPage() {
         const bgColor = isEmptyRow
           ? ''
           : row.isTotal 
-            ? (isPositive ? 'bg-green-100' : 'bg-red-100')
-            : (value !== 0 ? (isPositive ? 'bg-green-100' : 'bg-red-100') : '');
+            ? (isPositive ? 'bg-red-100' : 'bg-green-100')
+            : (value !== 0 ? (isPositive ? 'bg-red-100' : 'bg-green-100') : '');
         return (
           <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : 'font-bold'}`}>
             {isEmptyRow ? '-' : (value !== 0 ? formatNumber(value) : '0')}
@@ -1776,8 +1778,8 @@ export default function BusinessReportPage() {
         const bgColor = isEmptyRow
           ? ''
           : row.isTotal 
-            ? (isPositive ? 'bg-green-100' : 'bg-red-100')
-            : (value !== 0 ? (isPositive ? 'bg-green-100' : 'bg-red-100') : '');
+            ? (isPositive ? 'bg-red-100' : 'bg-green-100')
+            : (value !== 0 ? (isPositive ? 'bg-red-100' : 'bg-green-100') : '');
         return (
           <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : 'font-bold'}`}>
             {isEmptyRow ? '-' : (value !== 0 ? formatNumber(value) : '0')}
