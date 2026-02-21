@@ -282,6 +282,7 @@ export default function CreateUserPage() {
           session_commission?: number;
           session_commission_type?: 'no_commission' | 'profit_loss' | 'entrywise';
           group_id?: number | null;
+          mark_as_cut?: 'no' | 'yes';
         } = {};
 
         if (formData.name.trim() !== editingUser.name) {

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Report Calculation Logic Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-left: 10px;
+            border-left: 4px solid #3498db;
+        }
+        
+        h3 {
+            color: #555;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+        
+        .section {
+            background: #fff;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        .formula {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        
+        .example {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        
+        .step {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 3px solid #666;
+        }
+        
+        .highlight {
+            background: #fff9c4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .cut-user {
+            background: #ffe0b2;
+            border-left: 4px solid #ff9800;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background: #3498db;
+            color: white;
+        }
+        
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        
+        ul, ol {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        
+        li {
+            margin: 8px 0;
+        }
+        
+        .note {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        
+        .warning {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Business Report Calculation Logic Documentation</h1>
+        
+        <div class="section">
+            <h2>Overview</h2>
+            <p>This document explains how the business report calculates profit/loss, commission, and net amounts for different user types and commission structures.</p>
+            
+            <h3>Key Concepts:</h3>
+            <ul>
+                <li><strong>Winning Team Total:</strong> What we PAY OUT (liability) - calculated from winning team entries</li>
+                <li><strong>Losing Team Total:</strong> What we RECEIVE (asset) - calculated from losing team entries</li>
+                <li><strong>Profit/Loss:</strong> Losing Team Total - Winning Team Total (positive = profit, negative = loss)</li>
+                <li><strong>Cut Type Users:</strong> Users with reversed win/loss calculation logic</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>1. Entry Calculation Logic (Normal Users)</h2>
+            
+            <h3>Step 1: Parse Entry Amounts</h3>
+            <p>Entries are stored as formatted strings like "90/500000" where:</p>
+            <ul>
+                <li>First part (90) = Rate percentage</li>
+                <li>Second part (500000) = Bet amount</li>
+            </ul>
+            
+            <h3>Step 2: Calculate Team Totals</h3>
+            <p>For each entry, calculate based on winning team and favorite/non-favorite status:</p>
+            
+            <div class="code-block">
+<strong>If Team 1 Wins:</strong>
+  If favourite_team === 'team1':
+    winningTeamFav += (team1Rate / 100) × team1FavAmount
+    losingTeamNonFav += (team2Rate / 100) × team2NfavAmount
+  
+  If favourite_team === 'team2':
+    winningTeamNonFav += team1NfavAmount
+    losingTeamFav += team2FavAmount
+
+<strong>If Team 2 Wins:</strong>
+  If favourite_team === 'team2':
+    winningTeamFav += (team2Rate / 100) × team2FavAmount
+    losingTeamNonFav += (team1Rate / 100) × team1NfavAmount
+  
+  If favourite_team === 'team1':
+    winningTeamNonFav += team2NfavAmount
+    losingTeamFav += team1FavAmount
+            </div>
+            
+            <div class="formula">
+                <strong>Key Rules:</strong>
+                <ul>
+                    <li><strong>Winning Favorite:</strong> Rate% × Amount (e.g., 90% × 500,000 = 450,000)</li>
+                    <li><strong>Winning Non-Favorite:</strong> Just Amount (e.g., 500,000)</li>
+                    <li><strong>Losing Favorite:</strong> Just Amount (e.g., 500,000)</li>
+                    <li><strong>Losing Non-Favorite:</strong> Rate% × Amount (e.g., 90% × 500,000 = 450,000)</li>
+                </ul>
+            </div>
+            
+            <h3>Step 3: Calculate Totals</h3>
+            <div class="formula">
+                winningTeamTotal = winningTeamFav + winningTeamNonFav<br>
+                losingTeamTotal = losingTeamFav + losingTeamNonFav<br>
+                profitLoss = losingTeamTotal - winningTeamTotal
+            </div>
+            
+            <div class="example">
+                <strong>Example:</strong>
+                <ul>
+                    <li>Entry: "90/500000" on sl (Team 2) Non-Fav</li>
+                    <li>Winner: zim (Team 1)</li>
+                    <li>favourite_team = 'team1'</li>
+                    <li>losingTeamNonFav = (90/100) × 500,000 = 450,000</li>
+                    <li>winningTeamTotal = 0</li>
+                    <li>losingTeamTotal = 450,000</li>
+                    <li>profitLoss = 450,000 - 0 = <span class="highlight">450,000</span> (profit)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section cut-user">
+            <h2>2. Cut Type User Reversal Logic</h2>
+            
+            <div class="warning">
+                <strong>Important:</strong> For cut type users (mark_as_cut === 'yes'), the calculation is REVERSED before applying commission.
+            </div>
+            
+            <h3>Reversal Rules:</h3>
+            <ul>
+                <li>Winning entries → Treated as losing entries</li>
+                <li>Losing entries → Treated as winning entries</li>
+                <li>Favorite entries → Treated as non-favorite entries</li>
+                <li>Non-favorite entries → Treated as favorite entries</li>
+            </ul>
+            
+            <div class="code-block">
+<strong>Reversal Logic:</strong>
+  reversedWinningTeamFav = originalLosingTeamNonFav
+  reversedWinningTeamNonFav = originalLosingTeamFav
+  reversedLosingTeamFav = originalWinningTeamNonFav
+  reversedLosingTeamNonFav = originalWinningTeamFav
+            </div>
+            
+            <div class="example">
+                <strong>Example (Cut User):</strong>
+                <ul>
+                    <li>Entry: "90/500000" on sl (Team 2) Non-Fav</li>
+                    <li>Winner: zim (Team 1)</li>
+                    <li><strong>Normal calculation:</strong>
+                        <ul>
+                            <li>losingTeamNonFav = 450,000</li>
+                            <li>winningTeamTotal = 0</li>
+                            <li>losingTeamTotal = 450,000</li>
+                            <li>profitLoss = 450,000 (profit)</li>
+                        </ul>
+                    </li>
+                    <li><strong>After reversal (cut user):</strong>
+                        <ul>
+                            <li>reversedWinningTeamFav = 450,000 (was losingTeamNonFav)</li>
+                            <li>reversedLosingTeamNonFav = 0 (was winningTeamFav)</li>
+                            <li>winningTeamTotal = 450,000</li>
+                            <li>losingTeamTotal = 0</li>
+                            <li>profitLoss = 0 - 450,000 = <span class="highlight">-450,000</span> (loss)</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>3. Commission Type: Profit/Loss</h2>
+            
+            <h3>Calculation Logic:</h3>
+            <div class="code-block">
+function calculateRowResult(profitLoss, commissionPercent, partnershipPercent) {
+  if (profitLoss > 0) {
+    // CASE A: PROFIT
+    commission = profitLoss × commissionPercent
+    commissionAfterPartnership = commission × (1 - partnershipPercent)
+    custNetWithComm = profitLoss × (1 - partnershipPercent)
+    netProfitLoss = custNetWithComm - commissionAfterPartnership
+  } else {
+    // CASE B: LOSS
+    commission = 0
+    commissionAfterPartnership = 0
+    custNetWithComm = profitLoss × partnershipPercent
+    netProfitLoss = profitLoss × (1 - partnershipPercent)
+  }
+}
+            </div>
+            
+            <div class="formula">
+                <strong>Key Points:</strong>
+                <ul>
+                    <li>Commission only applies when profitLoss > 0 (profit scenario)</li>
+                    <li>No commission on losses</li>
+                    <li>Partnership percentage splits the amount between customer and system</li>
+                </ul>
+            </div>
+            
+            <div class="example">
+                <strong>Example (Profit Scenario):</strong>
+                <ul>
+                    <li>profitLoss = 450,000</li>
+                    <li>commissionPercent = 4%</li>
+                    <li>partnershipPercent = 20%</li>
+                    <li>commission = 450,000 × 0.04 = 18,000</li>
+                    <li>commissionAfterPartnership = 18,000 × (1 - 0.20) = 14,400</li>
+                    <li>custNetWithComm = 450,000 × (1 - 0.20) = 360,000</li>
+                    <li>netProfitLoss = 360,000 - 14,400 = 345,600</li>
+                </ul>
+            </div>
+            
+            <div class="example">
+                <strong>Example (Loss Scenario - Cut User):</strong>
+                <ul>
+                    <li>profitLoss = -450,000 (after reversal)</li>
+                    <li>commissionPercent = 4%</li>
+                    <li>partnershipPercent = 20%</li>
+                    <li>commission = 0 (no commission on loss)</li>
+                    <li>commissionAfterPartnership = 0</li>
+                    <li>custNetWithComm = -450,000 × 0.20 = -90,000</li>
+                    <li>netProfitLoss = -450,000 × (1 - 0.20) = -360,000</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>4. Commission Type: Entrywise</h2>
+            
+            <h3>Calculation Logic:</h3>
+            <div class="code-block">
+function calculateEntrywise(winningTeamTotal, losingTeamTotal, commissionPercent, partnershipPercent) {
+  // Step 1: Calculate Gross Difference
+  grossDifference = |winningTeamTotal - losingTeamTotal|
+  isLosingTeamLarger = losingTeamTotal > winningTeamTotal
+  sign = isLosingTeamLarger ? 1 : -1  // 1 = profit, -1 = loss
+  
+  // Step 2: Commission on Lost Side Total
+  commission = losingTeamTotal × commissionPercent
+  
+  // Step 3: Net After Commission
+  netAfterCommission = grossDifference - commission
+  
+  // Step 4: Apply Partnership
+  custNetWithComm = netAfterCommission × partnershipPercent × sign
+  netProfitLoss = netAfterCommission × (1 - partnershipPercent) × sign
+  
+  // Commission after partnership
+  commissionAfterPartnership = commission × (1 - partnershipPercent)
+}
+            </div>
+            
+            <div class="formula">
+                <strong>Key Points:</strong>
+                <ul>
+                    <li>Commission is calculated on <strong>losingTeamTotal</strong> (what we receive)</li>
+                    <li>Gross difference is always positive (absolute value)</li>
+                    <li>Sign determines if it's profit (positive) or loss (negative)</li>
+                    <li>Partnership is applied to net after commission</li>
+                </ul>
+            </div>
+            
+            <div class="example">
+                <strong>Example (Normal User - Profit):</strong>
+                <ul>
+                    <li>winningTeamTotal = 0</li>
+                    <li>losingTeamTotal = 450,000</li>
+                    <li>commissionPercent = 4%</li>
+                    <li>partnershipPercent = 20%</li>
+                    <li>grossDifference = |0 - 450,000| = 450,000</li>
+                    <li>isLosingTeamLarger = true → sign = 1 (profit)</li>
+                    <li>commission = 450,000 × 0.04 = 18,000</li>
+                    <li>netAfterCommission = 450,000 - 18,000 = 432,000</li>
+                    <li>custNetWithComm = 432,000 × 0.20 × 1 = 86,400</li>
+                    <li>netProfitLoss = 432,000 × 0.80 × 1 = 345,600</li>
+                    <li>commissionAfterPartnership = 18,000 × 0.80 = 14,400</li>
+                </ul>
+            </div>
+            
+            <div class="example">
+                <strong>Example (Cut User - Loss after reversal):</strong>
+                <ul>
+                    <li>winningTeamTotal = 450,000 (reversed)</li>
+                    <li>losingTeamTotal = 0 (reversed)</li>
+                    <li>commissionPercent = 4%</li>
+                    <li>partnershipPercent = 20%</li>
+                    <li>grossDifference = |450,000 - 0| = 450,000</li>
+                    <li>isLosingTeamLarger = false → sign = -1 (loss)</li>
+                    <li>commission = 0 × 0.04 = 0</li>
+                    <li>netAfterCommission = 450,000 - 0 = 450,000</li>
+                    <li>custNetWithComm = 450,000 × 0.20 × (-1) = -90,000</li>
+                    <li>netProfitLoss = 450,000 × 0.80 × (-1) = -360,000</li>
+                    <li>commissionAfterPartnership = 0 × 0.80 = 0</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>5. Commission Type: No Commission</h2>
+            
+            <h3>Calculation Logic:</h3>
+            <div class="code-block">
+if (commissionType === 'no_commission') {
+  partnershipRate = partnershipPercent / 100
+  totalCommission = 0
+  custNetWithComm = profitLoss × (1 - partnershipRate)
+  netProfitLoss = profitLoss × (1 - partnershipRate)
+}
+            </div>
+            
+            <div class="formula">
+                <strong>Key Points:</strong>
+                <ul>
+                    <li>No commission is applied</li>
+                    <li>Only partnership percentage is used</li>
+                    <li>Both custNetWithComm and netProfitLoss use the same formula</li>
+                </ul>
+            </div>
+            
+            <div class="example">
+                <strong>Example (Cut User - Loss after reversal):</strong>
+                <ul>
+                    <li>profitLoss = -450,000 (after reversal)</li>
+                    <li>partnershipPercent = 20%</li>
+                    <li>totalCommission = 0</li>
+                    <li>custNetWithComm = -450,000 × (1 - 0.20) = -360,000</li>
+                    <li>netProfitLoss = -450,000 × (1 - 0.20) = -360,000</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>6. Complete Flow Diagram</h2>
+            
+            <div class="step">
+                <strong>Step 1:</strong> Parse all entries for a user
+                <ul>
+                    <li>Extract amounts from formatted strings (e.g., "90/500000")</li>
+                    <li>Identify favorite team and rates</li>
+                </ul>
+            </div>
+            
+            <div class="step">
+                <strong>Step 2:</strong> Calculate team totals
+                <ul>
+                    <li>Loop through each entry</li>
+                    <li>Calculate winningTeamFav, winningTeamNonFav, losingTeamFav, losingTeamNonFav</li>
+                    <li>Apply rate multiplication based on favorite/non-favorite and win/loss status</li>
+                </ul>
+            </div>
+            
+            <div class="step">
+                <strong>Step 3:</strong> Check if cut type user
+                <ul>
+                    <li>If mark_as_cut === 'yes': Apply reversal logic</li>
+                    <li>Swap winning/losing and favorite/non-favorite totals</li>
+                </ul>
+            </div>
+            
+            <div class="step">
+                <strong>Step 4:</strong> Calculate profit/loss
+                <ul>
+                    <li>winningTeamTotal = finalWinningTeamFav + finalWinningTeamNonFav</li>
+                    <li>losingTeamTotal = finalLosingTeamFav + finalLosingTeamNonFav</li>
+                    <li>profitLoss = losingTeamTotal - winningTeamTotal</li>
+                </ul>
+            </div>
+            
+            <div class="step">
+                <strong>Step 5:</strong> Apply commission based on type
+                <ul>
+                    <li><strong>profit_loss:</strong> Use calculateRowResult(profitLoss, ...)</li>
+                    <li><strong>entrywise:</strong> Use calculateEntrywise(winningTeamTotal, losingTeamTotal, ...)</li>
+                    <li><strong>no_commission:</strong> Apply only partnership percentage</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>7. Summary Table</h2>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>User Type</th>
+                        <th>Commission Type</th>
+                        <th>Reversal Applied</th>
+                        <th>Commission Calculation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Normal</td>
+                        <td>Profit/Loss</td>
+                        <td>No</td>
+                        <td>Commission on profitLoss if > 0</td>
+                    </tr>
+                    <tr>
+                        <td>Normal</td>
+                        <td>Entrywise</td>
+                        <td>No</td>
+                        <td>Commission on losingTeamTotal</td>
+                    </tr>
+                    <tr>
+                        <td>Normal</td>
+                        <td>No Commission</td>
+                        <td>No</td>
+                        <td>No commission, only partnership</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Cut Type</strong></td>
+                        <td>Profit/Loss</td>
+                        <td><strong>Yes</strong></td>
+                        <td>Reversal → profitLoss → Commission on profitLoss if > 0</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Cut Type</strong></td>
+                        <td>Entrywise</td>
+                        <td><strong>Yes</strong></td>
+                        <td>Reversal → winningTeamTotal/losingTeamTotal → Commission on losingTeamTotal</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Cut Type</strong></td>
+                        <td>No Commission</td>
+                        <td><strong>Yes</strong></td>
+                        <td>Reversal → profitLoss → Only partnership</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="note">
+            <strong>Note:</strong> All calculations use rounded values (2 decimal places) for final display. The reversal logic for cut type users is applied BEFORE any commission calculations, ensuring all commission types work correctly with reversed values.
+        </div>
+    </div>
+</body>
+</html>
+
