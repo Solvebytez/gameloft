@@ -358,7 +358,7 @@ export default function CreateUserPage() {
           session_commission: sessionCommissionType === 'no_commission' ? 0 : (formData.session_commission && formData.session_commission.trim() ? Number(formData.session_commission) : 0),
           session_commission_type: sessionCommissionType,
           group_id: formData.group_id ? parseInt(formData.group_id) : null,
-          mark_as_cut: formData.mark_as_cut,
+          mark_as_cut: formData.mark_as_cut as 'yes' | 'no',
         };
 
         await createUserMutation.mutateAsync(payload);
