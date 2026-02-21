@@ -13,6 +13,7 @@ import { useInningsOvers } from '@/app/hooks/useInningsOvers';
 import { useSessions, Session } from '@/app/hooks/useSessions';
 import { useEntries, Entry } from '@/app/hooks/useEntries';
 import { calculateEntrywise } from '@/app/utils/entrywiseCalculator';
+import { reverseCutUserCalculation } from '@/app/utils/cutUserCalculator';
 // Removed unused imports - now using calculateRowResult() function
 
 // Production-ready calculation function with validation and rounding
@@ -582,9 +583,31 @@ export default function BusinessReportPage() {
         }
       });
 
-      // Calculate totals
-      const winningTeamTotal = winningTeamFav + winningTeamNonFav;  // What we PAY OUT (liability)
-      const losingTeamTotal = losingTeamFav + losingTeamNonFav;        // What we RECEIVE (asset)
+      // Check if user is a cut type user and reverse the calculation if needed
+      const isCutUser = user?.mark_as_cut === 'yes';
+      
+      let finalWinningTeamFav = winningTeamFav;
+      let finalWinningTeamNonFav = winningTeamNonFav;
+      let finalLosingTeamFav = losingTeamFav;
+      let finalLosingTeamNonFav = losingTeamNonFav;
+
+      // Reverse calculation for cut type users
+      if (isCutUser) {
+        const reversed = reverseCutUserCalculation({
+          winningTeamFav,
+          winningTeamNonFav,
+          losingTeamFav,
+          losingTeamNonFav,
+        });
+        finalWinningTeamFav = reversed.winningTeamFav;
+        finalWinningTeamNonFav = reversed.winningTeamNonFav;
+        finalLosingTeamFav = reversed.losingTeamFav;
+        finalLosingTeamNonFav = reversed.losingTeamNonFav;
+      }
+
+      // Calculate totals (using reversed values for cut users)
+      const winningTeamTotal = finalWinningTeamFav + finalWinningTeamNonFav;  // What we PAY OUT (liability)
+      const losingTeamTotal = finalLosingTeamFav + finalLosingTeamNonFav;        // What we RECEIVE (asset)
       
       // Net profit/loss = What we RECEIVE - What we PAY OUT = Losing Team Total - Winning Team Total
       profitLoss = losingTeamTotal - winningTeamTotal;
@@ -606,6 +629,7 @@ export default function BusinessReportPage() {
           custNetWithComm: profitLoss,
           netProfitLoss: profitLoss,
           commissionType: undefined,
+          markAsCut: 'no',
         });
         return;
       }
@@ -665,6 +689,7 @@ export default function BusinessReportPage() {
         custNetWithComm,
         netProfitLoss,
         commissionType: user.commission_type,
+        markAsCut: user.mark_as_cut ?? 'no',
       });
     });
 
@@ -1588,6 +1613,7 @@ export default function BusinessReportPage() {
     isTotal?: boolean;
     teamName?: string;
     commissionType?: string;
+    markAsCut?: 'no' | 'yes';
   }
 
   // Use calculated data when report is generated, otherwise use empty array
@@ -1633,17 +1659,32 @@ export default function BusinessReportPage() {
           return null;
         };
         const commissionTypeBadge = getCommissionTypeBadge(row.commissionType);
+        const isCutUser = row.markAsCut === 'yes';
         
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
         return (
           <div className={`${row.isTotal ? 'font-bold' : ''} relative -m-3 p-3`}>
-            {isEmptyRow ? '-' : (value || '')}
-            {commissionTypeBadge && !row.isTotal && !isEmptyRow && (
-              <span className={`absolute top-1 right-1 text-[10px] font-semibold px-1 py-0.5 rounded ${commissionTypeBadge.color}`}>
-                {commissionTypeBadge.text}
-              </span>
-            )}
+            <div className="flex flex-col gap-1 items-start">
+              <div className="flex items-center gap-1">
+                <span>{isEmptyRow ? '-' : (value || '')}</span>
+                {isCutUser && !row.isTotal && !isEmptyRow && (
+                  <span className="inline-block px-1 py-0.5 bg-orange-200 text-orange-800 rounded text-[10px] font-semibold">
+                    CT
+                  </span>
+                )}
+                {!isCutUser && commissionTypeBadge && !row.isTotal && !isEmptyRow && (
+                  <span className={`inline-block w-fit text-[10px] font-semibold px-1 py-0.5 rounded ${commissionTypeBadge.color}`}>
+                    {commissionTypeBadge.text}
+                  </span>
+                )}
+              </div>
+              {isCutUser && commissionTypeBadge && !row.isTotal && !isEmptyRow && (
+                <span className={`inline-block w-fit text-[10px] font-semibold px-1 py-0.5 rounded ${commissionTypeBadge.color}`}>
+                  {commissionTypeBadge.text}
+                </span>
+              )}
+            </div>
           </div>
         );
       },
@@ -1678,7 +1719,7 @@ export default function BusinessReportPage() {
         const bgColor = isEmptyRow
           ? ''
           : (row.isTotal && hasValue)
-            ? (isPositive ? 'bg-red-100' : 'bg-green-100')
+            ? (isPositive ? 'bg-green-100' : 'bg-red-100')
             : '';
         return (
           <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : ''}`}>
@@ -1753,12 +1794,12 @@ export default function BusinessReportPage() {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
         const isPositive = value >= 0;
-        // For total rows, show red for negative, green for positive/zero. For individual rows, only if value is not 0
+        // Negative values: red background, Positive values: green background
         const bgColor = isEmptyRow
           ? ''
           : row.isTotal 
-            ? (isPositive ? 'bg-red-100' : 'bg-green-100')
-            : (value !== 0 ? (isPositive ? 'bg-red-100' : 'bg-green-100') : '');
+            ? (isPositive ? 'bg-green-100' : 'bg-red-100')
+            : (value !== 0 ? (isPositive ? 'bg-green-100' : 'bg-red-100') : '');
         return (
           <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : 'font-bold'}`}>
             {isEmptyRow ? '-' : (value !== 0 ? formatNumber(value) : '0')}
@@ -1774,12 +1815,12 @@ export default function BusinessReportPage() {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
         const isPositive = value >= 0;
-        // For total rows, show red for negative, green for positive/zero. For individual rows, only if value is not 0
+        // Negative values: red background, Positive values: green background
         const bgColor = isEmptyRow
           ? ''
           : row.isTotal 
-            ? (isPositive ? 'bg-red-100' : 'bg-green-100')
-            : (value !== 0 ? (isPositive ? 'bg-red-100' : 'bg-green-100') : '');
+            ? (isPositive ? 'bg-green-100' : 'bg-red-100')
+            : (value !== 0 ? (isPositive ? 'bg-green-100' : 'bg-red-100') : '');
         return (
           <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : 'font-bold'}`}>
             {isEmptyRow ? '-' : (value !== 0 ? formatNumber(value) : '0')}

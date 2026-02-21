@@ -248,9 +248,17 @@ export function useDeleteAdmin() {
 
   return useMutation({
     mutationFn: async (id: number): Promise<void> => {
-      const response = await api.delete(`/v1/superadmin/admins/${id}`);
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to delete admin');
+      try {
+        const response = await api.delete(`/v1/superadmin/admins/${id}`);
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Failed to delete admin');
+        }
+      } catch (error: unknown) {
+        // Extract error message from axios error response
+        if (error instanceof AxiosError && error.response?.data?.message) {
+          throw new Error(error.response.data.message);
+        }
+        throw error;
       }
     },
     onMutate: async (id) => {

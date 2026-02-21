@@ -303,8 +303,8 @@ export default function CreateAdminPage() {
 
   const handleDelete = async (admin: Admin) => {
     if (confirm(`Are you sure you want to delete admin "${admin.name}"?`)) {
-      await deleteMutation.mutateAsync(admin.id);
-      // Error is handled by the mutation
+      deleteMutation.mutate(admin.id);
+      // Error is handled by the mutation's onError handler
     }
   };
 

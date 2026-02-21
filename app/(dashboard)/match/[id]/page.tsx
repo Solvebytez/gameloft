@@ -337,78 +337,53 @@ export default function MatchDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Top Row: Back Button */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={handleBack}
-          className="px-4 py-2 bg-retro-dark text-white font-bold rounded hover:opacity-90 transition-opacity flex items-center gap-2"
-          aria-label="Go back"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-          Back
-        </button>
-      </div>
-
-      {/* Two Cards Side by Side - 30% Form, 70% Table */}
-      <div className="grid grid-cols-1 lg:grid-cols-[30%_70%] gap-6">
+      {/* Two Cards Side by Side - 25% Form, 75% Table */}
+      <div className="grid grid-cols-1 lg:grid-cols-[25%_75%] gap-6 pr-4">
         {/* Entry Window Card - Left Side */}
         <Card>
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-foreground">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-xl font-bold text-foreground">
               {isEditMode ? 'Edit Entry' : 'Entry Window'}
             </h1>
             {isLoadingEntry && (
               <span className="text-sm text-retro-dark">Loading entry data...</span>
             )}
           </div>
-          <form onSubmit={handleSubmit} className="space-y-6" style={{ opacity: isLoadingEntry ? 0.6 : 1 }}>
+          <form onSubmit={handleSubmit} className="space-y-4" style={{ opacity: isLoadingEntry ? 0.6 : 1 }}>
           {/* Team Selection Cards - Teams stay in fixed positions, only colors switch */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             {/* Team 1 Card - Green if favourite, Red if not */}
             <button
               type="button"
               onClick={() => handleTeamSelect('team1')}
-              className={`relative p-3 rounded-lg border-2 transition-all ${
+              className={`relative p-2 rounded-lg border-2 transition-all ${
                 favouriteTeam === 'team1'
-                  ? 'bg-green-500/70 border-green-700 hover:bg-green-600/70'
-                  : 'bg-red-500/70 border-red-700 hover:bg-red-600/70'
+                  ? 'bg-green-600 border-green-800 hover:bg-green-700'
+                  : 'bg-red-600 border-red-800 hover:bg-red-700'
               }`}
             >
-              <div className="flex flex-col items-center space-y-1.5">
-                <div className="text-white font-bold text-xs mb-1">
+              <div className="flex flex-col items-center space-y-1">
+                <div className="text-white font-bold text-[10px] mb-0.5">
                   {favouriteTeam === 'team1' ? 'Fav.' : 'NFav.'}
                 </div>
-                <div className="relative w-16 h-16 border-2 border-white rounded overflow-hidden bg-white">
+                <div className="relative w-12 h-12 border-2 border-white rounded overflow-hidden bg-white">
                   {matchData.team1.logo ? (
                     <Image
                       src={matchData.team1.logo}
                       alt={matchData.team1.name}
-                      width={64}
-                      height={64}
+                      width={48}
+                      height={48}
                       className="object-contain"
                       unoptimized
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-retro-dark text-xs font-bold">
+                    <div className="w-full h-full flex items-center justify-center text-retro-dark text-[10px] font-bold">
                       {matchData.team1.name.charAt(0)}
                     </div>
                   )}
                 </div>
                 <div className="text-center">
-                  <div className="text-white font-bold text-sm">{matchData.team1.name.toUpperCase()}</div>
-                  <div className="text-white font-semibold text-xs">{matchData.team1.name}</div>
+                  <div className="text-white font-bold text-xs truncate w-full">{matchData.team1.name.toUpperCase()}</div>
                 </div>
               </div>
             </button>
@@ -417,46 +392,45 @@ export default function MatchDetailPage() {
             <button
               type="button"
               onClick={() => handleTeamSelect('team2')}
-              className={`relative p-3 rounded-lg border-2 transition-all ${
+              className={`relative p-2 rounded-lg border-2 transition-all ${
                 favouriteTeam === 'team2'
-                  ? 'bg-green-500/70 border-green-700 hover:bg-green-600/70'
-                  : 'bg-red-500/70 border-red-700 hover:bg-red-600/70'
+                  ? 'bg-green-600 border-green-800 hover:bg-green-700'
+                  : 'bg-red-600 border-red-800 hover:bg-red-700'
               }`}
             >
-              <div className="flex flex-col items-center space-y-1.5">
-                <div className="text-white font-bold text-xs mb-1">
+              <div className="flex flex-col items-center space-y-1">
+                <div className="text-white font-bold text-[10px] mb-0.5">
                   {favouriteTeam === 'team2' ? 'Fav.' : 'NFav.'}
                 </div>
-                <div className="relative w-16 h-16 border-2 border-white rounded overflow-hidden bg-white">
+                <div className="relative w-12 h-12 border-2 border-white rounded overflow-hidden bg-white">
                   {matchData.team2.logo ? (
                     <Image
                       src={matchData.team2.logo}
                       alt={matchData.team2.name}
-                      width={64}
-                      height={64}
+                      width={48}
+                      height={48}
                       className="object-contain"
                       unoptimized
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-retro-dark text-xs font-bold">
+                    <div className="w-full h-full flex items-center justify-center text-retro-dark text-[10px] font-bold">
                       {matchData.team2.name.charAt(0)}
                     </div>
                   )}
                 </div>
                 <div className="text-center">
-                  <div className="text-white font-bold text-sm">{matchData.team2.name.toUpperCase()}</div>
-                  <div className="text-white font-semibold text-xs">{matchData.team2.name}</div>
+                  <div className="text-white font-bold text-xs truncate w-full">{matchData.team2.name.toUpperCase()}</div>
                 </div>
               </div>
             </button>
           </div>
 
           {/* Filter Section */}
-          <div className="bg-[var(--muted)] px-4 py-2 rounded-lg border border-[var(--retro-dark)]">
+          <div className="bg-[var(--muted)] px-3 py-1.5 rounded-lg border border-[var(--retro-dark)]">
             {/* Radio Buttons Row */}
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 flex-shrink-0">
-                <label className="text-sm font-semibold text-retro-dark whitespace-nowrap">Filter:</label>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <label className="text-xs font-semibold text-retro-dark whitespace-nowrap">Filter:</label>
                 
                 {/* All User Filter */}
                 <label className="flex items-center gap-2 cursor-pointer whitespace-nowrap">
@@ -469,9 +443,9 @@ export default function MatchDetailPage() {
                       setFilterType('all');
                       setFilterCustomer('');
                     }}
-                    className="w-4 h-4 text-blue-600 border-2 border-retro-dark focus:ring-2 focus:ring-retro-accent"
+                    className="w-3 h-3 text-blue-600 border-2 border-retro-dark focus:ring-2 focus:ring-retro-accent"
                   />
-                  <span className="text-retro-dark font-semibold text-sm">All User</span>
+                  <span className="text-retro-dark font-semibold text-xs">All User</span>
                 </label>
               </div>
 
@@ -485,20 +459,21 @@ export default function MatchDetailPage() {
                   onChange={(e) => {
                     setFilterType('customer');
                   }}
-                  className="w-4 h-4 text-blue-600 border-2 border-retro-dark focus:ring-2 focus:ring-retro-accent"
+                  className="w-3 h-3 text-blue-600 border-2 border-retro-dark focus:ring-2 focus:ring-retro-accent"
                 />
-                <span className="text-retro-dark font-semibold text-sm">Customer Wise</span>
+                <span className="text-retro-dark font-semibold text-xs">Customer Wise</span>
               </label>
             </div>
             
             {/* Dropdown Row - Shows below when Customer Wise is selected */}
             {filterType === 'customer' && (
-              <div className="mt-2">
+              <div className="mt-1.5">
                 <Select
                   options={customerFilterOptions}
                   value={filterCustomer}
                   onChange={(e) => setFilterCustomer(e.target.value)}
-                  className="w-48 !py-2 !text-xs !font-normal"
+                  className="!py-1.5 !text-xs !border-2"
+                  containerClassName="!mb-0"
                   disabled={isLoadingUsers}
                 />
               </div>
@@ -522,44 +497,46 @@ export default function MatchDetailPage() {
                   }, 100);
                 }
               }}
+              className="!text-xs !py-1.5 !border-2"
+              containerClassName="!mb-0"
               disabled={isLoadingUsers}
             />
             {isLoadingUsers && (
-              <p className="text-sm text-retro-dark mt-1">Loading users...</p>
+              <p className="text-xs text-retro-dark mt-1">Loading users...</p>
             )}
             {!isLoadingUsers && userOptions.length === 0 && (
-              <p className="text-sm text-red-600 mt-1">No active users found</p>
+              <p className="text-xs text-red-600 mt-1">No active users found</p>
             )}
           </div>
 
           {/* Rate and Amount Inputs - Two Columns (One per Team) */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Section Headers */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-3">
               {/* Team 1 Column Header */}
               <div>
-                <h3 className={`text-base font-bold mb-1 whitespace-nowrap ${
+                <h3 className={`text-xs font-bold mb-0.5 whitespace-nowrap ${
                   favouriteTeam === 'team1' ? 'text-green-700' : 'text-red-700'
-                }`} style={{ fontSize: '16px' }}>
+                }`}>
                   {favouriteTeam === 'team1' ? 'Favourite - Lagai' : 'Non-Favourite - Khai'}
                 </h3>
-                <p className="text-xs text-retro-dark truncate">{matchData.team1.name}</p>
+                <p className="text-[9px] text-retro-dark truncate">{matchData.team1.name}</p>
               </div>
               {/* Team 2 Column Header */}
               <div>
-                <h3 className={`text-base font-bold mb-1 whitespace-nowrap ${
+                <h3 className={`text-xs font-bold mb-0.5 whitespace-nowrap ${
                   favouriteTeam === 'team2' ? 'text-green-700' : 'text-red-700'
-                }`} style={{ fontSize: '16px' }}>
+                }`}>
                   {favouriteTeam === 'team2' ? 'Favourite - Lagai' : 'Non-Favourite - Khai'}
                 </h3>
-                <p className="text-xs text-retro-dark truncate">{matchData.team2.name}</p>
+                <p className="text-[9px] text-retro-dark truncate">{matchData.team2.name}</p>
               </div>
             </div>
             
             {/* Input Fields - Two Columns: Each column has Rate and Amount */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-3">
               {/* Team 1 Column */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <Input
                   ref={team1RateRef}
                   label="Rate"
@@ -570,9 +547,10 @@ export default function MatchDetailPage() {
                   onKeyDown={(e) => handleKeyDown(e, 'team1Rate')}
                   className={
                     favouriteTeam === 'team1'
-                      ? '!bg-green-100 !border-green-600 !border-[3px] focus:!ring-green-500 focus:!border-green-600'
-                      : '!bg-red-100 !border-red-600 !border-[3px] focus:!ring-red-500 focus:!border-red-600'
+                      ? '!bg-green-100 !border-green-600 !border-2 !text-sm !py-1.5 focus:!ring-green-500 focus:!border-green-600'
+                      : '!bg-red-100 !border-red-600 !border-2 !text-sm !py-1.5 focus:!ring-red-500 focus:!border-red-600'
                   }
+                  containerClassName="!mb-0"
                 />
                 <Input
                   ref={team1AmountRef}
@@ -584,13 +562,14 @@ export default function MatchDetailPage() {
                   onKeyDown={(e) => handleKeyDown(e, 'team1Amount')}
                   className={
                     favouriteTeam === 'team1'
-                      ? '!bg-green-100 !border-green-600 !border-[3px] focus:!ring-green-500 focus:!border-green-600'
-                      : '!bg-red-100 !border-red-600 !border-[3px] focus:!ring-red-500 focus:!border-red-600'
+                      ? '!bg-green-100 !border-green-600 !border-2 !text-sm !py-1.5 focus:!ring-green-500 focus:!border-green-600'
+                      : '!bg-red-100 !border-red-600 !border-2 !text-sm !py-1.5 focus:!ring-red-500 focus:!border-red-600'
                   }
+                  containerClassName="!mb-0 !mt-4"
                 />
               </div>
               {/* Team 2 Column */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <Input
                   ref={team2RateRef}
                   label="Rate"
@@ -601,9 +580,10 @@ export default function MatchDetailPage() {
                   onKeyDown={(e) => handleKeyDown(e, 'team2Rate')}
                   className={
                     favouriteTeam === 'team2'
-                      ? '!bg-green-100 !border-green-600 !border-[3px] focus:!ring-green-500 focus:!border-green-600'
-                      : '!bg-red-100 !border-red-600 !border-[3px] focus:!ring-red-500 focus:!border-red-600'
+                      ? '!bg-green-100 !border-green-600 !border-2 !text-sm !py-1.5 focus:!ring-green-500 focus:!border-green-600'
+                      : '!bg-red-100 !border-red-600 !border-2 !text-sm !py-1.5 focus:!ring-red-500 focus:!border-red-600'
                   }
+                  containerClassName="!mb-0"
                 />
                 <Input
                   ref={team2AmountRef}
@@ -615,21 +595,22 @@ export default function MatchDetailPage() {
                   onKeyDown={(e) => handleKeyDown(e, 'team2Amount')}
                   className={
                     favouriteTeam === 'team2'
-                      ? '!bg-green-100 !border-green-600 !border-[3px] focus:!ring-green-500 focus:!border-green-600'
-                      : '!bg-red-100 !border-red-600 !border-[3px] focus:!ring-red-500 focus:!border-red-600'
+                      ? '!bg-green-100 !border-green-600 !border-2 !text-sm !py-1.5 focus:!ring-green-500 focus:!border-green-600'
+                      : '!bg-red-100 !border-red-600 !border-2 !text-sm !py-1.5 focus:!ring-red-500 focus:!border-red-600'
                   }
+                  containerClassName="!mb-0 !mt-4"
                 />
               </div>
             </div>
           </div>
 
           {/* Submit and Cancel Buttons */}
-          <div className="flex justify-center gap-4 pt-4">
+          <div className="flex justify-center gap-2 pt-3">
             {isEditMode && (
               <button
                 type="button"
                 onClick={handleCancelEdit}
-                className="px-8 py-3 bg-gray-500 text-white font-bold text-lg rounded-lg hover:bg-gray-600 transition-colors"
+                className="px-4 py-1.5 bg-gray-500 text-white font-bold text-sm rounded hover:bg-gray-600 transition-colors"
               >
                 Cancel
               </button>
@@ -637,7 +618,7 @@ export default function MatchDetailPage() {
             <button
               type="submit"
               disabled={createEntryMutation.isPending || updateEntryMutation.isPending || isLoadingEntry}
-              className="px-8 py-3 bg-blue-500 text-white font-bold text-lg rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-1.5 bg-blue-500 text-white font-bold text-sm rounded hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoadingEntry 
                 ? 'Loading...' 
@@ -669,26 +650,26 @@ export default function MatchDetailPage() {
                 <table className="w-full border-collapse text-xs">
                   <thead>
                     <tr className="border-t-2 border-b-2 border-retro-dark">
-                      <th className="px-1 py-1.5 text-left font-bold text-retro-dark text-xs">Customer</th>
-                      <th className="px-1 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark" colSpan={2}>
+                      <th className="px-1 py-1.5 text-left font-bold text-retro-dark text-base">Customer</th>
+                      <th className="px-1 py-1.5 text-center font-bold text-retro-dark text-base border-l-2 border-retro-dark" colSpan={2}>
                         {matchData.team1.name}
                       </th>
-                      <th className="px-1 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark" colSpan={2}>
+                      <th className="px-1 py-1.5 text-center font-bold text-retro-dark text-base border-l-2 border-retro-dark" colSpan={2}>
                         {matchData.team2.name}
                       </th>
-                      <th className="px-1 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark">Action</th>
-                      <th className="px-1 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark">Created at</th>
-                      <th className="px-1 py-1.5 text-center font-bold text-retro-dark text-xs border-l-2 border-retro-dark">Updated at</th>
+                      <th className="px-1 py-1.5 text-center font-bold text-retro-dark text-base border-l-2 border-retro-dark">Action</th>
+                      <th className="px-1 py-1.5 text-center font-bold text-retro-dark text-base border-l-2 border-retro-dark">Created at</th>
+                      <th className="px-1 py-1.5 text-center font-bold text-retro-dark text-base border-l-2 border-retro-dark">Updated at</th>
                     </tr>
                     <tr className="border-b-2 border-retro-dark">
                       <th></th>
-                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark">Fav.</th>
-                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-xs">NFav.</th>
-                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark">Fav.</th>
-                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-xs">NFav.</th>
-                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark"></th>
-                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark"></th>
-                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-xs border-l-2 border-retro-dark"></th>
+                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-base border-l-2 border-retro-dark">Fav.</th>
+                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-base">NFav.</th>
+                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-base border-l-2 border-retro-dark">Fav.</th>
+                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-base">NFav.</th>
+                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-base border-l-2 border-retro-dark"></th>
+                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-base border-l-2 border-retro-dark"></th>
+                      <th className="px-1 py-1 text-center font-semibold text-retro-dark text-base border-l-2 border-retro-dark"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -702,59 +683,74 @@ export default function MatchDetailPage() {
                         return null;
                       };
                       const commissionTypeBadge = getCommissionTypeBadge(user?.commission_type);
+                      const isCutUser = user?.mark_as_cut === 'yes';
                       
                       return (
                       <tr key={entry.id} className="border-b border-retro-dark/20 hover:bg-retro-cream/50">
                         <td className="px-1 py-1.5 relative">
-                          <span className="inline-block px-1.5 py-0.5 bg-blue-500 text-white font-semibold text-xs rounded">
-                            {entry.customer ? entry.customer.split(' ')[0] : 'N/A'}
-                          </span>
-                          {commissionTypeBadge && (
-                            <span className={`absolute top-1 right-1 text-[10px] font-semibold px-1 py-0.5 rounded ${commissionTypeBadge.color}`}>
-                              {commissionTypeBadge.text}
-                            </span>
-                          )}
+                          <div className="flex flex-col gap-1 items-start">
+                            <div className="flex items-center gap-1">
+                              <span className="inline-block px-1.5 py-0.5 bg-blue-500 text-white font-semibold text-xs rounded">
+                                {entry.customer ? entry.customer.split(' ')[0] : 'N/A'}
+                              </span>
+                              {isCutUser && (
+                                <span className="inline-block px-1 py-0.5 bg-orange-200 text-orange-800 rounded text-[10px] font-semibold">
+                                  CT
+                                </span>
+                              )}
+                              {!isCutUser && commissionTypeBadge && (
+                                <span className={`inline-block w-fit text-[10px] font-semibold px-1 py-0.5 rounded ${commissionTypeBadge.color}`}>
+                                  {commissionTypeBadge.text}
+                                </span>
+                              )}
+                            </div>
+                            {isCutUser && commissionTypeBadge && (
+                              <span className={`inline-block w-fit text-[10px] font-semibold px-1 py-0.5 rounded ${commissionTypeBadge.color}`}>
+                                {commissionTypeBadge.text}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-1 py-1.5 text-center border-l-2 border-retro-dark">
                           {entry.team1Fav && entry.team1Fav !== '0' && entry.team1Fav !== '0/0000' ? (
-                            <span className="inline-block px-1.5 py-0.5 bg-green-500 text-white font-semibold text-xs rounded">
+                            <span className="inline-block px-1.5 py-0.5 bg-green-700 text-white font-semibold text-xs rounded">
                               {entry.team1Fav}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-500 text-white font-semibold text-xs">
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-700 text-white font-semibold text-xs">
                               0
                             </span>
                           )}
                         </td>
                         <td className="px-1 py-1.5 text-center">
                           {entry.team1Nfav && entry.team1Nfav !== '0' && entry.team1Nfav !== '0/0000' ? (
-                            <span className="inline-block px-1.5 py-0.5 bg-red-500 text-white font-semibold text-xs rounded">
+                            <span className="inline-block px-1.5 py-0.5 bg-red-700 text-white font-semibold text-xs rounded">
                               {entry.team1Nfav}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-500 text-white font-semibold text-xs">
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-700 text-white font-semibold text-xs">
                               0
                             </span>
                           )}
                         </td>
                         <td className="px-1 py-1.5 text-center border-l-2 border-retro-dark">
                           {entry.team2Fav && entry.team2Fav !== '0' && entry.team2Fav !== '0/0000' ? (
-                            <span className="inline-block px-1.5 py-0.5 bg-green-500 text-white font-semibold text-xs rounded">
+                            <span className="inline-block px-1.5 py-0.5 bg-green-700 text-white font-semibold text-xs rounded">
                               {entry.team2Fav}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-500 text-white font-semibold text-xs">
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-700 text-white font-semibold text-xs">
                               0
                             </span>
                           )}
                         </td>
                         <td className="px-1 py-1.5 text-center">
                           {entry.team2Nfav && entry.team2Nfav !== '0' && entry.team2Nfav !== '0/0000' ? (
-                            <span className="inline-block px-1.5 py-0.5 bg-red-500 text-white font-semibold text-xs rounded">
+                            <span className="inline-block px-1.5 py-0.5 bg-red-700 text-white font-semibold text-xs rounded">
                               {entry.team2Nfav}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-500 text-white font-semibold text-xs">
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-700 text-white font-semibold text-xs">
                               0
                             </span>
                           )}

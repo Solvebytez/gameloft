@@ -44,7 +44,7 @@ export default function SessionMatchPage() {
     result: '',
   });
   const [addResultErrors, setAddResultErrors] = useState<Record<string, string>>({});
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   // Filter state
   const [filters, setFilters] = useState({
     user_id: '',
@@ -183,7 +183,7 @@ export default function SessionMatchPage() {
       filteredSessions = filteredSessions.filter((session) => session.is_yes === isYes);
     }
     
-    let mappedSessions = filteredSessions.map((session) => ({
+    const mappedSessions = filteredSessions.map((session) => ({
       id: session.id,
       match_id: session.match_id,
       match_name: session.match_name,
@@ -748,72 +748,65 @@ export default function SessionMatchPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Session</h1>
-        <p className="text-sm text-retro-dark/60 mt-1">
-          {matchData ? `${matchData.team1.name} vs ${matchData.team2.name}` : 'Session Entry'}
-        </p>
-      </div>
-
       {/* Form and Table Side by Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-[30%_70%] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[25%_75%] gap-6">
         {/* Form Card */}
         <Card>
-        <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
           {/* Team Logos Display - Always show since match is selected */}
           {matchData && (
             <div className="flex justify-center">
-              <div className="w-full max-w-2xl bg-[var(--retro-cream)] border-4 border-[var(--retro-dark)] rounded-lg p-4">
-                <div className="flex items-center justify-center gap-6">
+              <div className="w-full bg-[var(--retro-cream)] border-2 border-[var(--retro-dark)] rounded-lg p-2">
+                <div className="flex items-center justify-center gap-2">
                   {/* Team 1 */}
-                  <div className="flex flex-col items-center space-y-2 flex-1">
-                    <div className="relative w-20 h-20 border-2 border-retro-dark rounded overflow-hidden flex-shrink-0 bg-white">
+                  <div className="flex flex-col items-center space-y-1 flex-1">
+                    <div className="relative w-12 h-12 border-2 border-retro-dark rounded overflow-hidden flex-shrink-0 bg-white">
                       {matchData.team1.logo ? (
                         <Image
                           src={matchData.team1.logo}
                           alt={matchData.team1.name}
-                          width={80}
-                          height={80}
+                          width={48}
+                          height={48}
                           className="object-contain"
                           unoptimized
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-retro-dark text-xs font-bold">
+                        <div className="w-full h-full flex items-center justify-center text-retro-dark text-[10px] font-bold">
                           {matchData.team1.name.charAt(0)}
                         </div>
                       )}
                     </div>
-                    <span className="inline-block px-3 py-1.5 bg-retro-accent/10 text-retro-accent font-bold text-sm rounded-full border-2 border-retro-accent text-center">
+                    <span className="inline-block px-2 py-0.5 bg-retro-accent/10 text-retro-accent font-bold text-base rounded-full border border-retro-accent text-center truncate w-full">
                       {matchData.team1.name}
                     </span>
                   </div>
 
                   {/* V/S Separator */}
                   <div className="flex items-center justify-center flex-shrink-0">
-                    <span className="w-12 h-12 rounded-full bg-retro-dark text-white font-bold text-lg flex items-center justify-center">
-                      V/S
+                    <span className="w-8 h-8 rounded-full bg-retro-dark text-white font-bold text-xs flex items-center justify-center">
+                      VS
                     </span>
                   </div>
 
                   {/* Team 2 */}
-                  <div className="flex flex-col items-center space-y-2 flex-1">
-                    <div className="relative w-20 h-20 border-2 border-retro-dark rounded overflow-hidden flex-shrink-0 bg-white">
+                  <div className="flex flex-col items-center space-y-1 flex-1">
+                    <div className="relative w-12 h-12 border-2 border-retro-dark rounded overflow-hidden flex-shrink-0 bg-white">
                       {matchData.team2.logo ? (
                         <Image
                           src={matchData.team2.logo}
                           alt={matchData.team2.name}
-                          width={80}
-                          height={80}
+                          width={48}
+                          height={48}
                           className="object-contain"
                           unoptimized
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-retro-dark text-xs font-bold">
+                        <div className="w-full h-full flex items-center justify-center text-retro-dark text-[10px] font-bold">
                           {matchData.team2.name.charAt(0)}
                         </div>
                       )}
                     </div>
-                    <span className="inline-block px-3 py-1.5 bg-retro-accent/10 text-retro-accent font-bold text-sm rounded-full border-2 border-retro-accent text-center">
+                    <span className="inline-block px-2 py-0.5 bg-retro-accent/10 text-retro-accent font-bold text-base rounded-full border border-retro-accent text-center truncate w-full">
                       {matchData.team2.name}
                     </span>
                   </div>
@@ -823,7 +816,7 @@ export default function SessionMatchPage() {
           )}
 
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <Select
                 ref={userSelectRef}
                 label="User*"
@@ -833,6 +826,8 @@ export default function SessionMatchPage() {
                 onKeyDown={(e) => handleKeyDown(e, 'user_id')}
                 options={userOptions}
                 error={errors.user_id}
+                className="!text-xs !py-1.5 !border-2"
+                containerClassName="!mb-0"
               />
 
               <Select
@@ -844,31 +839,33 @@ export default function SessionMatchPage() {
                 onKeyDown={(e) => handleKeyDown(e, 'inningOver')}
                 options={inningOverOptions}
                 error={errors.inningOver}
+                className="!text-xs !py-1.5 !border-2"
+                containerClassName="!mb-0"
               />
             </div>
 
             {/* Yes/No Two Column Layout */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Section Headers */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 {/* Yes Column Header */}
                 <div className="text-center">
-                  <h3 className="text-base font-bold mb-1 text-green-700" style={{ fontSize: '16px' }}>
+                  <h3 className="text-sm font-bold text-green-700">
                     YES
                   </h3>
                 </div>
                 {/* No Column Header */}
                 <div className="text-center">
-                  <h3 className="text-base font-bold mb-1 text-red-700" style={{ fontSize: '16px' }}>
+                  <h3 className="text-sm font-bold text-red-700">
                     NO
                   </h3>
                 </div>
               </div>
               
               {/* Input Fields - Two Columns: Each column has Entry Run and Amount */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 {/* Yes Column */}
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <Input
                     ref={yesEntryRunInputRef}
                     type="number"
@@ -878,9 +875,10 @@ export default function SessionMatchPage() {
                     onChange={(e) => handleInputChange('yesEntryRun', e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, 'yesEntryRun')}
                     error={errors.yesEntryRun}
-                    placeholder="Enter entry run"
+                    placeholder="Entry run"
                     min="0"
-                    className="placeholder:text-sm !bg-green-100 !border-green-600 !border-[3px] focus:!ring-green-500 focus:!border-green-600"
+                    className="!bg-green-100 !border-green-600 !border-2 !text-sm !py-1.5 focus:!ring-green-500 focus:!border-green-600"
+                    containerClassName="!mb-0"
                   />
                   <Input
                     ref={yesAmountInputRef}
@@ -891,13 +889,14 @@ export default function SessionMatchPage() {
                     onChange={(e) => handleInputChange('yesAmount', e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, 'yesAmount')}
                     error={errors.yesAmount}
-                    placeholder="Enter amount"
+                    placeholder="Amount"
                     min="0"
-                    className="placeholder:text-sm !bg-green-100 !border-green-600 !border-[3px] focus:!ring-green-500 focus:!border-green-600"
+                    className="!bg-green-100 !border-green-600 !border-2 !text-sm !py-1.5 focus:!ring-green-500 focus:!border-green-600"
+                    containerClassName="!mb-0 !mt-4"
                   />
                 </div>
                 {/* No Column */}
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <Input
                     ref={noEntryRunInputRef}
                     type="number"
@@ -907,9 +906,10 @@ export default function SessionMatchPage() {
                     onChange={(e) => handleInputChange('noEntryRun', e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, 'noEntryRun')}
                     error={errors.noEntryRun}
-                    placeholder="Enter entry run"
+                    placeholder="Entry run"
                     min="0"
-                    className="placeholder:text-sm !bg-red-100 !border-red-600 !border-[3px] focus:!ring-red-500 focus:!border-red-600"
+                    className="!bg-red-100 !border-red-600 !border-2 !text-sm !py-1.5 focus:!ring-red-500 focus:!border-red-600"
+                    containerClassName="!mb-0"
                   />
                   <Input
                     ref={noAmountInputRef}
@@ -920,9 +920,10 @@ export default function SessionMatchPage() {
                     onChange={(e) => handleInputChange('noAmount', e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, 'noAmount')}
                     error={errors.noAmount}
-                    placeholder="Enter amount"
+                    placeholder="Amount"
                     min="0"
-                    className="placeholder:text-sm !bg-red-100 !border-red-600 !border-[3px] focus:!ring-red-500 focus:!border-red-600"
+                    className="!bg-red-100 !border-red-600 !border-2 !text-sm !py-1.5 focus:!ring-red-500 focus:!border-red-600"
+                    containerClassName="!mb-0 !mt-4"
                   />
                 </div>
               </div>
@@ -947,19 +948,19 @@ export default function SessionMatchPage() {
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-4 justify-end">
+          <div className="flex gap-3 justify-end flex-wrap">
             {isEditMode && (
               <button
                 type="button"
                 onClick={handleCancelEdit}
-                className="px-6 py-3 bg-gray-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+                className="px-3 py-1.5 bg-gray-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
               >
                 Cancel
               </button>
             )}
             <button
               type="submit"
-              className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+              className="px-3 py-1.5 bg-retro-accent text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
             >
               {isEditMode ? 'Update' : 'Save'}
             </button>
@@ -967,7 +968,7 @@ export default function SessionMatchPage() {
               <button
                 type="button"
                 onClick={handleReset}
-                className="px-6 py-3 bg-red-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+                className="px-3 py-1.5 bg-red-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
               >
                 Reset
               </button>
@@ -1089,7 +1090,7 @@ export default function SessionMatchPage() {
                       error={addResultErrors.result}
                       placeholder="Result"
                       min="0"
-                      className="placeholder:text-sm !mb-0 h-10"
+                      className="!mb-0 h-10"
                       containerClassName="mb-0"
                     />
                   </div>
@@ -1360,13 +1361,15 @@ export default function SessionMatchPage() {
                         key={entry.id} 
                         className={borderClasses}
                       >
-                        <td className="px-3 py-1.5 text-retro-dark relative">
-                          <span>{entry.user_name}</span>
-                          {commissionTypeBadge && (
-                            <span className={`absolute top-1 right-1 text-[10px] font-semibold px-1 py-0.5 rounded ${commissionTypeBadge.color}`}>
-                              {commissionTypeBadge.text}
-                            </span>
-                          )}
+                        <td className="px-3 py-1.5 text-retro-dark">
+                          <div className="flex items-center gap-2">
+                            <span className="flex-1">{entry.user_name}</span>
+                            {commissionTypeBadge && (
+                              <span className={`text-[10px] font-semibold px-1 py-0.5 rounded flex-shrink-0 ${commissionTypeBadge.color}`}>
+                                {commissionTypeBadge.text}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-3 py-1.5 text-retro-dark">{entry.group_name || '-'}</td>
                         <td className="px-3 py-1.5 text-retro-dark">{entry.inningOver}</td>

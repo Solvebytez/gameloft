@@ -25,6 +25,7 @@ export interface User {
     id: number;
     name: string;
   }>;
+  mark_as_cut?: 'no' | 'yes';
 }
 
 export interface CreateUserPayload {
@@ -36,6 +37,7 @@ export interface CreateUserPayload {
   session_commission: number;
   session_commission_type: 'no_commission' | 'profit_loss' | 'entrywise';
   group_id?: number | null;
+  mark_as_cut?: 'no' | 'yes';
 }
 
 interface UpdateUserPayload {
@@ -47,6 +49,7 @@ interface UpdateUserPayload {
   session_commission?: number;
   session_commission_type?: 'no_commission' | 'profit_loss' | 'entrywise';
   group_id?: number | null;
+  mark_as_cut?: 'no' | 'yes';
 }
 
 // Query key factory
@@ -194,6 +197,7 @@ export function useCreateUser() {
         status: 'active', // Default status
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        mark_as_cut: newUser.mark_as_cut ?? 'no',
       };
 
       queryClient.setQueryData<User[]>(userKeys.list(), (old = []) => [

@@ -42,6 +42,7 @@ export default function CreateUserPage() {
     session_commission: '',
     session_commission_type: '',
     group_id: '',
+    mark_as_cut: 'no',
   });
 
   const [isEditMode, setIsEditMode] = useState(false);
@@ -77,8 +78,13 @@ export default function CreateUserPage() {
   const updateStatusMutation = useUpdateUserStatus();
   const deleteUserMutation = useDeleteUser();
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const handleInputChange = (field: string, value: string | boolean) => {
+    // Convert boolean to 'yes'/'no' for mark_as_cut field
+    if (field === 'mark_as_cut' && typeof value === 'boolean') {
+      setFormData((prev) => ({ ...prev, [field]: value ? 'yes' : 'no' }));
+    } else {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    }
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors((prev) => {
@@ -321,6 +327,12 @@ export default function CreateUserPage() {
         if (currentGroupIdNum !== newGroupIdNum) {
           updatePayload.group_id = newGroupIdNum;
         }
+        
+        // Handle mark_as_cut - check if it changed
+        const currentMarkAsCut = editingUser.mark_as_cut ?? 'no';
+        if (formData.mark_as_cut !== currentMarkAsCut) {
+          updatePayload.mark_as_cut = formData.mark_as_cut as 'no' | 'yes';
+        }
 
         if (Object.keys(updatePayload).length > 0) {
           await updateUserMutation.mutateAsync({
@@ -345,6 +357,7 @@ export default function CreateUserPage() {
           session_commission: sessionCommissionType === 'no_commission' ? 0 : (formData.session_commission && formData.session_commission.trim() ? Number(formData.session_commission) : 0),
           session_commission_type: sessionCommissionType,
           group_id: formData.group_id ? parseInt(formData.group_id) : null,
+          mark_as_cut: formData.mark_as_cut,
         };
 
         await createUserMutation.mutateAsync(payload);
@@ -386,6 +399,7 @@ export default function CreateUserPage() {
       session_commission: (originalUser.session_commission || 0).toString(),
       session_commission_type: originalUser.session_commission_type || '',
       group_id: originalUser.group_id ? String(originalUser.group_id) : '',
+      mark_as_cut: originalUser.mark_as_cut ?? 'no',
     });
     setErrors({});
   };
@@ -402,6 +416,7 @@ export default function CreateUserPage() {
       session_commission: '',
       session_commission_type: '',
       group_id: '',
+      mark_as_cut: 'no',
     });
     setErrors({});
   };
@@ -416,6 +431,7 @@ export default function CreateUserPage() {
       id: user.id,
       userRole: user.role.charAt(0).toUpperCase() + user.role.slice(1),
       name: user.name,
+      markAsCut: user.mark_as_cut ?? 'no',
       commission: `${user.commission}%`,
       partnership: `${user.partnership}%`,
       commissionType: user.commission_type
@@ -452,6 +468,16 @@ export default function CreateUserPage() {
       key: 'name',
       label: 'Name',
       sortable: true,
+      render: (value, row) => (
+        <div className="flex items-center gap-2">
+          <span>{value}</span>
+          {row.markAsCut === 'yes' && (
+            <span className="inline-block px-2 py-0.5 bg-orange-200 text-orange-800 rounded text-xs font-semibold">
+              CT
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       key: 'commission',
@@ -668,6 +694,20 @@ export default function CreateUserPage() {
                 error={errors.session_commission}
               />
             )}
+            
+            {/* Mark as Cut Checkbox */}
+            <div className="flex items-center">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  id="mark_as_cut"
+                  checked={formData.mark_as_cut === 'yes'}
+                  onChange={(e) => handleInputChange('mark_as_cut', e.target.checked)}
+                  className="w-5 h-5 text-retro-accent focus:ring-retro-accent rounded border-gray-300"
+                />
+                <span className="text-sm font-semibold text-retro-dark">Mark as cut</span>
+              </label>
+            </div>
           </div>
 
           {/* Action Buttons - Right Aligned */}

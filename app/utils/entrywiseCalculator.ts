@@ -50,6 +50,9 @@ export function calculateEntrywise({
   // Step 1: Calculate Gross Difference (Larger - Smaller, always positive)
   const grossDifference = Math.abs(winningTeamTotal - losingTeamTotal);
   const isLosingTeamLarger = losingTeamTotal > winningTeamTotal;
+  
+  // Determine sign: if losingTeamTotal > winningTeamTotal = PROFIT (positive), else LOSS (negative)
+  const sign = isLosingTeamLarger ? 1 : -1;
 
   // Step 2: Calculate Commission on Lost Side Total
   const commission = losingTeamTotal * c;
@@ -58,11 +61,11 @@ export function calculateEntrywise({
   const netAfterCommission = grossDifference - commission;
 
   // Step 4: Apply Partnership on Net After Commission
-  // Partner share (Cust Net With Comm)
-  const custNetWithComm = netAfterCommission * s;
+  // Partner share (Cust Net With Comm) - apply sign based on profit/loss
+  const custNetWithComm = netAfterCommission * s * sign;
 
-  // System share (Net Profit/Loss)
-  const netProfitLoss = netAfterCommission * (1 - s);
+  // System share (Net Profit/Loss) - apply sign based on profit/loss
+  const netProfitLoss = netAfterCommission * (1 - s) * sign;
 
   // Commission after partnership (for display consistency)
   const commissionAfterPartnership = commission * (1 - s);
