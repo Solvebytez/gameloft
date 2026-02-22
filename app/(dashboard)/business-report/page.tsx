@@ -1434,7 +1434,8 @@ export default function BusinessReportPage() {
 
   // Create innings/over options - filter by match if match is selected
   const inningOverOptions = useMemo(() => {
-    const options = [{ value: '', label: 'Select Inning/Over' }];
+    // First option: "All" to show all innings/overs (empty value means show all)
+    const options = [{ value: '', label: 'All Innings/Overs' }];
     
     // If match is selected and reportType is session, filter innings/overs based on sessions for that match
     if (formData.selectMatch && formData.reportType === 'session' && sessionsForInningFilter.length > 0) {
@@ -1556,11 +1557,8 @@ export default function BusinessReportPage() {
       if (!formData.winningTeam) {
         newErrors.winningTeam = 'Winning Team is required';
       }
-    } else if (formData.reportType === 'session') {
-      if (!formData.inningOver) {
-        newErrors.inningOver = 'Inning/Over is required';
-      }
     }
+    // Note: inningOver is optional for session reports - if empty, shows all innings/overs
     if (formData.selectionType === 'group') {
       if (!formData.selectGroup) {
         newErrors.selectGroup = 'Select Group is required';
@@ -1924,7 +1922,7 @@ export default function BusinessReportPage() {
             {formData.reportType === 'session' ? (
               <div className="md:col-span-3">
                 <Select
-                  label="Inning/Over*"
+                  label="Inning/Over"
                   id="inning-over"
                   value={formData.inningOver}
                   onChange={(e) => handleInputChange('inningOver', e.target.value)}

@@ -8,9 +8,10 @@ interface DatePickerProps {
   onClose: () => void;
   isOpen: boolean;
   onSelectAndClose?: () => void;
+  inputId?: string; // Optional input element ID for positioning
 }
 
-export default function DatePicker({ value, onChange, onClose, isOpen, onSelectAndClose }: DatePickerProps) {
+export default function DatePicker({ value, onChange, onClose, isOpen, onSelectAndClose, inputId }: DatePickerProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [position, setPosition] = useState({ top: 0, left: 0 });
@@ -36,13 +37,20 @@ export default function DatePicker({ value, onChange, onClose, isOpen, onSelectA
 
     if (isOpen) {
       // Calculate position based on input element
-      const inputElement = document.getElementById('match-date');
+      // Try to find input by provided inputId, or fallback to 'match-date' for backward compatibility
+      const inputElement = inputId 
+        ? document.getElementById(inputId)
+        : document.getElementById('match-date');
+      
       if (inputElement) {
         const rect = inputElement.getBoundingClientRect();
         setPosition({
           top: rect.bottom + 8,
           left: rect.left,
         });
+      } else {
+        // If input not found, position at (0, 0) as fallback
+        setPosition({ top: 0, left: 0 });
       }
       document.addEventListener('mousedown', handleClickOutside);
     }

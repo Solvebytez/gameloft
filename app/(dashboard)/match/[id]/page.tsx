@@ -163,7 +163,15 @@ export default function MatchDetailPage() {
       e.preventDefault();
       e.stopPropagation();
       
-      // team1Rate → team1Amount (same team)
+      // Get current values for Favourite fields (left column)
+      const favRate = favouriteTeam === 'team1' ? team1Rate : team2Rate;
+      const favAmount = favouriteTeam === 'team1' ? team1Amount : team2Amount;
+      
+      // Get current values for Non-Favourite fields (right column)
+      const nfavRate = favouriteTeam === 'team1' ? team2Rate : team1Rate;
+      const nfavAmount = favouriteTeam === 'team1' ? team2Amount : team1Amount;
+      
+      // Favourite Rate (left column, first field) → Favourite Amount (left column, second field)
       if (currentField === 'team1Rate') {
         requestAnimationFrame(() => {
           team1AmountRef.current?.focus();
@@ -172,26 +180,26 @@ export default function MatchDetailPage() {
         return;
       }
       
-      // team1Amount → check if both team1 fields are empty, if yes go to team2Rate, else submit
+      // Favourite Amount (left column, second field) → if both Favourite fields have values, submit; else move to Non-Favourite Rate
       if (currentField === 'team1Amount') {
-        const isTeam1Empty = team1Rate.trim() === '' && team1Amount.trim() === '';
-        if (isTeam1Empty) {
-          // Both empty, move to team2Rate
-          requestAnimationFrame(() => {
-            team2RateRef.current?.focus();
-            team2RateRef.current?.select();
-          });
-        } else {
-          // Has value, submit form
+        const hasFavValues = favRate.trim() !== '' && favAmount.trim() !== '';
+        if (hasFavValues) {
+          // Both Favourite fields have values, submit form
           const form = e.currentTarget.closest('form');
           if (form) {
             form.requestSubmit();
           }
+        } else {
+          // Favourite fields are empty, move to Non-Favourite Rate
+          requestAnimationFrame(() => {
+            team2RateRef.current?.focus();
+            team2RateRef.current?.select();
+          });
         }
         return;
       }
       
-      // team2Rate → team2Amount (same team)
+      // Non-Favourite Rate (right column) → Non-Favourite Amount (right column)
       if (currentField === 'team2Rate') {
         requestAnimationFrame(() => {
           team2AmountRef.current?.focus();
@@ -200,7 +208,7 @@ export default function MatchDetailPage() {
         return;
       }
       
-      // team2Amount → always submit
+      // Non-Favourite Amount (right column) → always submit
       if (currentField === 'team2Amount') {
         const form = e.currentTarget.closest('form');
         if (form) {
@@ -212,11 +220,33 @@ export default function MatchDetailPage() {
   };
 
 
-  // Format date to "10 JAN, 26 14:30" format
+  // Format date to "10 JAN, 26 14:30" format (IST timezone)
+  // Backend sends dates in IST format: "2026-02-22 14:09:00"
   const formatDate = (dateString: string | null | undefined): string => {
     if (!dateString) return '-';
     try {
-      const date = new Date(dateString);
+      // Parse date string - if it's in format "Y-m-d H:i:s", treat it as IST
+      let dateStr = dateString.trim();
+      
+      // If date string is in format "2026-02-22 14:09:00" (no timezone), append IST timezone
+      if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateStr)) {
+        dateStr = dateStr.replace(' ', 'T') + '+05:30';
+      }
+      
+      const date = new Date(dateStr);
+      
+      // Extract date components from the original string to preserve IST time
+      // This ensures we display the exact IST time sent from backend
+      const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+      if (match) {
+        const [, year, month, day, hours, minutes] = match;
+        const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        const monthName = monthNames[parseInt(month) - 1];
+        const shortYear = year.slice(-2);
+        return `${parseInt(day)} ${monthName}, ${shortYear} ${hours}:${minutes}`;
+      }
+      
+      // Fallback to parsing the Date object if regex doesn't match
       const day = date.getDate();
       const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
       const month = monthNames[date.getMonth()];
@@ -286,8 +316,14 @@ export default function MatchDetailPage() {
           payload: updatePayload,
         });
         
-        // Reset form and exit edit mode
-        handleCancelEdit();
+        // Reset form fields but keep favourite team selection, and exit edit mode
+        setIsEditMode(false);
+        setEditingEntryId(null);
+        setAssignedUser('');
+        setTeam1Rate('');
+        setTeam1Amount('');
+        setTeam2Rate('');
+        setTeam2Amount('');
       } else {
         // Create entry for selected user
         const payload = {
@@ -303,7 +339,12 @@ export default function MatchDetailPage() {
 
         await createEntryMutation.mutateAsync(payload);
 
-        // Form values are preserved after submission
+        // Reset form fields but keep favourite team selection
+        setAssignedUser('');
+        setTeam1Rate('');
+        setTeam1Amount('');
+        setTeam2Rate('');
+        setTeam2Amount('');
       }
     } catch (error) {
       // Error is already handled by the mutation's onError callback
@@ -509,95 +550,103 @@ export default function MatchDetailPage() {
             )}
           </div>
 
-          {/* Rate and Amount Inputs - Two Columns (One per Team) */}
+          {/* Rate and Amount Inputs - Two Columns (Favourite and Non-Favourite) */}
           <div className="space-y-3">
             {/* Section Headers */}
             <div className="grid grid-cols-2 gap-3">
-              {/* Team 1 Column Header */}
+              {/* Favourite Column Header (Left) */}
               <div>
-                <h3 className={`text-xs font-bold mb-0.5 whitespace-nowrap ${
-                  favouriteTeam === 'team1' ? 'text-green-700' : 'text-red-700'
-                }`}>
-                  {favouriteTeam === 'team1' ? 'Favourite - Lagai' : 'Non-Favourite - Khai'}
+                <h3 className="text-xs font-bold mb-0.5 whitespace-nowrap text-green-700">
+                  Favourite - Lagai
                 </h3>
-                <p className="text-[9px] text-retro-dark truncate">{matchData.team1.name}</p>
+                <p className="text-[9px] text-retro-dark truncate">
+                  {favouriteTeam === 'team1' ? matchData.team1.name : matchData.team2.name}
+                </p>
               </div>
-              {/* Team 2 Column Header */}
+              {/* Non-Favourite Column Header (Right) */}
               <div>
-                <h3 className={`text-xs font-bold mb-0.5 whitespace-nowrap ${
-                  favouriteTeam === 'team2' ? 'text-green-700' : 'text-red-700'
-                }`}>
-                  {favouriteTeam === 'team2' ? 'Favourite - Lagai' : 'Non-Favourite - Khai'}
+                <h3 className="text-xs font-bold mb-0.5 whitespace-nowrap text-red-700">
+                  Non-Favourite - Khai
                 </h3>
-                <p className="text-[9px] text-retro-dark truncate">{matchData.team2.name}</p>
+                <p className="text-[9px] text-retro-dark truncate">
+                  {favouriteTeam === 'team1' ? matchData.team2.name : matchData.team1.name}
+                </p>
               </div>
             </div>
             
-            {/* Input Fields - Two Columns: Each column has Rate and Amount */}
+            {/* Input Fields - Two Columns: Left = Favourite (always), Right = Non-Favourite (always) */}
             <div className="grid grid-cols-2 gap-3">
-              {/* Team 1 Column */}
+              {/* Favourite Column (Left) - Always green, always "Fav Rate" and "Fav. Amt." */}
               <div className="space-y-3">
                 <Input
                   ref={team1RateRef}
                   label="Rate"
                   type="text"
-                  placeholder={favouriteTeam === 'team1' ? 'Fav Rate' : 'NFav Rate'}
-                  value={team1Rate}
-                  onChange={(e) => setTeam1Rate(e.target.value)}
+                  placeholder="Fav Rate"
+                  value={favouriteTeam === 'team1' ? team1Rate : team2Rate}
+                  onChange={(e) => {
+                    if (favouriteTeam === 'team1') {
+                      setTeam1Rate(e.target.value);
+                    } else {
+                      setTeam2Rate(e.target.value);
+                    }
+                  }}
                   onKeyDown={(e) => handleKeyDown(e, 'team1Rate')}
-                  className={
-                    favouriteTeam === 'team1'
-                      ? '!bg-green-100 !border-green-600 !border-2 !text-sm !py-1.5 focus:!ring-green-500 focus:!border-green-600'
-                      : '!bg-red-100 !border-red-600 !border-2 !text-sm !py-1.5 focus:!ring-red-500 focus:!border-red-600'
-                  }
+                  className="!bg-green-100 !border-green-600 !border-2 !text-sm !py-1.5 focus:!ring-green-500 focus:!border-green-600"
                   containerClassName="!mb-0"
                 />
                 <Input
                   ref={team1AmountRef}
                   label="Amount"
                   type="text"
-                  placeholder={favouriteTeam === 'team1' ? 'Fav. Amt.' : 'NFav. Am'}
-                  value={team1Amount}
-                  onChange={(e) => setTeam1Amount(e.target.value)}
+                  placeholder="Fav. Amt."
+                  value={favouriteTeam === 'team1' ? team1Amount : team2Amount}
+                  onChange={(e) => {
+                    if (favouriteTeam === 'team1') {
+                      setTeam1Amount(e.target.value);
+                    } else {
+                      setTeam2Amount(e.target.value);
+                    }
+                  }}
                   onKeyDown={(e) => handleKeyDown(e, 'team1Amount')}
-                  className={
-                    favouriteTeam === 'team1'
-                      ? '!bg-green-100 !border-green-600 !border-2 !text-sm !py-1.5 focus:!ring-green-500 focus:!border-green-600'
-                      : '!bg-red-100 !border-red-600 !border-2 !text-sm !py-1.5 focus:!ring-red-500 focus:!border-red-600'
-                  }
+                  className="!bg-green-100 !border-green-600 !border-2 !text-sm !py-1.5 focus:!ring-green-500 focus:!border-green-600"
                   containerClassName="!mb-0 !mt-4"
                 />
               </div>
-              {/* Team 2 Column */}
+              {/* Non-Favourite Column (Right) - Always red, always "NFav Rate" and "NFav. Am" */}
               <div className="space-y-3">
                 <Input
                   ref={team2RateRef}
                   label="Rate"
                   type="text"
-                  placeholder={favouriteTeam === 'team2' ? 'Fav Rate' : 'NFav Rate'}
-                  value={team2Rate}
-                  onChange={(e) => setTeam2Rate(e.target.value)}
+                  placeholder="NFav Rate"
+                  value={favouriteTeam === 'team1' ? team2Rate : team1Rate}
+                  onChange={(e) => {
+                    if (favouriteTeam === 'team1') {
+                      setTeam2Rate(e.target.value);
+                    } else {
+                      setTeam1Rate(e.target.value);
+                    }
+                  }}
                   onKeyDown={(e) => handleKeyDown(e, 'team2Rate')}
-                  className={
-                    favouriteTeam === 'team2'
-                      ? '!bg-green-100 !border-green-600 !border-2 !text-sm !py-1.5 focus:!ring-green-500 focus:!border-green-600'
-                      : '!bg-red-100 !border-red-600 !border-2 !text-sm !py-1.5 focus:!ring-red-500 focus:!border-red-600'
-                  }
+                  className="!bg-red-100 !border-red-600 !border-2 !text-sm !py-1.5 focus:!ring-red-500 focus:!border-red-600"
                   containerClassName="!mb-0"
                 />
                 <Input
                   ref={team2AmountRef}
                   label="Amount"
                   type="text"
-                  placeholder={favouriteTeam === 'team2' ? 'Fav. Amt.' : 'NFav. Am'}
-                  value={team2Amount}
-                  onChange={(e) => setTeam2Amount(e.target.value)}
+                  placeholder="NFav. Am"
+                  value={favouriteTeam === 'team1' ? team2Amount : team1Amount}
+                  onChange={(e) => {
+                    if (favouriteTeam === 'team1') {
+                      setTeam2Amount(e.target.value);
+                    } else {
+                      setTeam1Amount(e.target.value);
+                    }
+                  }}
                   onKeyDown={(e) => handleKeyDown(e, 'team2Amount')}
-                  className={
-                    favouriteTeam === 'team2'
-                      ? '!bg-green-100 !border-green-600 !border-2 !text-sm !py-1.5 focus:!ring-green-500 focus:!border-green-600'
-                      : '!bg-red-100 !border-red-600 !border-2 !text-sm !py-1.5 focus:!ring-red-500 focus:!border-red-600'
-                  }
+                  className="!bg-red-100 !border-red-600 !border-2 !text-sm !py-1.5 focus:!ring-red-500 focus:!border-red-600"
                   containerClassName="!mb-0 !mt-4"
                 />
               </div>

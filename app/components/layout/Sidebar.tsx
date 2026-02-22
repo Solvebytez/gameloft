@@ -172,7 +172,15 @@ export default function Sidebar({ isCollapsed }: SidebarProps) {
       <nav className="flex-1 overflow-y-auto py-4 custom-scrollbar">
         <ul className="space-y-1 px-2">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            // For Dashboard, also check if pathname starts with /match/
+            // For Session, also check if pathname starts with /session/
+            let isActive = pathname === item.href;
+            if (item.href === '/dashboard' && pathname.startsWith('/match/')) {
+              isActive = true;
+            }
+            if (item.href === '/session' && pathname.startsWith('/session/')) {
+              isActive = true;
+            }
             return (
               <li key={item.href}>
                 <Link

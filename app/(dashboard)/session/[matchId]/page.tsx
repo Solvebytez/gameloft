@@ -573,7 +573,18 @@ export default function SessionMatchPage() {
 
         setIsEditMode(false);
         setEditingEntry(null);
-        // Don't reset form - keep the data
+        
+        // Reset form fields but keep match_id
+        setFormData({
+          match_id: matchIdNumber ? String(matchIdNumber) : '',
+          user_id: '',
+          inningOver: '',
+          yesEntryRun: '',
+          yesAmount: '',
+          noEntryRun: '',
+          noAmount: '',
+        });
+        setErrors({});
       } else {
         // Create new entries - create both Yes and No entries if they have values
         const entriesToCreate = [];
@@ -604,7 +615,18 @@ export default function SessionMatchPage() {
         for (const entry of entriesToCreate) {
           await createSessionMutation.mutateAsync(entry);
         }
-        // Don't reset form - keep the data for next entry
+        
+        // Reset form fields but keep match_id
+        setFormData({
+          match_id: matchIdNumber ? String(matchIdNumber) : '',
+          user_id: '',
+          inningOver: '',
+          yesEntryRun: '',
+          yesAmount: '',
+          noEntryRun: '',
+          noAmount: '',
+        });
+        setErrors({});
       }
     } catch (error) {
       console.error('Error saving entry:', error);

@@ -325,13 +325,19 @@ const inningsOverColumns: Column<InningsOver>[] = [
     key: 'created_at',
     label: 'Created At',
     render: (value, inningsOver) => {
-      const date = new Date(inningsOver.created_at);
+      // Parse date as IST (backend sends dates in IST format)
+      let dateStr = inningsOver.created_at?.trim() || '';
+      if (dateStr && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateStr)) {
+        dateStr = dateStr.replace(' ', 'T') + '+05:30';
+      }
+      const date = new Date(dateStr || inningsOver.created_at);
       return (
         <span className="text-sm text-retro-dark/60">
           {date.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric',
+            timeZone: 'Asia/Kolkata',
           })}
         </span>
       );
