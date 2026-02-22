@@ -21,6 +21,7 @@ export interface Entry {
   created_by: number;
   created_at: string;
   updated_at: string;
+  match_name?: string;
 }
 
 export interface CreateEntryPayload {
