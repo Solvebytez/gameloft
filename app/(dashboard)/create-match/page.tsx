@@ -7,7 +7,8 @@ import Select from '@/app/components/ui/Select';
 import DatePicker from '@/app/components/ui/DatePicker';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
 import { useTeams } from '@/app/hooks/useTeams';
-import { useMatches, useCreateMatch } from '@/app/hooks/useMatches';
+import { useMatches, useCreateMatch, useUpdateMatch, useDeleteMatch, Match } from '@/app/hooks/useMatches';
+import ConfirmModal from '@/app/components/ui/ConfirmModal';
 
 export default function CreateMatchPage() {
   const [formData, setFormData] = useState({
@@ -18,12 +19,19 @@ export default function CreateMatchPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [editingMatchId, setEditingMatchId] = useState<number | null>(null);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ isOpen: boolean; matchId: number | null }>({
+    isOpen: false,
+    matchId: null,
+  });
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch teams created by current user
   const { data: teams = [], isLoading: teamsLoading } = useTeams();
   const { data: matches = [], isLoading: matchesLoading } = useMatches();
   const createMatchMutation = useCreateMatch();
+  const updateMatchMutation = useUpdateMatch();
+  const deleteMatchMutation = useDeleteMatch();
 
   // Convert teams to options for Select component
   const teamOptions = useMemo(() => {
@@ -81,6 +89,12 @@ export default function CreateMatchPage() {
     return `${year}-${month}-${day}`;
   };
 
+  // Convert yyyy-mm-dd to dd-mm-yyyy for UI
+  const convertDateToUIFormat = (dateStr: string): string => {
+    const [year, month, day] = dateStr.split('-');
+    return `${day}-${month}-${year}`;
+  };
+
   const handleDateChange = (date: string) => {
     setFormData((prev) => ({ ...prev, matchDate: date }));
     setIsCalendarOpen(false);
@@ -125,28 +139,59 @@ export default function CreateMatchPage() {
       // Convert date format from dd-mm-yyyy to yyyy-mm-dd
       const apiDate = convertDateToAPIFormat(formData.matchDate);
 
-      await createMatchMutation.mutateAsync({
-        team1_id: parseInt(formData.team1),
-        team2_id: parseInt(formData.team2),
-        match_date: apiDate,
-      });
+      if (editingMatchId) {
+        // Update existing match
+        const updatePayload: { team1_id?: number; team2_id?: number; match_date?: string } = {};
+        
+        // Find the original match to compare values
+        const originalMatch = matches.find((m) => m.id === editingMatchId);
+        if (originalMatch) {
+          if (parseInt(formData.team1) !== originalMatch.team1_id) {
+            updatePayload.team1_id = parseInt(formData.team1);
+          }
+          if (parseInt(formData.team2) !== originalMatch.team2_id) {
+            updatePayload.team2_id = parseInt(formData.team2);
+          }
+          if (apiDate !== originalMatch.match_date) {
+            updatePayload.match_date = apiDate;
+          }
+        }
+
+        // Only call update if there are changes
+        if (Object.keys(updatePayload).length > 0) {
+          await updateMatchMutation.mutateAsync({
+            id: editingMatchId,
+            payload: updatePayload,
+          });
+        } else {
+          toast('No changes to save', { duration: 2000 });
+        }
+      } else {
+        // Create new match
+        await createMatchMutation.mutateAsync({
+          team1_id: parseInt(formData.team1),
+          team2_id: parseInt(formData.team2),
+          match_date: apiDate,
+        });
+      }
 
       // Clear all errors on success
       setErrors({});
 
       // Reset form after successful save
-      setFormData({
-        matchDate: '',
-        team1: '',
-        team2: '',
-      });
+      handleCancelEdit();
     } catch (error) {
       // Error is handled by the mutation's onError callback
-      console.error('Failed to create match:', error);
+      console.error('Failed to save match:', error);
     }
   };
 
   const handleReset = () => {
+    handleCancelEdit();
+    toast.success('Form reset', { duration: 2000 });
+  };
+
+  const handleCancelEdit = () => {
     setFormData({
       matchDate: '',
       team1: '',
@@ -154,7 +199,7 @@ export default function CreateMatchPage() {
     });
     setErrors({});
     setIsCalendarOpen(false);
-    toast.success('Form reset', { duration: 2000 });
+    setEditingMatchId(null);
   };
 
   // DataTable columns configuration
@@ -192,15 +237,49 @@ export default function CreateMatchPage() {
   ];
 
   const handleEdit = (match: { id: string; matchBetween: string; date: string; winner: string; status: string }) => {
-    toast.success(`Editing match: ${match.matchBetween}`, { duration: 2000 });
-    // Handle edit logic here - in future will navigate to edit page or open modal
-    console.log('Edit match:', match);
+    // Find the full match object from matches array
+    const fullMatch = matches.find((m) => m.id.toString() === match.id);
+    if (!fullMatch) {
+      toast.error('Match not found', { duration: 2000 });
+      return;
+    }
+
+    // Convert API date format (yyyy-mm-dd) to UI format (dd-mm-yyyy)
+    const uiDate = convertDateToUIFormat(fullMatch.match_date);
+
+    // Populate form with match data
+    setFormData({
+      matchDate: uiDate,
+      team1: fullMatch.team1_id.toString(),
+      team2: fullMatch.team2_id.toString(),
+    });
+
+    // Set editing mode
+    setEditingMatchId(fullMatch.id);
+
+    // Clear any errors
+    setErrors({});
+
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDelete = (match: { id: string; matchBetween: string; date: string; winner: string; status: string }) => {
-    if (confirm(`Are you sure you want to delete match ${match.matchBetween}?`)) {
-      toast.success(`Match ${match.matchBetween} deleted successfully`, { duration: 2000 });
-      // TODO: Implement delete API
+    setDeleteConfirmModal({
+      isOpen: true,
+      matchId: parseInt(match.id),
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmModal.matchId) return;
+
+    try {
+      await deleteMatchMutation.mutateAsync(deleteConfirmModal.matchId);
+      setDeleteConfirmModal({ isOpen: false, matchId: null });
+    } catch (error) {
+      // Error is handled by the mutation's onError callback
+      console.error('Failed to delete match:', error);
     }
   };
 
@@ -312,11 +391,24 @@ export default function CreateMatchPage() {
             <button
               type="button"
               onClick={handleSave}
-              disabled={createMatchMutation.isPending || teamsLoading}
+              disabled={createMatchMutation.isPending || updateMatchMutation.isPending || teamsLoading}
               className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {createMatchMutation.isPending ? 'Saving...' : 'Save'}
+              {createMatchMutation.isPending || updateMatchMutation.isPending
+                ? 'Saving...'
+                : editingMatchId
+                ? 'Update'
+                : 'Save'}
             </button>
+            {editingMatchId && (
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="px-6 py-3 bg-gray-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+              >
+                Cancel
+              </button>
+            )}
             <button
               type="button"
               onClick={handleReset}
@@ -347,6 +439,22 @@ export default function CreateMatchPage() {
           />
         )}
       </Card>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirmModal.isOpen}
+        onCancel={() => setDeleteConfirmModal({ isOpen: false, matchId: null })}
+        onConfirm={handleConfirmDelete}
+        title="Delete Match"
+        message={
+          deleteConfirmModal.matchId
+            ? `Are you sure you want to delete match "${matches.find((m) => m.id === deleteConfirmModal.matchId)?.match_between || 'this match'}"? This action cannot be undone.`
+            : 'Are you sure you want to delete this match? This action cannot be undone.'
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmButtonColor="red"
+      />
     </div>
   );
 }

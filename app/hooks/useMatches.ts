@@ -38,6 +38,12 @@ interface CreateMatchPayload {
   match_date: string; // Format: YYYY-MM-DD
 }
 
+interface UpdateMatchPayload {
+  team1_id?: number;
+  team2_id?: number;
+  match_date?: string; // Format: YYYY-MM-DD
+}
+
 // Query key factory
 export const matchKeys = {
   all: ['matches'] as const,
@@ -168,6 +174,78 @@ export function useCreateMatch() {
     },
     onError: (err: Error) => {
       toast.error(err instanceof Error ? err.message : 'Failed to create match');
+    },
+  });
+}
+
+// Update match mutation
+export function useUpdateMatch() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: number; payload: UpdateMatchPayload }): Promise<Match> => {
+      try {
+        const response = await api.put(`/v1/admin/matches/${id}`, payload);
+        
+        if (response.data.success) {
+          return response.data.data;
+        }
+        
+        throw new Error(response.data.message || 'Failed to update match');
+      } catch (error) {
+        const axiosError = error as AxiosError<{ message?: string; errors?: Record<string, string[]> }>;
+        
+        if (axiosError.response?.data?.errors) {
+          const errorMessages = Object.values(axiosError.response.data.errors).flat();
+          throw new Error(errorMessages.join(', '));
+        }
+        
+        throw new Error(axiosError.response?.data?.message || 'Failed to update match');
+      }
+    },
+    onError: (err: Error) => {
+      toast.error(err instanceof Error ? err.message : 'Failed to update match');
+    },
+    onSuccess: () => {
+      // Invalidate and refetch matches list
+      queryClient.invalidateQueries({ queryKey: matchKeys.list() });
+      toast.success('Match updated successfully!');
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: matchKeys.list() });
+    },
+  });
+}
+
+// Delete match mutation
+export function useDeleteMatch() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: number): Promise<void> => {
+      try {
+        const response = await api.delete(`/v1/admin/matches/${id}`);
+        
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Failed to delete match');
+        }
+      } catch (error) {
+        const axiosError = error as AxiosError<{ message?: string }>;
+        throw new Error(axiosError.response?.data?.message || 'Failed to delete match');
+      }
+    },
+    onError: (err: Error) => {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete match');
+    },
+    onSuccess: () => {
+      // Invalidate and refetch matches list
+      queryClient.invalidateQueries({ queryKey: matchKeys.list() });
+      toast.success('Match deleted successfully!');
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: matchKeys.list() });
     },
   });
 }
