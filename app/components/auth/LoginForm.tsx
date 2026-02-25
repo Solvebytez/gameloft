@@ -117,7 +117,18 @@ export default function LoginForm() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full py-3 bg-[#8b6f47] text-white font-semibold uppercase rounded-md hover:bg-[#7a5f3a] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-3 text-white font-semibold uppercase rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ backgroundColor: '#3c8dbc' }}
+          onMouseEnter={(e) => {
+            if (!isLoading) {
+              e.currentTarget.style.backgroundColor = '#357abd';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isLoading) {
+              e.currentTarget.style.backgroundColor = '#3c8dbc';
+            }
+          }}
         >
           {isLoading ? 'LOGGING IN...' : 'LOGIN'}
         </button>
