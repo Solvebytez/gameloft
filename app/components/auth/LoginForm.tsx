@@ -66,7 +66,7 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="bg-[#f5f1e8] border-4 border-[#2d2d2d] rounded-lg p-6">
+    <div className="bg-white border-4 border-[#2d2d2d] rounded-lg p-6">
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Email Field */}
         <Input

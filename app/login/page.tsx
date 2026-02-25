@@ -6,7 +6,7 @@ import LoginForm from '@/app/components/auth/LoginForm';
 export default function LoginPage() {
   return (
     <>
-      <div className="min-h-screen bg-[#e8dcc8] flex items-center justify-center relative px-4">
+      <div className="min-h-screen flex items-center justify-center relative px-4" style={{ backgroundColor: '#ecf0f5' }}>
       {/* Green square indicator - top right */}
       <div className="absolute top-4 right-4 w-4 h-4 bg-green-500"></div>
       
