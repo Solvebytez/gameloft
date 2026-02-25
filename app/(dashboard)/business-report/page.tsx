@@ -1,16 +1,17 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import Card from '@/app/components/ui/Card';
 import Select from '@/app/components/ui/Select';
 import DatePicker from '@/app/components/ui/DatePicker';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
-import { useMatchesByDate } from '@/app/hooks/useMatches';
-import { useUsers } from '@/app/hooks/useUsers';
-import { useGroups } from '@/app/hooks/useGroups';
-import { useInningsOvers } from '@/app/hooks/useInningsOvers';
-import { useSessions, Session } from '@/app/hooks/useSessions';
+import { useMatchesByDate, matchKeys } from '@/app/hooks/useMatches';
+import { useUsers, userKeys } from '@/app/hooks/useUsers';
+import { useGroups, groupKeys } from '@/app/hooks/useGroups';
+import { useInningsOvers, inningsOverKeys } from '@/app/hooks/useInningsOvers';
+import { useSessions, Session, sessionKeys } from '@/app/hooks/useSessions';
 import { useEntries, Entry } from '@/app/hooks/useEntries';
 import { calculateEntrywise } from '@/app/utils/entrywiseCalculator';
 import { reverseCutUserCalculation } from '@/app/utils/cutUserCalculator';
@@ -73,6 +74,8 @@ function calculateRowResult({
 }
 
 export default function BusinessReportPage() {
+  const queryClient = useQueryClient();
+  
   const [formData, setFormData] = useState({
     reportType: '',
     matchDate: '',
@@ -1309,32 +1312,32 @@ export default function BusinessReportPage() {
       });
 
       // Add ONE empty separator row between team totals
-      // rows.push({
-      //   srNo: '',
-      //   custName: '',
-      //   totalBet: 0,
-      //   profitLoss: 0,
-      //   totalCommission: 0,
-      //   commissionPercent: 0,
-      //   partnership: '',
-      //   custNetWithComm: 0,
-      //   netProfitLoss: 0,
-      // });
+      rows.push({
+        srNo: '',
+        custName: '',
+        totalBet: 0,
+        profitLoss: 0,
+        totalCommission: 0,
+        commissionPercent: 0,
+        partnership: '',
+        custNetWithComm: 0,
+        netProfitLoss: 0,
+      });
 
       // Add losing team total row below (always show, even if values are 0)
-      // rows.push({
-      //   srNo: 'Total',
-      //   custName: '',
-      //   totalBet: secondTeamTotals.totalBet,
-      //   profitLoss: secondTeamTotals.profitLoss,
-      //   totalCommission: secondTeamTotals.commission,
-      //   commissionPercent: secondTeamTotals.commission > 0 ? (secondTeamTotals.commission / secondTeamTotals.totalBet) * 100 : 0,
-      //   partnership: secondTeamTotals.name,
-      //   custNetWithComm: secondTeamTotals.custNetWithComm,
-      //   netProfitLoss: secondTeamTotals.netProfitLoss,
-      //   isTotal: true,
-      //   teamName: secondTeamTotals.name,
-      // });
+      rows.push({
+        srNo: 'Total',
+        custName: '',
+        totalBet: secondTeamTotals.totalBet,
+        profitLoss: secondTeamTotals.profitLoss,
+        totalCommission: secondTeamTotals.commission,
+        commissionPercent: secondTeamTotals.commission > 0 ? (secondTeamTotals.commission / secondTeamTotals.totalBet) * 100 : 0,
+        partnership: secondTeamTotals.name,
+        custNetWithComm: secondTeamTotals.custNetWithComm,
+        netProfitLoss: secondTeamTotals.netProfitLoss,
+        isTotal: true,
+        teamName: secondTeamTotals.name,
+      });
     }
 
     return rows;
@@ -1539,7 +1542,7 @@ export default function BusinessReportPage() {
     }
   };
 
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     const newErrors: Record<string, string> = {};
 
     // Validation - all fields are mandatory
@@ -1579,6 +1582,42 @@ export default function BusinessReportPage() {
 
     // Clear all errors on success
     setErrors({});
+    
+    // Refetch ALL data from database to ensure fresh values (commission, rates, amounts, etc.)
+    toast.loading('Refreshing data from database...', { id: 'refreshing-data' });
+    
+    try {
+      // Convert date format from dd-mm-yyyy to yyyy-mm-dd for API
+      const [day, month, year] = formData.matchDate.split('-');
+      const apiDate = `${year}-${month}-${day}`;
+      
+      // Refetch all data in parallel to ensure everything is fresh
+      await Promise.all([
+        // Refetch users (for commission, partnership values)
+        queryClient.refetchQueries({ queryKey: userKeys.list() }),
+        // Refetch matches (for match data)
+        queryClient.refetchQueries({ queryKey: matchKeys.list() }),
+        queryClient.refetchQueries({ queryKey: matchKeys.listByDate(apiDate) }),
+        // Refetch entries (for rates, amounts) - refetch all entries for the selected match
+        queryClient.refetchQueries({ queryKey: ['entries', formData.selectMatch] }),
+        queryClient.refetchQueries({ queryKey: ['entries'] }),
+        // Refetch sessions (for session data)
+        queryClient.refetchQueries({ queryKey: sessionKeys.list(Number(formData.selectMatch)) }),
+        queryClient.refetchQueries({ queryKey: sessionKeys.list() }),
+        // Refetch groups (for group data)
+        queryClient.refetchQueries({ queryKey: groupKeys.list() }),
+        // Refetch innings/overs (for innings/overs data)
+        queryClient.refetchQueries({ queryKey: inningsOverKeys.list() }),
+      ]);
+      
+      toast.dismiss('refreshing-data');
+      toast.success('Data refreshed successfully!', { duration: 2000 });
+    } catch (error) {
+      toast.dismiss('refreshing-data');
+      console.error('Error refreshing data:', error);
+      toast.error('Failed to refresh data. Using cached data.', { duration: 3000 });
+    }
+    
     // Store form data snapshot for calculation (prevents reactive updates)
     setReportFormData({ ...formData });
     // Force fresh calculation by resetting and then setting reportGenerated
@@ -1588,8 +1627,6 @@ export default function BusinessReportPage() {
       setReportGenerated(true);
     });
     toast.success('Report generated successfully!', { duration: 3000 });
-
-    // Handle generate report logic here (in future, will use TanStack Query)
   };
 
   const handlePrint = () => {

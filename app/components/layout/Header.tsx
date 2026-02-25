@@ -6,7 +6,7 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick }: HeaderProps) {
   return (
-    <header className="bg-[var(--header)] text-[var(--header-foreground)] h-16 flex items-center justify-between px-6 shadow-md">
+    <header className="h-16 flex items-center justify-between px-6 shadow-md" style={{ backgroundColor: 'var(--header)', color: 'var(--header-foreground)' }}>
       <h1 className="text-xl font-semibold">Director</h1>
       <button
         onClick={onMenuClick}

@@ -52,7 +52,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <Sidebar isCollapsed={isSidebarCollapsed} />
         </div>
         {/* Main content */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-[var(--background)] lg:ml-0">
+        <main className="flex-1 flex flex-col overflow-hidden lg:ml-0" style={{ backgroundColor: '#ECF0F5' }}>
           <div className="flex-1 overflow-y-auto p-4 lg:p-6">
             {children}
           </div>

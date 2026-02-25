@@ -12,8 +12,8 @@ interface CardProps {
 export default function Card({ children, className = '', height, tabs }: CardProps) {
   return (
     <div
-      className={`bg-[var(--retro-cream)] border-4 border-[var(--retro-dark)] rounded-lg flex flex-col overflow-hidden ${className}`}
-      style={height ? { height } : {}}
+      className={`border-4 border-[var(--retro-dark)] rounded-lg flex flex-col overflow-hidden ${className}`}
+      style={{ backgroundColor: '#fff', ...(height ? { height } : {}) }}
     >
       {tabs && tabs.length > 0 && (
         <div className="flex border-b-4 border-[var(--retro-dark)] flex-shrink-0">

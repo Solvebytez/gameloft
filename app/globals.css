@@ -2,9 +2,9 @@
 
 :root {
   /* Vintage Color Palette - Beige, Brown, Green */
-  --background: #e8dcc8; /* Retro beige background */
+  --background: #ECF0F5; /* Light gray background */
   --foreground: oklch(0.15 0 0); /* Dark text */
-  --card: #f5f1e8; /* Vintage cream/beige cards */
+  --card: #fff; /* White cards */
   --card-foreground: oklch(0.15 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.15 0 0);
@@ -28,18 +28,18 @@
   --chart-5: oklch(0.769 0.188 70.08);
   --radius: 0.625rem;
 
-  /* Sidebar - Vintage Brown/Beige */
-  --sidebar: oklch(0.92 0.02 85); /* Light beige sidebar */
-  --sidebar-foreground: oklch(0.15 0 0);
-  --sidebar-primary: oklch(0.35 0.08 45); /* Brown */
-  --sidebar-primary-foreground: oklch(0.98 0 0);
+  /* Sidebar - Dark Gray */
+  --sidebar: #222d32; /* Dark gray sidebar */
+  --sidebar-foreground: oklch(1 0 0); /* White text */
+  --sidebar-primary: #3c8dbc; /* Blue active menu item */
+  --sidebar-primary-foreground: oklch(1 0 0); /* White text */
   --sidebar-accent: oklch(0.88 0.02 85); /* Slightly darker beige */
   --sidebar-accent-foreground: oklch(0.15 0 0);
   --sidebar-border: oklch(0.85 0.02 85);
   --sidebar-ring: oklch(0.35 0.08 45);
 
   /* Header */
-  --header: #2d2d2d; /* Dark header */
+  --header: #3c8dbc; /* Blue header */
   --header-foreground: oklch(1 0 0); /* White text */
 
   /* Additional vintage colors */
@@ -55,7 +55,7 @@
   --card-border: #2d2d2d; /* Dark border */
 
   /* Retro Colors for Card Structure */
-  --retro-cream: #f5f1e8; /* Vintage cream */
+  --retro-cream: #fff; /* White */
   --retro-dark: #2d2d2d; /* Dark border/text */
   --retro-accent: oklch(0.55 0.15 145); /* Green accent */
 }
