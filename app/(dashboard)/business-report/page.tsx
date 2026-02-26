@@ -41,28 +41,30 @@ function calculateRowResult({
 
   if (profitLoss > 0) {
     // CASE A: PROFIT
-    // 1. Commission on profit
+    // 1. Calculate raw commission (no partnership applied)
     commission = profitLoss * c;
 
-    // 2. Commission after partnership
+    // 2. Calculate net after commission
+    const netAfterCommission = profitLoss - commission;
+
+    // 3. Apply partnership to netAfterCommission
+    custNetWithComm = netAfterCommission * s;
+    netProfitLoss = netAfterCommission * (1 - s);
+
+    // Commission after partnership (for reference, not used in display)
     commissionAfterPartnership = commission * (1 - s);
-
-    // 3. Customer net BEFORE commission (Profit after partnership share)
-    custNetWithComm = profitLoss * (1 - s);
-
-    // 4. Final Net Profit/Loss
-    netProfitLoss = custNetWithComm - commissionAfterPartnership;
   } else {
     // CASE B: LOSS
     // No commission on loss
     commission = 0;
     commissionAfterPartnership = 0;
 
-    // 1. Customer share of loss
-    custNetWithComm = profitLoss * s;
+    // netAfterCommission = profitLoss (no commission to subtract)
+    const netAfterCommission = profitLoss;
 
-    // 2. Partner share of loss
-    netProfitLoss = profitLoss * (1 - s);
+    // Apply partnership to netAfterCommission
+    custNetWithComm = netAfterCommission * s;
+    netProfitLoss = netAfterCommission * (1 - s);
   }
 
   return {
@@ -653,7 +655,7 @@ export default function BusinessReportPage() {
           commissionPercent,
           partnershipPercent,
         });
-        totalCommission = result.commissionAfterPartnership;
+        totalCommission = result.commission;
         custNetWithComm = result.custNetWithComm;
         netProfitLoss = result.netProfitLoss;
       } else if (commissionType === 'entrywise') {
@@ -664,7 +666,7 @@ export default function BusinessReportPage() {
           commissionPercent,
           partnershipPercent,
         });
-        totalCommission = entrywiseResult.commissionAfterPartnership;
+        totalCommission = entrywiseResult.commission;
         custNetWithComm = entrywiseResult.custNetWithComm;
         netProfitLoss = entrywiseResult.netProfitLoss;
       } else if (commissionType === 'no_commission') {
@@ -1024,13 +1026,13 @@ export default function BusinessReportPage() {
             // Aggregate to FIXED team totals
             team1TotalBet += userTeam1Bet;
             team1ProfitLoss += userTeam1ProfitLoss; // Accumulate user's Team1 profit/loss
-            team1Commission += team1Result.commissionAfterPartnership;
+            team1Commission += team1Result.commission;
             team1CustNetWithComm += team1Result.custNetWithComm;
             team1NetProfitLoss += team1Result.netProfitLoss;
 
             team2TotalBet += userTeam2Bet;
             team2ProfitLoss += userTeam2ProfitLoss; // Accumulate user's Team2 profit/loss
-            team2Commission += team2Result.commissionAfterPartnership;
+            team2Commission += team2Result.commission;
             team2CustNetWithComm += team2Result.custNetWithComm;
             team2NetProfitLoss += team2Result.netProfitLoss;
           } else if (commissionType === 'no_commission') {
@@ -1207,13 +1209,13 @@ export default function BusinessReportPage() {
           // Aggregate Team1 and Team2 contributions to team totals
           team1TotalBet += userTeam1Bet;
           team1ProfitLoss += team1EntrywiseResult.grossDifference; // Use gross difference for profitLoss
-          team1Commission += team1EntrywiseResult.commissionAfterPartnership;
+          team1Commission += team1EntrywiseResult.commission;
           team1CustNetWithComm += team1EntrywiseResult.custNetWithComm;
           team1NetProfitLoss += team1EntrywiseResult.netProfitLoss;
           
           team2TotalBet += userTeam2Bet;
           team2ProfitLoss += team2EntrywiseResult.grossDifference; // Use gross difference for profitLoss
-          team2Commission += team2EntrywiseResult.commissionAfterPartnership;
+          team2Commission += team2EntrywiseResult.commission;
           team2CustNetWithComm += team2EntrywiseResult.custNetWithComm;
           team2NetProfitLoss += team2EntrywiseResult.netProfitLoss;
           } else {

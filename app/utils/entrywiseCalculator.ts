@@ -6,10 +6,11 @@
  * Logic:
  * 1. Calculate Win Side Total (Green Fav × Rate + Red Non-Fav Amount)
  * 2. Calculate Lost Side Total (Green Fav Amount + Red Non-Fav × Rate)
- * 3. Gross Difference = Larger Total - Smaller Total
+ * 3. Gross Difference = Larger Total - Smaller Total (for reference)
  * 4. Commission = Lost Side Total × Commission%
- * 5. Net After Commission = Gross Difference - Commission
- * 6. Apply Partnership on Net After Commission
+ * 5. Profit/Loss = Losing Team Total - Winning Team Total (can be negative)
+ * 6. Net After Commission = Profit/Loss - Commission
+ * 7. Apply Partnership on Net After Commission
  */
 
 export interface EntrywiseInput {
@@ -20,9 +21,9 @@ export interface EntrywiseInput {
 }
 
 export interface EntrywiseResult {
-  grossDifference: number;           // Larger Total - Smaller Total
+  grossDifference: number;           // Larger Total - Smaller Total (for reference)
   commission: number;                 // Lost Side Total × Commission%
-  netAfterCommission: number;        // Gross Difference - Commission
+  netAfterCommission: number;        // Profit/Loss - Commission
   commissionAfterPartnership: number;  // Commission after partnership (for display)
   custNetWithComm: number;           // Partner share (Net After Commission × Partnership%)
   netProfitLoss: number;              // System share (Net After Commission × (1 - Partnership%))
@@ -47,25 +48,25 @@ export function calculateEntrywise({
   // Round helper function
   const round = (n: number) => Math.round(n * 100) / 100;
 
-  // Step 1: Calculate Gross Difference (Larger - Smaller, always positive)
+  // Step 1: Calculate Gross Difference (Larger - Smaller, always positive) - for reference
   const grossDifference = Math.abs(winningTeamTotal - losingTeamTotal);
-  const isLosingTeamLarger = losingTeamTotal > winningTeamTotal;
   
-  // Determine sign: if losingTeamTotal > winningTeamTotal = PROFIT (positive), else LOSS (negative)
-  const sign = isLosingTeamLarger ? 1 : -1;
-
   // Step 2: Calculate Commission on Lost Side Total
   const commission = losingTeamTotal * c;
 
-  // Step 3: Calculate Net After Commission
-  const netAfterCommission = grossDifference - commission;
+  // Step 3: Calculate Profit/Loss (can be negative)
+  // Profit/Loss = What we RECEIVE - What we PAY OUT = Losing Team Total - Winning Team Total
+  const profitLoss = losingTeamTotal - winningTeamTotal;
 
-  // Step 4: Apply Partnership on Net After Commission
-  // Partner share (Cust Net With Comm) - apply sign based on profit/loss
-  const custNetWithComm = netAfterCommission * s * sign;
+  // Step 4: Calculate Net After Commission using actual profitLoss (not grossDifference)
+  const netAfterCommission = profitLoss - commission;
 
-  // System share (Net Profit/Loss) - apply sign based on profit/loss
-  const netProfitLoss = netAfterCommission * (1 - s) * sign;
+  // Step 5: Apply Partnership on Net After Commission (no sign multiplication needed)
+  // Partner share (Cust Net With Comm)
+  const custNetWithComm = netAfterCommission * s;
+
+  // System share (Net Profit/Loss)
+  const netProfitLoss = netAfterCommission * (1 - s);
 
   // Commission after partnership (for display consistency)
   const commissionAfterPartnership = commission * (1 - s);

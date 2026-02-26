@@ -161,7 +161,7 @@ export default function Sidebar({ isCollapsed }: SidebarProps) {
               </p>
               <div className="flex items-center space-x-1 mt-1">
                 <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                <span className="text-xs text-gray-600">Online</span>
+                <span className="text-xs text-white">Online</span>
               </div>
             </div>
           )}
