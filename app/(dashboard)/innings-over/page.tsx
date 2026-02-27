@@ -182,10 +182,6 @@ export default function InningsOverPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Innings/Over</h1>
-        <p className="text-sm text-retro-dark/60 mt-1">{isEditMode ? 'Edit' : 'Create'}</p>
-      </div>
       <Card>
         <form className="space-y-6">
           <div className="flex items-end gap-4">
@@ -232,7 +228,7 @@ export default function InningsOverPage() {
                 type="button"
                 onClick={handleSave}
                 disabled={createInningsOverMutation.isPending || updateInningsOverMutation.isPending}
-                className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 bg-green-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {(createInningsOverMutation.isPending || updateInningsOverMutation.isPending) ? 'Saving...' : (isEditMode ? 'Update' : 'Save')}
               </button>
@@ -240,7 +236,7 @@ export default function InningsOverPage() {
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="px-6 py-3 bg-red-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+                  className="px-6 py-3 bg-red-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
                 >
                   Reset
                 </button>

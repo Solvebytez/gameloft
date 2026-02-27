@@ -26,9 +26,9 @@ export default function ConfirmModal({
   }
 
   const buttonColorClasses = {
-    red: 'bg-red-500 hover:bg-red-600',
+    red: 'bg-red-700 hover:bg-red-800',
     blue: 'bg-blue-500 hover:bg-blue-600',
-    green: 'bg-green-500 hover:bg-green-600',
+    green: 'bg-green-700 hover:bg-green-800',
   };
 
   return (

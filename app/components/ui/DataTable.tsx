@@ -475,35 +475,35 @@ export default function DataTable<T extends Record<string, any>>({
               <button
                 type="button"
                 onClick={() => handleExport('Copy')}
-                className="px-3 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm hover:bg-retro-accent hover:text-white transition-colors"
+                className="px-3 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm hover:bg-green-700 hover:text-white transition-colors"
               >
                 Copy
               </button>
               <button
                 type="button"
                 onClick={() => handleExport('CSV')}
-                className="px-3 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm hover:bg-retro-accent hover:text-white transition-colors"
+                className="px-3 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm hover:bg-green-700 hover:text-white transition-colors"
               >
                 CSV
               </button>
               <button
                 type="button"
                 onClick={() => handleExport('Excel')}
-                className="px-3 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm hover:bg-retro-accent hover:text-white transition-colors"
+                className="px-3 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm hover:bg-green-700 hover:text-white transition-colors"
               >
                 Excel
               </button>
               <button
                 type="button"
                 onClick={() => handleExport('PDF')}
-                className="px-3 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm hover:bg-retro-accent hover:text-white transition-colors"
+                className="px-3 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm hover:bg-green-700 hover:text-white transition-colors"
               >
                 PDF
               </button>
               <button
                 type="button"
                 onClick={() => handleExport('Print')}
-                className="px-3 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm hover:bg-retro-accent hover:text-white transition-colors"
+                className="px-3 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm hover:bg-green-700 hover:text-white transition-colors"
               >
                 Print
               </button>
@@ -639,7 +639,7 @@ export default function DataTable<T extends Record<string, any>>({
                                       setOpenDropdown(null);
                                       setDropdownPosition(null);
                                     }}
-                                    className="w-full text-left px-4 py-2 text-sm text-retro-dark hover:bg-retro-accent hover:text-white transition-colors font-bold"
+                                    className="w-full text-left px-4 py-2 text-sm text-retro-dark hover:bg-green-700 hover:text-white transition-colors font-bold"
                                   >
                                     Edit
                                   </button>
@@ -699,7 +699,7 @@ export default function DataTable<T extends Record<string, any>>({
                 type="button"
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="px-4 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm hover:bg-retro-accent hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm hover:bg-green-700 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
@@ -732,8 +732,8 @@ export default function DataTable<T extends Record<string, any>>({
                       onClick={() => setCurrentPage(page)}
                       className={`px-4 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm transition-colors ${
                         currentPage === page
-                          ? 'bg-retro-accent text-white'
-                          : 'hover:bg-retro-accent hover:text-white'
+                          ? 'bg-green-700 text-white'
+                          : 'hover:bg-green-700 hover:text-white'
                       }`}
                     >
                       {page}
@@ -746,7 +746,7 @@ export default function DataTable<T extends Record<string, any>>({
                 type="button"
                 onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm hover:bg-retro-accent hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm hover:bg-green-700 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
               </button>

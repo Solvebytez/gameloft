@@ -118,7 +118,6 @@ export default function ChangePasswordPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-[var(--foreground)]">Change Password</h1>
       <Card>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Current Password Field */}
@@ -255,7 +254,7 @@ export default function ChangePasswordPage() {
             <button
               type="submit"
               disabled={changePasswordMutation.isPending}
-              className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-3 bg-green-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {changePasswordMutation.isPending ? 'Changing Password...' : 'Change Password'}
             </button>

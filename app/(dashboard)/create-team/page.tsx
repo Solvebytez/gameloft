@@ -384,16 +384,6 @@ export default function CreateTeamPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">
-          {isEditMode ? 'EDIT TEAM' : 'CREATE TEAM'}
-        </h1>
-        {isEditMode && editingTeam && (
-          <p className="text-sm text-retro-dark/60 mt-1">
-            Editing: {editingTeam.name}
-          </p>
-        )}
-      </div>
       <Card>
         <form className="space-y-6" onSubmit={handleFormSubmit}>
           {/* Single Row - Team Name, Team Logo, Save Button */}
@@ -450,7 +440,7 @@ export default function CreateTeamPage() {
               <button
                 type="submit"
                 disabled={createTeamMutation.isPending || updateTeamMutation.isPending}
-                className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity w-full md:w-auto h-[60px] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 bg-green-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity w-full md:w-auto h-[60px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {createTeamMutation.isPending || updateTeamMutation.isPending
                   ? 'Saving...'

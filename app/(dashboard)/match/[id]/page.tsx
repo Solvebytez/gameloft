@@ -383,9 +383,6 @@ export default function MatchDetailPage() {
         {/* Entry Window Card - Left Side */}
         <Card>
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-bold text-foreground">
-              {isEditMode ? 'Edit Entry' : 'Entry Window'}
-            </h1>
             {isLoadingEntry && (
               <span className="text-sm text-retro-dark">Loading entry data...</span>
             )}
@@ -399,8 +396,8 @@ export default function MatchDetailPage() {
               onClick={() => handleTeamSelect('team1')}
               className={`relative p-2 rounded-lg border-2 transition-all ${
                 favouriteTeam === 'team1'
-                  ? 'bg-green-600 border-green-800 hover:bg-green-700'
-                  : 'bg-red-600 border-red-800 hover:bg-red-700'
+                  ? 'bg-green-700 border-green-800 hover:bg-green-800'
+                  : 'bg-red-700 border-red-800 hover:bg-red-800'
               }`}
             >
               <div className="flex flex-col items-center space-y-1">
@@ -435,8 +432,8 @@ export default function MatchDetailPage() {
               onClick={() => handleTeamSelect('team2')}
               className={`relative p-2 rounded-lg border-2 transition-all ${
                 favouriteTeam === 'team2'
-                  ? 'bg-green-600 border-green-800 hover:bg-green-700'
-                  : 'bg-red-600 border-red-800 hover:bg-red-700'
+                  ? 'bg-green-700 border-green-800 hover:bg-green-800'
+                  : 'bg-red-700 border-red-800 hover:bg-red-800'
               }`}
             >
               <div className="flex flex-col items-center space-y-1">
@@ -861,7 +858,7 @@ export default function MatchDetailPage() {
                         type="button"
                         onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                         disabled={currentPage === 1}
-                        className="px-3 py-1 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-xs hover:bg-retro-accent hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3 py-1 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-xs hover:bg-green-700 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Previous
                       </button>
@@ -894,8 +891,8 @@ export default function MatchDetailPage() {
                               onClick={() => setCurrentPage(page)}
                               className={`px-3 py-1 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-xs transition-colors ${
                                 currentPage === page
-                                  ? 'bg-retro-accent text-white'
-                                  : 'hover:bg-retro-accent hover:text-white'
+                                  ? 'bg-green-700 text-white'
+                                  : 'hover:bg-green-700 hover:text-white'
                               }`}
                             >
                               {page}
@@ -908,7 +905,7 @@ export default function MatchDetailPage() {
                         type="button"
                         onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                         disabled={currentPage === totalPages}
-                        className="px-3 py-1 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-xs hover:bg-retro-accent hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3 py-1 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-xs hover:bg-green-700 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Next
                       </button>

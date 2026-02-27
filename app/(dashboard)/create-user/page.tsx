@@ -593,10 +593,6 @@ export default function CreateUserPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Users</h1>
-        <p className="text-sm text-retro-dark/60 mt-1">{isEditMode ? 'Edit' : 'Create'}</p>
-      </div>
       <Card>
         <form className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -726,7 +722,7 @@ export default function CreateUserPage() {
               type="button"
               onClick={handleSave}
               disabled={isEditMode ? updateUserMutation.isPending : createUserMutation.isPending}
-              className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-3 bg-green-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isEditMode
                 ? updateUserMutation.isPending

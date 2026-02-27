@@ -171,7 +171,7 @@ export default function ImageCropModal({
             type="button"
             onClick={handleSave}
             disabled={isProcessing}
-            className="px-6 py-2 bg-retro-accent text-white font-bold rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 bg-green-700 text-white font-bold rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isProcessing ? 'Processing...' : 'Save Cropped Image'}
           </button>

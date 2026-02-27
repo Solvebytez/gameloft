@@ -306,8 +306,6 @@ export default function DeleteReportPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-[var(--foreground)]">Delete Report</h1>
-      
       <Card>
         <div className="space-y-4">
           {/* Date Range, Match and Group Filter */}
@@ -598,7 +596,7 @@ export default function DeleteReportPage() {
                     className={`px-3 py-1.5 rounded text-sm font-semibold transition-opacity ${
                       currentPage === 1
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-retro-accent text-white hover:opacity-90'
+                        : 'bg-green-700 text-white hover:opacity-90'
                     }`}
                   >
                     Previous
@@ -627,7 +625,7 @@ export default function DeleteReportPage() {
                               onClick={() => setCurrentPage(page)}
                               className={`px-3 py-1.5 rounded text-sm font-semibold transition-opacity ${
                                 currentPage === page
-                                  ? 'bg-retro-accent text-white'
+                                  ? 'bg-green-700 text-white'
                                   : 'bg-gray-200 text-retro-dark hover:bg-gray-300'
                               }`}
                             >
@@ -645,7 +643,7 @@ export default function DeleteReportPage() {
                     className={`px-3 py-1.5 rounded text-sm font-semibold transition-opacity ${
                       currentPage === totalPages
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-retro-accent text-white hover:opacity-90'
+                        : 'bg-green-700 text-white hover:opacity-90'
                     }`}
                   >
                     Next
@@ -661,7 +659,7 @@ export default function DeleteReportPage() {
               type="button"
               onClick={handleDeleteSelected}
               disabled={selectedEntries.size === 0 || deleteEntryMutation.isPending}
-              className={`px-6 py-3 bg-green-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity ${
+              className={`px-6 py-3 bg-green-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity ${
                 selectedEntries.size === 0 || deleteEntryMutation.isPending
                   ? 'opacity-50 cursor-not-allowed'
                   : ''

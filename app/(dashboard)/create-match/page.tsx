@@ -290,9 +290,6 @@ export default function CreateMatchPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">CREATE MATCH</h1>
-      </div>
       <Card>
         <form className="space-y-6">
           {/* First Row - Match Date, Team1, VS, Team2 */}
@@ -392,7 +389,7 @@ export default function CreateMatchPage() {
               type="button"
               onClick={handleSave}
               disabled={createMatchMutation.isPending || updateMatchMutation.isPending || teamsLoading}
-              className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-3 bg-green-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {createMatchMutation.isPending || updateMatchMutation.isPending
                 ? 'Saving...'
@@ -412,7 +409,7 @@ export default function CreateMatchPage() {
             <button
               type="button"
               onClick={handleReset}
-              className="px-6 py-3 bg-red-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+              className="px-6 py-3 bg-red-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
             >
               Reset
             </button>

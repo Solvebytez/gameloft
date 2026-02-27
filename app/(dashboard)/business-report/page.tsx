@@ -79,7 +79,7 @@ export default function BusinessReportPage() {
   const queryClient = useQueryClient();
   
   const [formData, setFormData] = useState({
-    reportType: '',
+    reportType: 'match',
     matchDate: '',
     selectMatch: '',
     winningTeam: '',
@@ -669,6 +669,13 @@ export default function BusinessReportPage() {
         totalCommission = entrywiseResult.commission;
         custNetWithComm = entrywiseResult.custNetWithComm;
         netProfitLoss = entrywiseResult.netProfitLoss;
+        
+        // For cut users with entrywise, negate profit/loss values
+        if (isCutUser) {
+          profitLoss = -profitLoss;
+          custNetWithComm = -custNetWithComm;
+          netProfitLoss = -netProfitLoss;
+        }
       } else if (commissionType === 'no_commission') {
         // No commission, only partnership
         const partnershipRate = partnershipPercent / 100;
@@ -706,19 +713,79 @@ export default function BusinessReportPage() {
       row.srNo = index + 1;
     });
 
-    // Calculate team totals - need both losing team and winning team totals
-    // Calculate totals from ALL entries (allEntries), not just filtered entries
+    // Calculate team totals - sum from filtered user rows instead of recalculating from entries
     // Find winning team directly from selected ID to ensure correct assignment
     const winningTeam = winningTeamId === selectedMatch.team1.id ? selectedMatch.team1 : selectedMatch.team2;
     const losingTeam = winningTeamId === selectedMatch.team1.id ? selectedMatch.team2 : selectedMatch.team1;
 
-
     if (winningTeam && losingTeam) {
-      // Group entries by user for proper commission calculation (especially entrywise)
-      // For team totals: use 'allEntries' if "all users/groups" selected, otherwise use filtered 'entries'
+      // Check number of user rows first - if only one user, use their values directly
+      const userRows = rows.filter((row) => !row.isTotal && row.custName !== '');
+      const hasOnlyOneUser = userRows.length === 1;
+      
+      // Check if we should sum from user rows or recalculate from entries
+      // isAllSelected = true only when "all" is explicitly selected or nothing is selected
       const isAllSelected = reportFormData.selectionType === 'group' 
-        ? (reportFormData.selectGroup === 'all' || !reportFormData.selectGroup)
-        : (reportFormData.selectUser === 'all' || !reportFormData.selectUser);
+        ? (reportFormData.selectGroup === 'all' || reportFormData.selectGroup === '' || !reportFormData.selectGroup)
+        : (reportFormData.selectUser === 'all' || reportFormData.selectUser === '' || !reportFormData.selectUser);
+      
+      // When we have only one user OR when filtered, we'll add winning team from user rows, so skip it in calculation
+      const skipWinningTeamRow = hasOnlyOneUser || !isAllSelected;
+      
+      // If only one user row (regardless of selection), use those values directly
+      if (hasOnlyOneUser) {
+        const userRow = userRows[0];
+        rows.push({
+          srNo: 'Total',
+          custName: '',
+          totalBet: userRow.totalBet,
+          profitLoss: userRow.profitLoss,
+          totalCommission: userRow.totalCommission,
+          commissionPercent: userRow.commissionPercent || 0,
+          partnership: winningTeam.name,
+          custNetWithComm: userRow.custNetWithComm,
+          netProfitLoss: userRow.netProfitLoss,
+          isTotal: true,
+          teamName: winningTeam.name,
+        });
+      } else if (!isAllSelected) {
+        // If multiple user rows and filtered, sum them
+        const summedTotal = {
+          totalBet: 0,
+          profitLoss: 0,
+          commission: 0,
+          custNetWithComm: 0,
+          netProfitLoss: 0,
+        };
+
+        userRows.forEach((row) => {
+          summedTotal.totalBet += Number(row.totalBet) || 0;
+          summedTotal.profitLoss += Number(row.profitLoss) || 0;
+          summedTotal.commission += Number(row.totalCommission) || 0;
+          summedTotal.custNetWithComm += Number(row.custNetWithComm) || 0;
+          summedTotal.netProfitLoss += Number(row.netProfitLoss) || 0;
+        });
+
+        rows.push({
+          srNo: 'Total',
+          custName: '',
+          totalBet: summedTotal.totalBet,
+          profitLoss: summedTotal.profitLoss,
+          totalCommission: summedTotal.commission,
+          commissionPercent: summedTotal.commission > 0 && summedTotal.totalBet > 0 
+            ? (summedTotal.commission / summedTotal.totalBet) * 100 : 0,
+          partnership: winningTeam.name,
+          custNetWithComm: summedTotal.custNetWithComm,
+          netProfitLoss: summedTotal.netProfitLoss,
+          isTotal: true,
+          teamName: winningTeam.name,
+        });
+      }
+
+      // Don't add empty separator row here when we added winning team from user rows
+      // The losing team calculation below will add one empty row before the losing team total
+      
+      // Always calculate team totals from entries (for losing team when filtered, for both teams when not filtered)
       const entriesForTeamTotals = isAllSelected ? allEntries : entries;
       const allUserGroups = new Map<number | string, Entry[]>();
       entriesForTeamTotals.forEach((entry) => {
@@ -1299,19 +1366,22 @@ export default function BusinessReportPage() {
           };
 
       // Add winning team total row first (immediately after individual entries, no gap)
-      rows.push({
-        srNo: 'Total',
-        custName: '',
-        totalBet: firstTeamTotals.totalBet,
-        profitLoss: firstTeamTotals.profitLoss,
-        totalCommission: firstTeamTotals.commission,
-        commissionPercent: firstTeamTotals.commission > 0 ? (firstTeamTotals.commission / firstTeamTotals.totalBet) * 100 : 0,
-        partnership: firstTeamTotals.name,
-        custNetWithComm: firstTeamTotals.custNetWithComm,
-        netProfitLoss: firstTeamTotals.netProfitLoss,
-        isTotal: true,
-        teamName: firstTeamTotals.name,
-      });
+      // Skip if we already added it from user rows (when filtered)
+      if (!skipWinningTeamRow) {
+        rows.push({
+          srNo: 'Total',
+          custName: '',
+          totalBet: firstTeamTotals.totalBet,
+          profitLoss: firstTeamTotals.profitLoss,
+          totalCommission: firstTeamTotals.commission,
+          commissionPercent: firstTeamTotals.commission > 0 ? (firstTeamTotals.commission / firstTeamTotals.totalBet) * 100 : 0,
+          partnership: firstTeamTotals.name,
+          custNetWithComm: firstTeamTotals.custNetWithComm,
+          netProfitLoss: firstTeamTotals.netProfitLoss,
+          isTotal: true,
+          teamName: firstTeamTotals.name,
+        });
+      }
 
       // Add ONE empty separator row between team totals
       rows.push({
@@ -1869,9 +1939,6 @@ export default function BusinessReportPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">BUSINESS REPORT</h1>
-      </div>
       <Card>
         <form className="space-y-6">
           {/* Single Row - Report Type, Match Date, Select Match, WinningTeam, Select User */}
@@ -1984,14 +2051,14 @@ export default function BusinessReportPage() {
             )}
           </div>
 
-          {/* Second Row - Selection Type Radio Buttons and Conditional Dropdown */}
-          <div className="flex flex-col md:flex-row gap-2 items-start">
+          {/* Second Row - Selection Type Radio Buttons, Conditional Dropdown, and Action Buttons */}
+          <div className="flex flex-col md:flex-row gap-4 items-start">
             {/* Selection Type Radio Buttons */}
             <div className="md:w-auto flex flex-col">
               <label className="block text-sm font-semibold text-[#2d2d2d] mb-2 uppercase">
                 Selection Type*
               </label>
-              <div className="flex gap-4 mt-3.5">
+              <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
@@ -2060,24 +2127,24 @@ export default function BusinessReportPage() {
                 />
               )}
             </div>
-          </div>
 
-          {/* Action Buttons - Left Aligned */}
-          <div className="flex justify-start gap-4">
-            <button
-              type="button"
-              onClick={handleGenerateReport}
-              className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
-            >
-              Generate Report
-            </button>
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="px-6 py-3 bg-red-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
-            >
-              Print
-            </button>
+            {/* Action Buttons */}
+            <div className="flex gap-4 self-end">
+              <button
+                type="button"
+                onClick={handleGenerateReport}
+                className="px-6 py-3 bg-green-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+              >
+                Generate Report
+              </button>
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="px-6 py-3 bg-red-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+              >
+                Print
+              </button>
+            </div>
           </div>
         </form>
       </Card>

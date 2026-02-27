@@ -982,7 +982,7 @@ export default function SessionMatchPage() {
             )}
             <button
               type="submit"
-              className="px-3 py-1.5 bg-retro-accent text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
+              className="px-3 py-1.5 bg-green-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
             >
               {isEditMode ? 'Update' : 'Save'}
             </button>
@@ -990,7 +990,7 @@ export default function SessionMatchPage() {
               <button
                 type="button"
                 onClick={handleReset}
-                className="px-3 py-1.5 bg-red-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
+                className="px-3 py-1.5 bg-red-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
               >
                 Reset
               </button>
@@ -1157,7 +1157,7 @@ export default function SessionMatchPage() {
                         // Error toast is handled in the mutation's onError
                       }
                     }}
-                    className="px-4 py-2 bg-green-600 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity whitespace-nowrap h-10 flex items-center justify-center"
+                    className="px-4 py-2 bg-green-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity whitespace-nowrap h-10 flex items-center justify-center"
                   >
                     Submit
                   </button>
@@ -1528,7 +1528,7 @@ export default function SessionMatchPage() {
                   className={`px-3 py-1.5 rounded text-sm font-semibold transition-opacity ${
                     currentPage === 1
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-retro-accent text-white hover:opacity-90'
+                      : 'bg-green-700 text-white hover:opacity-90'
                   }`}
                 >
                   Previous
@@ -1559,7 +1559,7 @@ export default function SessionMatchPage() {
                             onClick={() => setCurrentPage(page)}
                             className={`px-3 py-1.5 rounded text-sm font-semibold transition-opacity ${
                               currentPage === page
-                                ? 'bg-retro-accent text-white'
+                                ? 'bg-green-700 text-white'
                                 : 'bg-gray-200 text-retro-dark hover:bg-gray-300'
                             }`}
                           >
@@ -1577,7 +1577,7 @@ export default function SessionMatchPage() {
                   className={`px-3 py-1.5 rounded text-sm font-semibold transition-opacity ${
                     currentPage === totalPages
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-retro-accent text-white hover:opacity-90'
+                      : 'bg-green-700 text-white hover:opacity-90'
                   }`}
                 >
                   Next

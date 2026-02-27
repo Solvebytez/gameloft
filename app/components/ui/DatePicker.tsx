@@ -109,7 +109,11 @@ export default function DatePicker({ value, onChange, onClose, isOpen, onSelectA
 
   const isToday = (date: Date) => {
     const today = new Date();
-    return date.toDateString() === today.toDateString();
+    return (
+      date.getFullYear() === today.getFullYear() &&
+      date.getMonth() === today.getMonth() &&
+      date.getDate() === today.getDate()
+    );
   };
 
   const isSelected = (date: Date) => {
@@ -178,7 +182,13 @@ export default function DatePicker({ value, onChange, onClose, isOpen, onSelectA
             <button
               key={date.toISOString()}
               type="button"
-              onClick={() => handleDateSelect(date)}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDateSelect(date);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
@@ -187,7 +197,7 @@ export default function DatePicker({ value, onChange, onClose, isOpen, onSelectA
               }}
               className={`aspect-square rounded-md font-bold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-retro-accent ${
                 isSelected(date)
-                  ? 'bg-retro-accent text-white'
+                  ? 'bg-green-700 text-white'
                   : isToday(date)
                   ? 'bg-retro-dark text-white'
                   : 'hover:bg-gray-100 text-retro-dark'

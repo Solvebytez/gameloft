@@ -376,9 +376,6 @@ export default function CreateAdminPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-foreground">
-        {editingAdmin ? 'EDIT ADMIN' : 'CREATE ADMIN'}
-      </h1>
       <Card>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -492,7 +489,7 @@ export default function CreateAdminPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 bg-green-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting
                   ? 'Saving...'
@@ -504,7 +501,7 @@ export default function CreateAdminPage() {
                 type="button"
                 onClick={handleReset}
                 disabled={isSubmitting}
-                className="px-6 py-3 bg-red-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 bg-red-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {editingAdmin ? 'Cancel' : 'Reset'}
               </button>
