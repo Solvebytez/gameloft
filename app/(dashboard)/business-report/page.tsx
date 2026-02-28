@@ -133,21 +133,24 @@ export default function BusinessReportPage() {
   const { data: inningsOvers = [] } = useInningsOvers();
 
   // Fetch sessions for the selected match (when report type is "session" and report is generated)
+  // OPTIMIZED: Only fetch when report is generated, not before
   const shouldFetchSessions = !!(reportGenerated && reportFormData && reportFormData.selectMatch && reportFormData.reportType === 'session');
   const { data: allSessions = [], isLoading: isLoadingSessions } = useSessions(
     shouldFetchSessions ? Number(reportFormData!.selectMatch) : null,
     shouldFetchSessions // Only enable when shouldFetchSessions is true
   );
 
-  // Fetch sessions for filtering innings/overs when match is selected (even before report is generated)
-  const shouldFetchSessionsForInningFilter = !!(formData.selectMatch && formData.reportType === 'session');
+  // OPTIMIZED: Only fetch sessions for inning filter when report is generated or when match is selected AND report type is session
+  // This reduces unnecessary API calls
+  const shouldFetchSessionsForInningFilter = !!(formData.selectMatch && formData.reportType === 'session' && (reportGenerated || formData.selectMatch));
   const { data: sessionsForInningFilter = [] } = useSessions(
     shouldFetchSessionsForInningFilter ? Number(formData.selectMatch) : null,
     shouldFetchSessionsForInningFilter
   );
 
-  // Fetch entries for the selected match (to filter user list) - fetch when match is selected, even before report is generated
-  const shouldFetchEntriesForUserFilter = formData.selectMatch && formData.reportType === 'match';
+  // OPTIMIZED: Only fetch entries for user filter when report is generated or when match is selected AND report type is match
+  // This reduces unnecessary API calls before report generation
+  const shouldFetchEntriesForUserFilter = !!(formData.selectMatch && formData.reportType === 'match' && (reportGenerated || formData.selectMatch));
   const { data: entriesDataForFilter } = useEntries(
     shouldFetchEntriesForUserFilter ? formData.selectMatch : undefined,
     undefined // Get all entries to see which users have entries
@@ -1671,24 +1674,37 @@ export default function BusinessReportPage() {
       const [day, month, year] = formData.matchDate.split('-');
       const apiDate = `${year}-${month}-${day}`;
       
-      // Refetch all data in parallel to ensure everything is fresh
-      await Promise.all([
-        // Refetch users (for commission, partnership values)
+      // OPTIMIZED: Only refetch data that's actually needed for the report
+      // Refetch based on report type to avoid unnecessary API calls
+      const refetchPromises = [
+        // Always refetch users (for commission, partnership values)
         queryClient.refetchQueries({ queryKey: userKeys.list() }),
-        // Refetch matches (for match data)
-        queryClient.refetchQueries({ queryKey: matchKeys.list() }),
+        // Always refetch matches for the selected date
         queryClient.refetchQueries({ queryKey: matchKeys.listByDate(apiDate) }),
-        // Refetch entries (for rates, amounts) - refetch all entries for the selected match
-        queryClient.refetchQueries({ queryKey: ['entries', formData.selectMatch] }),
-        queryClient.refetchQueries({ queryKey: ['entries'] }),
-        // Refetch sessions (for session data)
-        queryClient.refetchQueries({ queryKey: sessionKeys.list(Number(formData.selectMatch)) }),
-        queryClient.refetchQueries({ queryKey: sessionKeys.list() }),
-        // Refetch groups (for group data)
+        // Always refetch groups (for group data)
         queryClient.refetchQueries({ queryKey: groupKeys.list() }),
-        // Refetch innings/overs (for innings/overs data)
-        queryClient.refetchQueries({ queryKey: inningsOverKeys.list() }),
-      ]);
+      ];
+
+      // Refetch entries only if report type is 'match'
+      if (formData.reportType === 'match') {
+        refetchPromises.push(
+          queryClient.refetchQueries({ queryKey: ['entries', formData.selectMatch] })
+        );
+      }
+
+      // Refetch sessions only if report type is 'session'
+      if (formData.reportType === 'session') {
+        refetchPromises.push(
+          queryClient.refetchQueries({ queryKey: sessionKeys.list(Number(formData.selectMatch)) })
+        );
+      }
+
+      // Always refetch innings/overs (used in filters)
+      refetchPromises.push(
+        queryClient.refetchQueries({ queryKey: inningsOverKeys.list() })
+      );
+
+      await Promise.all(refetchPromises);
       
       toast.dismiss('refreshing-data');
       toast.success('Data refreshed successfully!', { duration: 2000 });

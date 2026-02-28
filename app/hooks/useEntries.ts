@@ -69,6 +69,8 @@ export function useEntries(matchId: string | number | undefined, userId?: string
       throw new Error('Failed to fetch entries');
     },
     enabled: !!matchId,
+    staleTime: 30000, // Consider data fresh for 30 seconds to reduce unnecessary refetches
+    gcTime: 300000, // Keep in cache for 5 minutes
   });
 }
 

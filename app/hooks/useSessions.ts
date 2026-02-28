@@ -68,19 +68,13 @@ export function useSessions(matchId?: number | null, enabled: boolean = true) {
           params.match_id = matchId;
         }
         
-        console.log('Fetching sessions with params:', { matchId, params });
-        
         const response = await api.get('/v1/admin/sessions', {
           params,
           timeout: 10000,
         });
         
-        console.log('Sessions API Response:', response.data);
-        console.log('Sessions count:', response.data.data?.length || 0);
-        
         if (response.data.success) {
           const sessions = response.data.data || [];
-          console.log('Sessions data:', sessions);
           return sessions;
         }
         
@@ -91,10 +85,8 @@ export function useSessions(matchId?: number | null, enabled: boolean = true) {
       }
     },
     enabled: enabled && (matchId !== undefined),
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 30000, // Consider data fresh for 30 seconds to reduce unnecessary refetches
+    gcTime: 300000, // Keep in cache for 5 minutes
   });
 }
 
