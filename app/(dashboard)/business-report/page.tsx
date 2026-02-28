@@ -813,6 +813,7 @@ export default function BusinessReportPage() {
 
       // Track if we have any entrywise/no_commission users (affects how we handle signs)
       let hasEntrywiseOrNoCommission = false;
+      let hasNoCommission = false;
 
       // Use user maps for O(1) lookups (performance improvement)
       const userMapById = new Map(users.map((u) => [u.id, u]));
@@ -1104,6 +1105,7 @@ export default function BusinessReportPage() {
             team2NetProfitLoss += team2Result.netProfitLoss;
           } else if (commissionType === 'no_commission') {
             hasEntrywiseOrNoCommission = true;
+            hasNoCommission = true;
             // No commission, only partnership
             const partnershipRate = partnershipPercent / 100;
 
@@ -1274,14 +1276,18 @@ export default function BusinessReportPage() {
           });
           
           // Aggregate Team1 and Team2 contributions to team totals
+          // Calculate actual profit/loss: losingTeamTotal - winningTeamTotal (can be negative)
+          const team1ActualProfitLoss = team1LostSideTotal - team1WinSideTotal;
+          const team2ActualProfitLoss = team2LostSideTotal - team2WinSideTotal;
+          
           team1TotalBet += userTeam1Bet;
-          team1ProfitLoss += team1EntrywiseResult.grossDifference; // Use gross difference for profitLoss
+          team1ProfitLoss += team1ActualProfitLoss; // Use actual profit/loss (can be negative), not grossDifference
           team1Commission += team1EntrywiseResult.commission;
           team1CustNetWithComm += team1EntrywiseResult.custNetWithComm;
           team1NetProfitLoss += team1EntrywiseResult.netProfitLoss;
           
           team2TotalBet += userTeam2Bet;
-          team2ProfitLoss += team2EntrywiseResult.grossDifference; // Use gross difference for profitLoss
+          team2ProfitLoss += team2ActualProfitLoss; // Use actual profit/loss (can be negative), not grossDifference
           team2Commission += team2EntrywiseResult.commission;
           team2CustNetWithComm += team2EntrywiseResult.custNetWithComm;
           team2NetProfitLoss += team2EntrywiseResult.netProfitLoss;
@@ -1344,25 +1350,27 @@ export default function BusinessReportPage() {
       // Calculate losing team totals from pre-aggregated values
       // Team totals are now sums of individual user calculations
       // For profit_loss: team1ProfitLoss and team2ProfitLoss are already correctly signed (can be + or -)
-      // For entrywise/no_commission: team1ProfitLoss and team2ProfitLoss are gross differences (always positive)
-      // When we have entrywise/no_commission users, we need to negate losing team values
+      // For entrywise: team1ProfitLoss and team2ProfitLoss are actual profit/loss (can be + or -), same as profit_loss
+      // For no_commission: team1ProfitLoss and team2ProfitLoss are gross differences (always positive)
+      // When we have no_commission users, we need to negate losing team values (grossDifference is always positive)
+      // When we have entrywise users, values are already correctly signed (can be negative), so use as-is (same as profit_loss)
       // When we only have profit_loss users, values are already correctly signed, so use as-is
       const secondTeamTotals = isTeam1Winner
         ? {
             name: losingTeam.name,
             totalBet: team2TotalBet,
-            profitLoss: hasEntrywiseOrNoCommission ? -team2ProfitLoss : team2ProfitLoss,
-            commission: hasEntrywiseOrNoCommission ? -team2Commission : team2Commission,
-            custNetWithComm: hasEntrywiseOrNoCommission ? -team2CustNetWithComm : team2CustNetWithComm,
-            netProfitLoss: hasEntrywiseOrNoCommission ? -team2NetProfitLoss : team2NetProfitLoss,
+            profitLoss: hasNoCommission ? -team2ProfitLoss : team2ProfitLoss,
+            commission: hasNoCommission ? -team2Commission : team2Commission,
+            custNetWithComm: hasNoCommission ? -team2CustNetWithComm : team2CustNetWithComm,
+            netProfitLoss: hasNoCommission ? -team2NetProfitLoss : team2NetProfitLoss,
           }
         : {
             name: losingTeam.name,
             totalBet: team1TotalBet,
-            profitLoss: hasEntrywiseOrNoCommission ? -team1ProfitLoss : team1ProfitLoss,
-            commission: hasEntrywiseOrNoCommission ? -team1Commission : team1Commission,
-            custNetWithComm: hasEntrywiseOrNoCommission ? -team1CustNetWithComm : team1CustNetWithComm,
-            netProfitLoss: hasEntrywiseOrNoCommission ? -team1NetProfitLoss : team1NetProfitLoss,
+            profitLoss: hasNoCommission ? -team1ProfitLoss : team1ProfitLoss,
+            commission: hasNoCommission ? -team1Commission : team1Commission,
+            custNetWithComm: hasNoCommission ? -team1CustNetWithComm : team1CustNetWithComm,
+            netProfitLoss: hasNoCommission ? -team1NetProfitLoss : team1NetProfitLoss,
           };
 
       // Add winning team total row first (immediately after individual entries, no gap)
