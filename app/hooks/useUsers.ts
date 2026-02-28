@@ -67,14 +67,9 @@ export function useUsers() {
     queryKey: userKeys.list(),
     queryFn: async (): Promise<User[]> => {
       try {
-        console.log('🔍 Attempting to fetch users from:', `${api.defaults.baseURL}/v1/admin/users`);
-        
         const response = await api.get('/v1/admin/users', {
           timeout: 10000, // 10 second timeout
         });
-        
-        console.log('📥 Users API Response:', response.data);
-        console.log('📥 Response status:', response.status);
         
         if (response.data.success) {
           // Return empty array if data is null/undefined, otherwise return the data array
@@ -149,9 +144,7 @@ export function useCreateUser() {
   return useMutation({
     mutationFn: async (payload: CreateUserPayload): Promise<User> => {
       try {
-        console.log('🔍 Creating user with payload:', payload);
         const response = await api.post('/v1/admin/users', payload);
-        console.log('📥 Create user response:', response.data);
         if (response.data.success) {
           return response.data.data;
         }
@@ -231,9 +224,7 @@ export function useUpdateUser() {
   return useMutation({
     mutationFn: async ({ id, payload }: { id: number; payload: UpdateUserPayload }): Promise<User> => {
       try {
-        console.log('🔍 Updating user:', id, payload);
         const response = await api.put(`/v1/admin/users/${id}`, payload);
-        console.log('📥 Update user response:', response.data);
         if (response.data.success) {
           return response.data.data;
         }
@@ -311,11 +302,9 @@ export function useUpdateUserStatus() {
   return useMutation({
     mutationFn: async (payload: UpdateUserStatusPayload): Promise<User> => {
       try {
-        console.log('🔍 Updating user status:', payload);
         const response = await api.patch(`/v1/admin/users/${payload.userId}/status`, {
           status: payload.status,
         });
-        console.log('📥 Update user status response:', response.data);
         if (response.data.success) {
           return response.data.data;
         }
@@ -380,9 +369,7 @@ export function useDeleteUser() {
   return useMutation({
     mutationFn: async (userId: number): Promise<void> => {
       try {
-        console.log('🔍 Deleting user:', userId);
         const response = await api.delete(`/v1/admin/users/${userId}`);
-        console.log('📥 Delete user response:', response.data);
         if (response.data.success) {
           return;
         }

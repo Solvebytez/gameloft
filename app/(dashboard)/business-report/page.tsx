@@ -1042,35 +1042,6 @@ export default function BusinessReportPage() {
           }
         });
         
-        // Log Win Team entries (only for entrywise users)
-        if (user && user.commission_type === 'entrywise') {
-          console.log('🟢 WIN TEAM ENTRIES (Fav):', {
-            userId: user.id,
-            userName: user.name,
-            entries: winFavEntries,
-            total: userWinningTeamFav,
-          });
-          console.log('🔴 WIN TEAM ENTRIES (Non-Fav):', {
-            userId: user.id,
-            userName: user.name,
-            entries: winNonFavEntries,
-            total: userWinningTeamNonFav,
-          });
-          
-          // Log Lost Team entries (only for entrywise users)
-          console.log('🟢 LOST TEAM ENTRIES (Fav):', {
-            userId: user.id,
-            userName: user.name,
-            entries: lostFavEntries,
-            total: userLosingTeamFav,
-          });
-          console.log('🔴 LOST TEAM ENTRIES (Non-Fav):', {
-            userId: user.id,
-            userName: user.name,
-            entries: lostNonFavEntries,
-            total: userLosingTeamNonFav,
-          });
-        }
         
         // Calculate commission and partnership based on commission type
         if (user) {
@@ -1827,12 +1798,48 @@ export default function BusinessReportPage() {
       render: (value, row) => {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
-        // Only show background if there's a value or it's a total row
-        const hasValue = value > 0;
-        const bgColor = (row.isTotal && hasValue) ? 'bg-green-100' : '';
+        
+        // Convert value to number - handle both number and string (with or without commas)
+        let numValue = 0;
+        if (typeof value === 'number') {
+          numValue = value;
+        } else if (typeof value === 'string') {
+          // Remove commas and parse
+          const cleaned = value.replace(/,/g, '').trim();
+          numValue = parseFloat(cleaned) || 0;
+        } else if (value != null) {
+          numValue = Number(value) || 0;
+        }
+        
+        // Only apply colors to TOTAL ROWS, not individual user rows
+        const hasValue = numValue !== 0 && !isNaN(numValue);
+        const isPositive = numValue > 0;
+        
+        // Determine background color class and inline style ONLY for total rows
+        let bgColorClass = '';
+        let inlineStyle: React.CSSProperties = {};
+        if (row.isTotal && !isEmptyRow && hasValue) {
+          bgColorClass = isPositive ? '!bg-[#00a65a] !text-white' : '!bg-[#dd4b39] !text-white';
+          // Use inline style with explicit values - React will apply these correctly
+          inlineStyle = {
+            backgroundColor: isPositive ? '#00a65a' : '#dd4b39',
+            color: '#ffffff',
+            // Ensure it fills the entire cell
+            margin: '-0.75rem',
+            padding: '0.75rem',
+          };
+        }
+        
+        const classes = [
+          '-m-3',
+          'p-3',
+          row.isTotal ? 'font-bold' : '',
+          bgColorClass
+        ].filter(Boolean).join(' ');
+        
         return (
-          <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : ''}`}>
-            {isEmptyRow ? '-' : (hasValue ? formatNumber(value) : '')}
+          <div className={classes} style={inlineStyle}>
+            {isEmptyRow ? '-' : (hasValue ? formatNumber(numValue) : '')}
           </div>
         );
       },
@@ -1844,20 +1851,48 @@ export default function BusinessReportPage() {
       render: (value, row) => {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
-        // Only show background if there's a value or it's a total row with value
-        const hasValue = value !== 0;
-        const isPositive = value >= 0;
-        const bgColor = isEmptyRow
-          ? ''
-          : (row.isTotal && hasValue)
-            ? (isPositive ? '#00a65a' : '#dd4b39')
-            : '';
+        
+        // Convert value to number - handle both number and string (with or without commas)
+        let numValue = 0;
+        if (typeof value === 'number') {
+          numValue = value;
+        } else if (typeof value === 'string') {
+          // Remove commas and parse
+          const cleaned = value.replace(/,/g, '').trim();
+          numValue = parseFloat(cleaned) || 0;
+        } else if (value != null) {
+          numValue = Number(value) || 0;
+        }
+        
+        // Only show background if there's a value
+        const hasValue = numValue !== 0 && !isNaN(numValue);
+        const isPositive = numValue > 0;
+        
+        // Determine background color class - ONLY apply colors to TOTAL ROWS, not individual user rows
+        let bgColorClass = '';
+        let inlineStyle: React.CSSProperties = {};
+        if (row.isTotal && !isEmptyRow && hasValue) {
+          bgColorClass = isPositive ? '!bg-[#00a65a] !text-white' : '!bg-[#dd4b39] !text-white';
+          // Use inline style with explicit values - React will apply these correctly
+          inlineStyle = {
+            backgroundColor: isPositive ? '#00a65a' : '#dd4b39',
+            color: '#ffffff',
+            // Ensure it fills the entire cell
+            margin: '-0.75rem',
+            padding: '0.75rem',
+          };
+        }
+        
+        const classes = [
+          '-m-3',
+          'p-3',
+          row.isTotal ? 'font-bold' : '',
+          bgColorClass
+        ].filter(Boolean).join(' ');
+        
         return (
-          <div 
-            className={`-m-3 p-3 ${row.isTotal ? 'font-bold' : ''}`}
-            style={bgColor ? { backgroundColor: bgColor } : {}}
-          >
-            {isEmptyRow ? '-' : (hasValue ? formatNumber(value) : '')}
+          <div className={classes} style={inlineStyle}>
+            {isEmptyRow ? '-' : (hasValue ? formatNumber(numValue) : '')}
           </div>
         );
       },
@@ -1869,18 +1904,50 @@ export default function BusinessReportPage() {
       render: (value, row) => {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
-        // Only show background for total rows, not for individual rows
-        const hasValue = value !== 0;
-        const isPositive = value >= 0;
-        const bgColor = isEmptyRow
-          ? ''
-          : row.isTotal && hasValue
-            ? (isPositive ? 'bg-red-100' : 'bg-green-100')
-            : '';
+        
+        // Convert value to number - handle both number and string (with or without commas)
+        let numValue = 0;
+        if (typeof value === 'number') {
+          numValue = value;
+        } else if (typeof value === 'string') {
+          // Remove commas and parse
+          const cleaned = value.replace(/,/g, '').trim();
+          numValue = parseFloat(cleaned) || 0;
+        } else if (value != null) {
+          numValue = Number(value) || 0;
+        }
+        
         const commissionPercent = Number(row.commissionPercent) || 0;
         const formattedPercent = commissionPercent.toFixed(2);
+        
+        // Only apply colors to TOTAL ROWS, not individual user rows
+        const hasValue = numValue !== 0 && !isNaN(numValue);
+        const isPositive = numValue > 0;
+        
+        // Determine background color class and inline style ONLY for total rows
+        let bgColorClass = '';
+        let inlineStyle: React.CSSProperties = {};
+        if (row.isTotal && !isEmptyRow && hasValue) {
+          bgColorClass = isPositive ? '!bg-[#00a65a] !text-white' : '!bg-[#dd4b39] !text-white';
+          // Use inline style with explicit values - React will apply these correctly
+          inlineStyle = {
+            backgroundColor: isPositive ? '#00a65a' : '#dd4b39',
+            color: '#ffffff',
+            // Ensure it fills the entire cell
+            margin: '-0.75rem',
+            padding: '0.75rem',
+          };
+        }
+        
+        const classes = [
+          '-m-3',
+          'p-3',
+          row.isTotal ? 'font-bold' : '',
+          bgColorClass
+        ].filter(Boolean).join(' ');
+        
         return (
-          <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : ''}`}>
+          <div className={classes} style={inlineStyle}>
             {isEmptyRow 
               ? '-'
               : row.isTotal
@@ -1903,8 +1970,8 @@ export default function BusinessReportPage() {
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
         // For total rows with team name (string), use blue background. For individual rows, no background
         const hasValue = value && (typeof value === 'string' ? value.trim() !== '' : true);
-        const bgColor = (row.isTotal && hasValue && typeof value === 'string') 
-          ? 'bg-blue-100' 
+        const bgColorClass = (row.isTotal && hasValue && typeof value === 'string') 
+          ? '!bg-[#0073b7] !text-white' 
           : '';
         // For total rows, show team name (string), for individual rows show percentage with 2 decimals
         // For empty rows, show dash
@@ -1914,7 +1981,9 @@ export default function BusinessReportPage() {
             ? value 
             : (typeof value === 'number' ? value.toFixed(2) : value);
         return (
-          <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : ''}`}>
+          <div 
+            className={`-m-3 p-3 ${row.isTotal ? 'font-bold' : ''} ${bgColorClass}`}
+          >
             {displayValue || ''}
           </div>
         );
@@ -1927,19 +1996,47 @@ export default function BusinessReportPage() {
       render: (value, row) => {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
-        const isPositive = value >= 0;
-        // Negative values: red background, Positive values: green background
-        const bgColor = isEmptyRow
-          ? ''
-          : row.isTotal 
-            ? (isPositive ? '#00a65a' : '#dd4b39')
-            : (value !== 0 ? (isPositive ? '#00a65a' : '#dd4b39') : '');
+        
+        // Convert value to number - handle both number and string (with or without commas)
+        let numValue = 0;
+        if (typeof value === 'number') {
+          numValue = value;
+        } else if (typeof value === 'string') {
+          // Remove commas and parse
+          const cleaned = value.replace(/,/g, '').trim();
+          numValue = parseFloat(cleaned) || 0;
+        } else if (value != null) {
+          numValue = Number(value) || 0;
+        }
+        
+        const isPositive = numValue > 0;
+        const hasValue = numValue !== 0 && !isNaN(numValue);
+        
+        // Determine background color class
+        let bgColorClass = '';
+        let inlineStyle: React.CSSProperties = {};
+        if (!isEmptyRow && hasValue) {
+          bgColorClass = isPositive ? '!bg-[#00a65a] !text-white' : '!bg-[#dd4b39] !text-white';
+          // Use inline style with explicit values - React will apply these correctly
+          inlineStyle = {
+            backgroundColor: isPositive ? '#00a65a' : '#dd4b39',
+            color: '#ffffff',
+            // Ensure it fills the entire cell
+            margin: '-0.75rem',
+            padding: '0.75rem',
+          };
+        }
+        
+        const classes = [
+          '-m-3',
+          'p-3',
+          'font-bold',
+          bgColorClass
+        ].filter(Boolean).join(' ');
+        
         return (
-          <div 
-            className={`-m-3 p-3 ${row.isTotal ? 'font-bold' : 'font-bold'}`}
-            style={bgColor ? { backgroundColor: bgColor } : {}}
-          >
-            {isEmptyRow ? '-' : (value !== 0 ? formatNumber(value) : '0')}
+          <div className={classes} style={inlineStyle}>
+            {isEmptyRow ? '-' : (hasValue ? formatNumber(numValue) : '0')}
           </div>
         );
       },
@@ -1951,19 +2048,47 @@ export default function BusinessReportPage() {
       render: (value, row) => {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
-        const isPositive = value >= 0;
-        // Negative values: red background, Positive values: green background
-        const bgColor = isEmptyRow
-          ? ''
-          : row.isTotal 
-            ? (isPositive ? '#00a65a' : '#dd4b39')
-            : (value !== 0 ? (isPositive ? '#00a65a' : '#dd4b39') : '');
+        
+        // Convert value to number - handle both number and string (with or without commas)
+        let numValue = 0;
+        if (typeof value === 'number') {
+          numValue = value;
+        } else if (typeof value === 'string') {
+          // Remove commas and parse
+          const cleaned = value.replace(/,/g, '').trim();
+          numValue = parseFloat(cleaned) || 0;
+        } else if (value != null) {
+          numValue = Number(value) || 0;
+        }
+        
+        const isPositive = numValue > 0;
+        const hasValue = numValue !== 0 && !isNaN(numValue);
+        
+        // Determine background color class
+        let bgColorClass = '';
+        let inlineStyle: React.CSSProperties = {};
+        if (!isEmptyRow && hasValue) {
+          bgColorClass = isPositive ? '!bg-[#00a65a] !text-white' : '!bg-[#dd4b39] !text-white';
+          // Use inline style with explicit values - React will apply these correctly
+          inlineStyle = {
+            backgroundColor: isPositive ? '#00a65a' : '#dd4b39',
+            color: '#ffffff',
+            // Ensure it fills the entire cell
+            margin: '-0.75rem',
+            padding: '0.75rem',
+          };
+        }
+        
+        const classes = [
+          '-m-3',
+          'p-3',
+          'font-bold',
+          bgColorClass
+        ].filter(Boolean).join(' ');
+        
         return (
-          <div 
-            className={`-m-3 p-3 ${row.isTotal ? 'font-bold' : 'font-bold'}`}
-            style={bgColor ? { backgroundColor: bgColor } : {}}
-          >
-            {isEmptyRow ? '-' : (value !== 0 ? formatNumber(value) : '0')}
+          <div className={classes} style={inlineStyle}>
+            {isEmptyRow ? '-' : (hasValue ? formatNumber(numValue) : '0')}
           </div>
         );
       },

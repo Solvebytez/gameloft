@@ -42,11 +42,8 @@ export function useInningsOvers() {
           timeout: 10000,
         });
         
-        console.log('Innings/Overs API Response:', response.data);
-        
         if (response.data.success) {
           const inningsOvers = response.data.data || [];
-          console.log('Innings/Overs data:', inningsOvers);
           return inningsOvers;
         }
         

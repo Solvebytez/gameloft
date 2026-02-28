@@ -26,29 +26,6 @@ api.interceptors.request.use(
     // If data is FormData, remove Content-Type header to let browser set it with boundary
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
-      console.log('📤 API Request (FormData):', {
-        method: config.method?.toUpperCase(),
-        url: config.url,
-        baseURL: config.baseURL,
-        fullURL: `${config.baseURL}${config.url}`,
-        hasFormData: true,
-        formDataEntries: Array.from((config.data as FormData).entries()).map(([key, value]) => ({
-          key,
-          isFile: value instanceof File,
-          value: value instanceof File ? `File(${value.name}, ${value.size} bytes)` : value,
-        })),
-        withCredentials: config.withCredentials,
-      });
-    } else {
-      // Log request details for non-FormData requests
-      console.log('📤 API Request:', {
-        method: config.method?.toUpperCase(),
-        url: config.url,
-        baseURL: config.baseURL,
-        fullURL: `${config.baseURL}${config.url}`,
-        data: config.data,
-        withCredentials: config.withCredentials,
-      });
     }
     // You can add auth headers here if needed
     return config;
@@ -62,12 +39,6 @@ api.interceptors.request.use(
 // Response interceptor for handling errors globally
 api.interceptors.response.use(
   (response) => {
-    console.log('📥 API Response:', {
-      status: response.status,
-      url: response.config.url,
-      data: response.data,
-      headers: response.headers,
-    });
     return response;
   },
   async (error) => {
@@ -83,15 +54,12 @@ api.interceptors.response.use(
           ? '/v1/superadmin/refresh' 
           : '/v1/admin/refresh';
         
-        console.log('🔄 Token expired, refreshing...');
         await api.post(refreshEndpoint);
-        console.log('✅ Token refreshed, retrying original request');
         
         // Preserve FormData if present
         if (error.config.data instanceof FormData) {
           // Ensure Content-Type is not set for FormData (let browser set it)
           delete error.config.headers['Content-Type'];
-          console.log('🔄 Retrying with FormData preserved');
         }
         
         // Retry original request

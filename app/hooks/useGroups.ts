@@ -55,11 +55,8 @@ export function useGroups() {
           timeout: 10000,
         });
         
-        console.log('Groups API Response:', response.data);
-        
         if (response.data.success) {
           const groups = response.data.data || [];
-          console.log('Groups data:', groups);
           return groups;
         }
         
