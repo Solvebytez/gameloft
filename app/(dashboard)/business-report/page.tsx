@@ -1850,10 +1850,13 @@ export default function BusinessReportPage() {
         const bgColor = isEmptyRow
           ? ''
           : (row.isTotal && hasValue)
-            ? (isPositive ? 'bg-green-100' : 'bg-red-100')
+            ? (isPositive ? '#00a65a' : '#dd4b39')
             : '';
         return (
-          <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : ''}`}>
+          <div 
+            className={`-m-3 p-3 ${row.isTotal ? 'font-bold' : ''}`}
+            style={bgColor ? { backgroundColor: bgColor } : {}}
+          >
             {isEmptyRow ? '-' : (hasValue ? formatNumber(value) : '')}
           </div>
         );
@@ -1929,10 +1932,13 @@ export default function BusinessReportPage() {
         const bgColor = isEmptyRow
           ? ''
           : row.isTotal 
-            ? (isPositive ? 'bg-green-100' : 'bg-red-100')
-            : (value !== 0 ? (isPositive ? 'bg-green-100' : 'bg-red-100') : '');
+            ? (isPositive ? '#00a65a' : '#dd4b39')
+            : (value !== 0 ? (isPositive ? '#00a65a' : '#dd4b39') : '');
         return (
-          <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : 'font-bold'}`}>
+          <div 
+            className={`-m-3 p-3 ${row.isTotal ? 'font-bold' : 'font-bold'}`}
+            style={bgColor ? { backgroundColor: bgColor } : {}}
+          >
             {isEmptyRow ? '-' : (value !== 0 ? formatNumber(value) : '0')}
           </div>
         );
@@ -1950,10 +1956,13 @@ export default function BusinessReportPage() {
         const bgColor = isEmptyRow
           ? ''
           : row.isTotal 
-            ? (isPositive ? 'bg-green-100' : 'bg-red-100')
-            : (value !== 0 ? (isPositive ? 'bg-green-100' : 'bg-red-100') : '');
+            ? (isPositive ? '#00a65a' : '#dd4b39')
+            : (value !== 0 ? (isPositive ? '#00a65a' : '#dd4b39') : '');
         return (
-          <div className={`-m-3 p-3 ${bgColor} ${row.isTotal ? 'font-bold' : 'font-bold'}`}>
+          <div 
+            className={`-m-3 p-3 ${row.isTotal ? 'font-bold' : 'font-bold'}`}
+            style={bgColor ? { backgroundColor: bgColor } : {}}
+          >
             {isEmptyRow ? '-' : (value !== 0 ? formatNumber(value) : '0')}
           </div>
         );
