@@ -5,6 +5,7 @@ import Card from '@/app/components/ui/Card';
 import Input from '@/app/components/ui/Input';
 import Select from '@/app/components/ui/Select';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
+import ConfirmModal from '@/app/components/ui/ConfirmModal';
 import { useAdmins, useCreateAdmin, useUpdateAdmin, useDeleteAdmin, useUpdateAdminStatus, Admin } from '@/app/hooks/useAdmins';
 import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
@@ -101,9 +102,7 @@ function AdminActionsDropdown({
             <button
               type="button"
               onClick={() => {
-                if (confirm(`Are you sure you want to delete admin "${admin.name}"?`)) {
-                  onDelete(admin);
-                }
+                onDelete(admin);
                 setIsOpen(false);
               }}
               className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
@@ -137,6 +136,10 @@ export default function CreateAdminPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ isOpen: boolean; adminId: number | null }>({
+    isOpen: false,
+    adminId: null,
+  });
 
   // TanStack Query hooks
   const { data: admins = [], isLoading, error } = useAdmins();
@@ -301,10 +304,19 @@ export default function CreateAdminPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDelete = async (admin: Admin) => {
-    if (confirm(`Are you sure you want to delete admin "${admin.name}"?`)) {
-      deleteMutation.mutate(admin.id);
-      // Error is handled by the mutation's onError handler
+  const handleDelete = (admin: Admin) => {
+    setDeleteConfirmModal({ isOpen: true, adminId: admin.id });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmModal.adminId) return;
+
+    try {
+      await deleteMutation.mutateAsync(deleteConfirmModal.adminId);
+      setDeleteConfirmModal({ isOpen: false, adminId: null });
+    } catch (error) {
+      console.error('Error deleting admin:', error);
+      // Error is already handled by the mutation's onError callback
     }
   };
 
@@ -546,6 +558,22 @@ export default function CreateAdminPage() {
           )}
         </div>
       </Card>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirmModal.isOpen}
+        onCancel={() => setDeleteConfirmModal({ isOpen: false, adminId: null })}
+        onConfirm={confirmDelete}
+        title="Delete Admin"
+        message={
+          deleteConfirmModal.adminId
+            ? `Are you sure you want to delete admin "${admins.find((a) => a.id === deleteConfirmModal.adminId)?.name || 'this admin'}"? This action cannot be undone.`
+            : ''
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmButtonColor="red"
+      />
     </div>
   );
 }

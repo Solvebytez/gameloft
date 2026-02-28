@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLogout } from '@/app/hooks/useLogout';
+import { useCurrentSuperAdmin } from '@/app/hooks/useSuperAdmin';
 
 interface SuperAdminSidebarProps {
   isCollapsed: boolean;
@@ -48,6 +49,20 @@ const navItems: NavItem[] = [
 export default function SuperAdminSidebar({ isCollapsed }: SuperAdminSidebarProps) {
   const pathname = usePathname();
   const logout = useLogout(true); // true = isSuperAdmin
+  const { data: currentAdmin, isLoading } = useCurrentSuperAdmin();
+
+  // Get initials from admin name
+  const getInitials = (name: string | undefined) => {
+    if (!name) return 'SA';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  const displayName = currentAdmin?.name || 'Super Admin';
+  const initials = getInitials(currentAdmin?.name);
 
   const handleLogout = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -56,24 +71,24 @@ export default function SuperAdminSidebar({ isCollapsed }: SuperAdminSidebarProp
 
   return (
     <aside
-      className={`bg-[var(--sidebar)] border-r border-[var(--sidebar-border)] transition-all duration-300 flex flex-col h-full ${
+      className={`bg-[#f5f1e8] border-r-4 border-[#2d2d2d] transition-all duration-300 flex flex-col h-full ${
         isCollapsed ? 'w-20' : 'w-64'
       }`}
     >
       {/* User Profile Section */}
-      <div className="p-4 border-b border-[var(--sidebar-border)]">
+      <div className="p-4 border-b-4 border-[#2d2d2d]">
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'}`}>
-          <div className="w-12 h-12 rounded-full bg-[var(--sidebar-primary)] flex items-center justify-center text-[var(--sidebar-primary-foreground)] font-semibold text-lg flex-shrink-0">
-            SA
+          <div className="w-12 h-12 rounded-full bg-[#8b6f47] flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
+            {isLoading ? '...' : initials}
           </div>
           {!isCollapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-[var(--sidebar-foreground)] truncate">
-                Super Admin
+              <p className="text-sm font-medium text-[#2d2d2d] truncate font-bold">
+                {isLoading ? 'Loading...' : displayName}
               </p>
               <div className="flex items-center space-x-1 mt-1">
                 <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                <span className="text-xs text-gray-600">Online</span>
+                <span className="text-xs text-[#2d2d2d]">Online</span>
               </div>
             </div>
           )}
@@ -91,10 +106,10 @@ export default function SuperAdminSidebar({ isCollapsed }: SuperAdminSidebarProp
                   href={item.href}
                   className={`flex items-center ${
                     isCollapsed ? 'justify-center px-2' : 'px-4'
-                  } py-3 rounded-md transition-colors ${
+                  } py-3 rounded-md transition-colors font-semibold ${
                     isActive
-                      ? 'bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)]'
-                      : 'text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)]'
+                      ? 'bg-[#8b6f47] text-white'
+                      : 'text-[#2d2d2d] hover:bg-[#e8dcc8]'
                   }`}
                   title={isCollapsed ? item.label : undefined}
                 >
@@ -113,7 +128,7 @@ export default function SuperAdminSidebar({ isCollapsed }: SuperAdminSidebarProp
               disabled={logout.isPending}
               className={`w-full flex items-center ${
                 isCollapsed ? 'justify-center px-2' : 'px-4'
-              } py-3 rounded-md transition-colors text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] disabled:opacity-50 disabled:cursor-not-allowed`}
+              } py-3 rounded-md transition-colors text-[#2d2d2d] font-semibold hover:bg-[#e8dcc8] disabled:opacity-50 disabled:cursor-not-allowed`}
               title={isCollapsed ? 'Logout' : undefined}
             >
               <span className={isCollapsed ? '' : 'mr-3'}>

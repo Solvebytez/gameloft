@@ -42,8 +42,15 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
-    // Handle 401 Unauthorized - token expired
-    if (error.response?.status === 401 && error.config && !error.config._retry) {
+    // Check for authentication errors (401 or 500 with "Unauthenticated" message)
+    const isUnauthenticated = 
+      error.response?.status === 401 || 
+      (error.response?.status === 500 && 
+       (error.response?.data?.error === 'Unauthenticated.' || 
+        error.response?.data?.message?.includes('Unauthenticated')));
+    
+    // Handle authentication errors
+    if (isUnauthenticated && error.config && !error.config._retry) {
       error.config._retry = true;
       
       // Try to refresh token (works for both admin and superadmin)

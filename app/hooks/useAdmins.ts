@@ -197,11 +197,29 @@ export function useUpdateAdmin() {
 
   return useMutation({
     mutationFn: async ({ id, ...payload }: { id: number } & UpdateAdminPayload): Promise<Admin> => {
-      const response = await api.put(`/v1/superadmin/admins/${id}`, payload);
-      if (response.data.success) {
-        return response.data.data;
+      try {
+        const response = await api.put(`/v1/superadmin/admins/${id}`, payload);
+        if (response.data.success) {
+          return response.data.data;
+        }
+        throw new Error(response.data.message || 'Failed to update admin');
+      } catch (error: unknown) {
+        console.error('❌ Error updating admin:', error);
+        if (error instanceof AxiosError) {
+          console.error('❌ Error response data:', error.response?.data);
+          console.error('❌ Error response status:', error.response?.status);
+          
+          // Handle validation errors
+          if (error.response?.status === 422 && error.response?.data?.errors) {
+            const errors = error.response.data.errors;
+            const firstError = Object.values(errors)[0];
+            if (Array.isArray(firstError) && firstError.length > 0) {
+              throw new Error(String(firstError[0]));
+            }
+          }
+        }
+        throw error;
       }
-      throw new Error(response.data.message || 'Failed to update admin');
     },
     onMutate: async ({ id, ...updatedFields }) => {
       // Cancel outgoing refetches

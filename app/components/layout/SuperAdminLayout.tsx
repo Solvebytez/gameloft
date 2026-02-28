@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Header from './Header';
+import SuperAdminHeader from './SuperAdminHeader';
 import SuperAdminSidebar from './SuperAdminSidebar';
-import Footer from './Footer';
+import SuperAdminFooter from './SuperAdminFooter';
 
 interface SuperAdminLayoutProps {
   children: React.ReactNode;
@@ -33,7 +33,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      <Header onMenuClick={toggleSidebar} />
+      <SuperAdminHeader onMenuClick={toggleSidebar} />
       <div className="flex flex-1 overflow-hidden relative">
         {/* Mobile overlay */}
         {isMobileMenuOpen && (
@@ -52,11 +52,11 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
           <SuperAdminSidebar isCollapsed={isSidebarCollapsed} />
         </div>
         {/* Main content */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-[var(--background)] lg:ml-0">
+        <main className="flex-1 flex flex-col overflow-hidden bg-[#e8dcc8] lg:ml-0">
           <div className="flex-1 overflow-y-auto p-4 lg:p-6">
             {children}
           </div>
-          <Footer />
+          <SuperAdminFooter />
         </main>
       </div>
     </div>
