@@ -289,7 +289,7 @@ export default function CreateMatchPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       <Card>
         <form className="space-y-6">
           {/* First Row - Match Date, Team1, VS, Team2 */}
@@ -317,9 +317,9 @@ export default function CreateMatchPage() {
                     }
                   }}
                   placeholder="dd-mm-yyyy"
-                  className={`w-full px-4 py-3 bg-white border-[3px] ${
+                  className={`w-full px-3 py-1.5 bg-white border-2 ${
                     errors.matchDate ? 'border-red-500' : 'border-retro-dark'
-                  } text-retro-dark font-bold text-lg rounded focus:outline-none focus:ring-2 focus:ring-retro-accent disabled:opacity-50 disabled:cursor-not-allowed`}
+                  } text-retro-dark font-bold text-xs rounded focus:outline-none focus:ring-2 focus:ring-retro-accent disabled:opacity-50 disabled:cursor-not-allowed`}
                   style={{ paddingRight: '2.5rem' }}
                 />
                 <svg
@@ -370,7 +370,7 @@ export default function CreateMatchPage() {
             </div>
 
             {/* Select Team2 */}
-            <div className="md:col-span-4">
+            <div className="md:col-span-3">
               <Select
                 label="Select Team2*"
                 id="team2"
@@ -381,44 +381,43 @@ export default function CreateMatchPage() {
                 disabled={teamsLoading}
               />
             </div>
-          </div>
 
-          {/* Second Row - Action Buttons (Left Aligned) */}
-          <div className="flex justify-start gap-4">
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={createMatchMutation.isPending || updateMatchMutation.isPending || teamsLoading}
-              className="px-6 py-3 bg-green-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {createMatchMutation.isPending || updateMatchMutation.isPending
-                ? 'Saving...'
-                : editingMatchId
-                ? 'Update'
-                : 'Save'}
-            </button>
-            {editingMatchId && (
+            {/* Action Buttons */}
+            <div className="md:col-span-2 flex items-end justify-end gap-2">
               <button
                 type="button"
-                onClick={handleCancelEdit}
-                className="px-6 py-3 bg-gray-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+                onClick={handleSave}
+                disabled={createMatchMutation.isPending || updateMatchMutation.isPending || teamsLoading}
+                className="px-4 py-1.5 bg-green-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Cancel
+                {createMatchMutation.isPending || updateMatchMutation.isPending
+                  ? 'Saving...'
+                  : editingMatchId
+                  ? 'Update'
+                  : 'Save'}
               </button>
-            )}
-            <button
-              type="button"
-              onClick={handleReset}
-              className="px-6 py-3 bg-red-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
-            >
-              Reset
-            </button>
+              {editingMatchId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-4 py-1.5 bg-gray-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleReset}
+                className="px-4 py-1.5 bg-red-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
+              >
+                Reset
+              </button>
+            </div>
           </div>
         </form>
       </Card>
 
       {/* DataTable below the form */}
-      <h2 className="text-2xl font-bold text-foreground mt-8">MATCH SUMMARY</h2>
       <Card height="600px">
         {matchesLoading ? (
           <div className="flex items-center justify-center h-full">
@@ -430,7 +429,6 @@ export default function CreateMatchPage() {
             columns={columns}
             onEdit={handleEdit}
             onDelete={handleDelete}
-            onRowSelect={handleRowSelect}
             entriesPerPageOptions={[10, 25, 50, 100]}
             defaultEntriesPerPage={100}
           />

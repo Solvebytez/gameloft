@@ -181,7 +181,7 @@ export default function InningsOverPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       <Card>
         <form className="space-y-6">
           <div className="flex items-end gap-4">
@@ -214,12 +214,12 @@ export default function InningsOverPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-4 items-end">
+            <div className="flex gap-4 items-end justify-end">
               {isEditMode && (
                 <button
                   type="button"
                   onClick={handleCancelEdit}
-                  className="px-6 py-3 bg-gray-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+                  className="px-4 py-1.5 bg-gray-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
                 >
                   Cancel
                 </button>
@@ -228,7 +228,7 @@ export default function InningsOverPage() {
                 type="button"
                 onClick={handleSave}
                 disabled={createInningsOverMutation.isPending || updateInningsOverMutation.isPending}
-                className="px-6 py-3 bg-green-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-1.5 bg-green-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {(createInningsOverMutation.isPending || updateInningsOverMutation.isPending) ? 'Saving...' : (isEditMode ? 'Update' : 'Save')}
               </button>
@@ -236,7 +236,7 @@ export default function InningsOverPage() {
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="px-6 py-3 bg-red-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+                  className="px-4 py-1.5 bg-red-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
                 >
                   Reset
                 </button>
@@ -248,26 +248,21 @@ export default function InningsOverPage() {
 
       {/* Innings/Overs Table */}
       <Card>
-        <div className="mb-4">
-          <h2 className="text-2xl font-bold text-foreground">Innings/Over List</h2>
-          <p className="text-sm text-retro-dark/60 mt-1">
-            {inningsOvers.length} {inningsOvers.length === 1 ? 'entry' : 'entries'} found
-          </p>
-        </div>
-
         {inningsOversLoading ? (
           <div className="text-center py-8 text-retro-dark/60">Loading innings/overs...</div>
         ) : inningsOvers.length === 0 ? (
           <div className="text-center py-8 text-retro-dark/60">No innings/overs found. Create your first entry above.</div>
         ) : (
-          <div className="p-4">
-            <DataTable
-              data={inningsOvers}
-              columns={inningsOverColumns}
-              showSearch={true}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
+          <div className="p-2">
+            <div className="text-lg">
+              <DataTable
+                data={inningsOvers}
+                columns={inningsOverColumns}
+                showSearch={true}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            </div>
           </div>
         )}
       </Card>
@@ -302,7 +297,9 @@ const inningsOverColumns: Column<InningsOver>[] = [
     key: 'inning',
     label: 'Inning/Over',
     render: (value, inningsOver) => (
-      <span className="font-semibold">{inningsOver.inning}/{inningsOver.over} Over</span>
+      <span className="inline-block px-3 py-1 bg-blue-800 text-blue-100 rounded-full text-sm font-semibold">
+        {inningsOver.inning}/{inningsOver.over} Over
+      </span>
     ),
   },
   {

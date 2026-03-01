@@ -2096,13 +2096,13 @@ export default function BusinessReportPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       <Card>
         <form className="space-y-6">
-          {/* Single Row - Report Type, Match Date, Select Match, WinningTeam, Select User */}
+          {/* First Row - Report Type, Match Date, Select Match, WinningTeam/Inning/Over, Selection Type */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
             {/* Report Type Field */}
-            <div className="md:col-span-3">
+            <div className="md:col-span-2">
               <Select
                 label="Report Type*"
                 id="report-type"
@@ -2114,7 +2114,7 @@ export default function BusinessReportPage() {
             </div>
 
             {/* Match Date Field */}
-            <div className="md:col-span-3 space-y-2">
+            <div className="md:col-span-2 space-y-2">
               <label htmlFor="match-date" className="block text-sm font-bold text-retro-dark">
                 Match Date*
               </label>
@@ -2132,9 +2132,9 @@ export default function BusinessReportPage() {
                     }
                   }}
                   placeholder="dd-mm-yyyy"
-                  className={`w-full px-4 py-3 bg-white border-[3px] ${
+                  className={`w-full px-3 py-1.5 bg-white border-2 ${
                     errors.matchDate ? 'border-red-500' : 'border-retro-dark'
-                  } text-retro-dark font-bold text-lg rounded focus:outline-none focus:ring-2 focus:ring-retro-accent disabled:opacity-50 disabled:cursor-not-allowed`}
+                  } text-retro-dark font-bold text-xs rounded focus:outline-none focus:ring-2 focus:ring-retro-accent disabled:opacity-50 disabled:cursor-not-allowed`}
                   style={{ paddingRight: '2.5rem' }}
                 />
                 <svg
@@ -2165,7 +2165,7 @@ export default function BusinessReportPage() {
             </div>
 
             {/* Select Match Field */}
-            <div className="md:col-span-3">
+            <div className="md:col-span-2">
               <Select
                 label="Select Match*"
                 id="select-match"
@@ -2184,7 +2184,7 @@ export default function BusinessReportPage() {
 
             {/* Conditional Field: WinningTeam for Match (default), Inning/Over for Session */}
             {formData.reportType === 'session' ? (
-              <div className="md:col-span-3">
+              <div className="md:col-span-2">
                 <Select
                   label="Inning/Over"
                   id="inning-over"
@@ -2195,7 +2195,7 @@ export default function BusinessReportPage() {
                 />
               </div>
             ) : (
-              <div className="md:col-span-3">
+              <div className="md:col-span-2">
                 <Select
                   label="WinningTeam*"
                   id="winning-team"
@@ -2207,51 +2207,44 @@ export default function BusinessReportPage() {
                 />
               </div>
             )}
-          </div>
 
-          {/* Second Row - Selection Type Radio Buttons, Conditional Dropdown, and Action Buttons */}
-          <div className="flex flex-col md:flex-row gap-4 items-start">
-            {/* Selection Type Radio Buttons */}
-            <div className="md:w-auto flex flex-col">
+            {/* Selection Type Toggle Switch */}
+            <div className="md:col-span-2 flex flex-col">
               <label className="block text-sm font-semibold text-[#2d2d2d] mb-2 uppercase">
                 Selection Type*
               </label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="selectionType"
-                    value="group"
-                    checked={formData.selectionType === 'group'}
-                    onChange={(e) => {
-                      handleInputChange('selectionType', e.target.value);
-                      handleInputChange('selectGroup', 'all');
-                      handleInputChange('selectUser', 'all');
-                    }}
-                    className="w-4 h-4 text-retro-accent focus:ring-retro-accent"
+              <div className="flex items-center gap-3">
+                <span className={`text-sm font-medium transition-colors ${formData.selectionType === 'group' ? 'text-retro-dark' : 'text-gray-400'}`}>
+                  Group
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newValue = formData.selectionType === 'group' ? 'user' : 'group';
+                    handleInputChange('selectionType', newValue);
+                    handleInputChange('selectGroup', 'all');
+                    handleInputChange('selectUser', 'all');
+                  }}
+                  className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-retro-accent focus:ring-offset-2 ${
+                    formData.selectionType === 'user' ? 'bg-green-700' : 'bg-gray-300'
+                  }`}
+                  role="switch"
+                  aria-checked={formData.selectionType === 'user'}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      formData.selectionType === 'user' ? 'translate-x-5' : 'translate-x-0.5'
+                    }`}
                   />
-                  <span className="text-sm text-foreground">Group</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="selectionType"
-                    value="user"
-                    checked={formData.selectionType === 'user'}
-                    onChange={(e) => {
-                      handleInputChange('selectionType', e.target.value);
-                      handleInputChange('selectGroup', 'all');
-                      handleInputChange('selectUser', 'all');
-                    }}
-                    className="w-4 h-4 text-retro-accent focus:ring-retro-accent"
-                  />
-                  <span className="text-sm text-foreground">User</span>
-                </label>
+                </button>
+                <span className={`text-sm font-medium transition-colors ${formData.selectionType === 'user' ? 'text-retro-dark' : 'text-gray-400'}`}>
+                  User
+                </span>
               </div>
             </div>
-            
-            {/* Conditional Dropdown */}
-            <div className="md:w-auto md:min-w-[200px]">
+
+            {/* Conditional Dropdown - Select User/Group */}
+            <div className="md:col-span-2">
               {formData.selectionType === 'group' ? (
                 <Select
                   label="Select Group*"
@@ -2285,20 +2278,23 @@ export default function BusinessReportPage() {
                 />
               )}
             </div>
+          </div>
 
+          {/* Second Row - Action Buttons */}
+          <div className="flex flex-col md:flex-row gap-4 items-start justify-end">
             {/* Action Buttons */}
-            <div className="flex gap-4 self-end">
+            <div className="flex gap-4">
               <button
                 type="button"
                 onClick={handleGenerateReport}
-                className="px-6 py-3 bg-green-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+                className="px-4 py-1.5 bg-green-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
               >
                 Generate Report
               </button>
               <button
                 type="button"
                 onClick={handlePrint}
-                className="px-6 py-3 bg-red-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+                className="px-4 py-1.5 bg-red-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
               >
                 Print
               </button>
@@ -2320,7 +2316,6 @@ export default function BusinessReportPage() {
                   </div>
                 ) : matchSummaryData.length > 0 ? (
                   <DataTable
-                    title="MATCH SUMMARY"
                     data={matchSummaryData}
                     columns={columns}
                     entriesPerPageOptions={[10, 25, 50, 100]}

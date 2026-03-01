@@ -129,7 +129,7 @@ export default function DatePicker({ value, onChange, onClose, isOpen, onSelectA
   return (
     <div
       ref={calendarRef}
-      className="fixed z-50 bg-white border-[3px] border-retro-dark rounded-lg shadow-lg p-4 min-w-[300px]"
+      className="fixed z-50 bg-white border-2 border-retro-dark rounded-lg shadow-lg p-4 min-w-[300px]"
       style={{
         top: `${position.top}px`,
         left: `${position.left}px`,

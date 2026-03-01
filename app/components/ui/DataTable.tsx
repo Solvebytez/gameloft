@@ -54,6 +54,12 @@ export default function DataTable<T extends Record<string, any>>({
   const dropdownRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
 
+  // Helper function to capitalize first letter
+  const capitalizeFirst = (str: string): string => {
+    if (!str) return str;
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
   // Search functionality
   const filteredData = useMemo(() => {
     if (!searchTerm) return data;
@@ -161,7 +167,7 @@ export default function DataTable<T extends Record<string, any>>({
     if (data.length === 0) return '';
     
     // Get headers from columns
-    const headers = columns.map(col => col.label);
+    const headers = columns.map(col => capitalizeFirst(col.label));
     const csvRows = [headers.join(',')];
     
     // Get data rows
@@ -184,7 +190,7 @@ export default function DataTable<T extends Record<string, any>>({
     if (data.length === 0) return '';
     
     // Get headers from columns
-    const headers = columns.map(col => col.label);
+    const headers = columns.map(col => capitalizeFirst(col.label));
     const tsvRows = [headers.join('\t')];
     
     // Get data rows
@@ -280,7 +286,7 @@ export default function DataTable<T extends Record<string, any>>({
           <table>
             <thead>
               <tr>
-                ${columns.map(col => `<th>${col.label}</th>`).join('')}
+                ${columns.map(col => `<th>${capitalizeFirst(col.label)}</th>`).join('')}
               </tr>
             </thead>
             <tbody>
@@ -342,7 +348,7 @@ export default function DataTable<T extends Record<string, any>>({
           <table>
             <thead>
               <tr>
-                ${columns.map(col => `<th>${col.label}</th>`).join('')}
+                ${columns.map(col => `<th>${capitalizeFirst(col.label)}</th>`).join('')}
               </tr>
             </thead>
             <tbody>
@@ -447,28 +453,7 @@ export default function DataTable<T extends Record<string, any>>({
       )}
 
       {/* Top Controls */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        {showEntries && (
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-retro-dark">Show</label>
-            <select
-              value={entriesPerPage}
-              onChange={(e) => {
-                setEntriesPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="px-3 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm focus:outline-none focus:ring-2 focus:ring-retro-accent"
-            >
-              {entriesPerPageOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-            <label className="text-sm text-retro-dark">entries</label>
-          </div>
-        )}
-
+      {/* <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex flex-wrap items-center gap-2">
           {showExport && (
             <>
@@ -526,7 +511,7 @@ export default function DataTable<T extends Record<string, any>>({
             </div>
           )}
         </div>
-      </div>
+      </div> */}
 
       {/* Data Table */}
       <div className="overflow-x-auto" style={{ overflowY: 'visible', position: 'relative' }}>
@@ -552,7 +537,7 @@ export default function DataTable<T extends Record<string, any>>({
                   onClick={() => column.sortable !== false && handleSort(String(column.key))}
                 >
                   <div className="flex items-center gap-2">
-                    {column.label}
+                    {column.label.charAt(0).toUpperCase() + column.label.slice(1)}
                     {column.sortable !== false && (
                       <div className="flex flex-col">
                         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -582,8 +567,12 @@ export default function DataTable<T extends Record<string, any>>({
                 </td>
               </tr>
             ) : (
-              paginatedData.map((row, index) => (
-                <tr key={index} className="border-b border-gray-200 hover:bg-transparent">
+              paginatedData.map((row, index) => {
+                const isEven = index % 2 === 0;
+                return (
+                <tr key={index} className={`border-b border-gray-200 hover:bg-gray-200 transition-colors ${
+                  isEven ? 'bg-gray-100' : 'bg-white'
+                }`}>
                   {onRowSelect && (
                     <td className="p-3">
                       <input
@@ -679,7 +668,8 @@ export default function DataTable<T extends Record<string, any>>({
                     </td>
                   )}
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>
@@ -688,10 +678,32 @@ export default function DataTable<T extends Record<string, any>>({
       {/* Pagination */}
       {sortedData.length > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
-          <div className="text-sm text-retro-dark">
-            Showing {Math.min((currentPage - 1) * entriesPerPage + 1, sortedData.length)} to{' '}
-            {Math.min(currentPage * entriesPerPage, sortedData.length)} of {sortedData.length}{' '}
-            entries
+          <div className="flex items-center gap-4">
+            {showEntries && (
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-retro-dark">Show</label>
+                <select
+                  value={entriesPerPage}
+                  onChange={(e) => {
+                    setEntriesPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="px-3 py-2 border-[3px] border-retro-dark rounded text-retro-dark font-bold text-sm focus:outline-none focus:ring-2 focus:ring-retro-accent"
+                >
+                  {entriesPerPageOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <label className="text-sm text-retro-dark">entries</label>
+              </div>
+            )}
+            <div className="text-sm text-retro-dark">
+              Showing {Math.min((currentPage - 1) * entriesPerPage + 1, sortedData.length)} to{' '}
+              {Math.min(currentPage * entriesPerPage, sortedData.length)} of {sortedData.length}{' '}
+              entries
+            </div>
           </div>
           {totalPages > 1 && (
             <div className="flex items-center gap-2">

@@ -456,16 +456,6 @@ export default function CreateUserPage() {
   // DataTable columns configuration
   const columns: Column<typeof transformedUsers[0]>[] = [
     {
-      key: 'userRole',
-      label: 'User Role',
-      sortable: true,
-      render: (value) => (
-        <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">
-          {value}
-        </span>
-      ),
-    },
-    {
       key: 'name',
       label: 'Name',
       sortable: true,
@@ -592,128 +582,155 @@ export default function CreateUserPage() {
 
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       <Card>
         <form className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Row 1 */}
-            <Select
-              ref={roleInputRef}
-              label="Roles*"
-              id="role"
-              value={formData.role}
-              onChange={(e) => handleInputChange('role', e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, 'role')}
-              onFocus={() => handleSelectFocus('role')}
-              options={roleOptions}
-              error={errors.role}
-            />
-            <Input
-              ref={nameInputRef}
-              type="text"
-              label="Name*"
-              id="name"
-              value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, 'name')}
-              error={errors.name}
-            />
-            <Select
-              ref={commissionTypeInputRef}
-              label="Commission Type*"
-              id="commission_type"
-              value={formData.commission_type}
-              onChange={(e) => handleInputChange('commission_type', e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, 'commission_type')}
-              onFocus={() => handleSelectFocus('commission_type')}
-              options={commissionTypeOptions}
-              error={errors.commission_type}
-            />
-
-            {/* Row 2 - Commission (hidden only when no_commission is selected) and Partnership (always shown) */}
-            {formData.commission_type !== 'no_commission' && (
-              <Input
-                ref={commissionInputRef}
-                type="text"
-                label="Commission*"
-                id="commission"
-                value={formData.commission}
-                onChange={(e) => handleInputChange('commission', e.target.value)}
-                onKeyDown={(e) => handleKeyDown(e, 'commission')}
-                error={errors.commission}
+          {/* First Row */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+            <div className="md:col-span-3">
+              <Select
+                ref={roleInputRef}
+                label="Roles*"
+                id="role"
+                value={formData.role}
+                onChange={(e) => handleInputChange('role', e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, 'role')}
+                onFocus={() => handleSelectFocus('role')}
+                options={roleOptions}
+                error={errors.role}
               />
-            )}
-            <Input
-              ref={partnershipInputRef}
-              type="text"
-              label="Partnership*"
-              id="partnership"
-              value={formData.partnership}
-              onChange={(e) => handleInputChange('partnership', e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, 'partnership')}
-              error={errors.partnership}
-            />
-            
-            <Select
-              ref={groupInputRef}
-              label="Group"
-              id="group"
-              value={formData.group_id}
-              onChange={(e) => handleInputChange('group_id', e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, 'group')}
-              onFocus={() => handleSelectFocus('group')}
-              options={groupOptions}
-              disabled={isLoadingGroups}
-            />
-            
-            <Select
-              ref={sessionCommissionTypeInputRef}
-              label="Session Commission Type*"
-              id="session_commission_type"
-              value={formData.session_commission_type}
-              onChange={(e) => handleInputChange('session_commission_type', e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, 'session_commission_type')}
-              onFocus={() => handleSelectFocus('session_commission_type')}
-              options={sessionCommissionTypeOptions}
-              error={errors.session_commission_type}
-            />
-            
-            {/* Session Commission (hidden only when no_commission is selected) */}
-            {formData.session_commission_type !== 'no_commission' && (
-              <Input
-                ref={sessionCommissionInputRef}
-                type="text"
-                label="Session Commission*"
-                id="session_commission"
-                value={formData.session_commission}
-                onChange={(e) => handleInputChange('session_commission', e.target.value)}
-                onKeyDown={(e) => handleKeyDown(e, 'session_commission')}
-                error={errors.session_commission}
-              />
-            )}
-            
-            {/* Mark as Cut Checkbox */}
-            <div className="flex items-center">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  id="mark_as_cut"
-                  checked={formData.mark_as_cut === 'yes'}
-                  onChange={(e) => handleInputChange('mark_as_cut', e.target.checked)}
-                  className="w-5 h-5 text-retro-accent focus:ring-retro-accent rounded border-gray-300"
-                />
-                <span className="text-sm font-semibold text-retro-dark">Mark as cut</span>
-              </label>
             </div>
+            <div className="md:col-span-3">
+              <Input
+                ref={nameInputRef}
+                type="text"
+                label="Name*"
+                id="name"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, 'name')}
+                error={errors.name}
+              />
+            </div>
+            <div className="md:col-span-3">
+              <Select
+                ref={commissionTypeInputRef}
+                label="Commission Type*"
+                id="commission_type"
+                value={formData.commission_type}
+                onChange={(e) => handleInputChange('commission_type', e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, 'commission_type')}
+                onFocus={() => handleSelectFocus('commission_type')}
+                options={commissionTypeOptions}
+                error={errors.commission_type}
+              />
+            </div>
+            {formData.commission_type !== 'no_commission' && (
+              <div className="md:col-span-3">
+                <Input
+                  ref={commissionInputRef}
+                  type="text"
+                  label="Commission*"
+                  id="commission"
+                  value={formData.commission}
+                  onChange={(e) => handleInputChange('commission', e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, 'commission')}
+                  error={errors.commission}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Second Row */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+            <div className="md:col-span-3">
+              <Input
+                ref={partnershipInputRef}
+                type="text"
+                label="Partnership*"
+                id="partnership"
+                value={formData.partnership}
+                onChange={(e) => handleInputChange('partnership', e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, 'partnership')}
+                error={errors.partnership}
+              />
+            </div>
+            <div className="md:col-span-3">
+              <Select
+                ref={groupInputRef}
+                label="Group"
+                id="group"
+                value={formData.group_id}
+                onChange={(e) => handleInputChange('group_id', e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, 'group')}
+                onFocus={() => handleSelectFocus('group')}
+                options={groupOptions}
+                disabled={isLoadingGroups}
+              />
+            </div>
+            <div className="md:col-span-3">
+              <Select
+                ref={sessionCommissionTypeInputRef}
+                label="Session Commission Type*"
+                id="session_commission_type"
+                value={formData.session_commission_type}
+                onChange={(e) => handleInputChange('session_commission_type', e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, 'session_commission_type')}
+                onFocus={() => handleSelectFocus('session_commission_type')}
+                options={sessionCommissionTypeOptions}
+                error={errors.session_commission_type}
+              />
+            </div>
+            {formData.session_commission_type !== 'no_commission' && (
+              <div className="md:col-span-3">
+                <Input
+                  ref={sessionCommissionInputRef}
+                  type="text"
+                  label="Session Commission*"
+                  id="session_commission"
+                  value={formData.session_commission}
+                  onChange={(e) => handleInputChange('session_commission', e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, 'session_commission')}
+                  error={errors.session_commission}
+                />
+              </div>
+            )}
           </div>
 
           {/* Action Buttons - Right Aligned */}
-          <div className="flex justify-end gap-4">
+          <div className="flex justify-end items-center gap-4">
+            <div className="flex items-center gap-3">
+              <span className={`text-sm font-medium transition-colors ${formData.mark_as_cut === 'no' ? 'text-retro-dark' : 'text-gray-400'}`}>
+                No
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const newValue = formData.mark_as_cut === 'yes' ? 'no' : 'yes';
+                  handleInputChange('mark_as_cut', newValue === 'yes');
+                }}
+                className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-retro-accent focus:ring-offset-2 ${
+                  formData.mark_as_cut === 'yes' ? 'bg-green-700' : 'bg-gray-300'
+                }`}
+                role="switch"
+                aria-checked={formData.mark_as_cut === 'yes'}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    formData.mark_as_cut === 'yes' ? 'translate-x-5' : 'translate-x-0.5'
+                  }`}
+                />
+              </button>
+              <span className={`text-sm font-medium transition-colors ${formData.mark_as_cut === 'yes' ? 'text-retro-dark' : 'text-gray-400'}`}>
+                Yes
+              </span>
+              <span className="text-sm font-semibold text-retro-dark ml-2">Mark as cut</span>
+            </div>
             {isEditMode && (
               <button
                 type="button"
                 onClick={handleCancelEdit}
-                className="px-6 py-3 bg-gray-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+                className="px-4 py-1.5 bg-gray-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
               >
                 Cancel
               </button>
@@ -722,7 +739,7 @@ export default function CreateUserPage() {
               type="button"
               onClick={handleSave}
               disabled={isEditMode ? updateUserMutation.isPending : createUserMutation.isPending}
-              className="px-6 py-3 bg-green-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-1.5 bg-green-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isEditMode
                 ? updateUserMutation.isPending
@@ -736,7 +753,7 @@ export default function CreateUserPage() {
               <button
                 type="button"
                 onClick={handleReset}
-                className="px-6 py-3 bg-red-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity"
+                className="px-4 py-1.5 bg-red-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
               >
                 Reset
               </button>
@@ -747,7 +764,7 @@ export default function CreateUserPage() {
 
       {/* DataTable below the form */}
       <Card>
-        <div className="p-4">
+        <div className="p-2">
           {isLoading ? (
             <div className="text-center py-8">
               <p className="text-retro-dark/60">Loading users...</p>
@@ -758,7 +775,6 @@ export default function CreateUserPage() {
             </div>
           ) : (
             <DataTable
-              title="List"
               data={transformedUsers}
               columns={columns}
               onEdit={handleEdit}

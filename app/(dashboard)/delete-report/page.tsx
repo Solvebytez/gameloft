@@ -329,7 +329,7 @@ export default function DeleteReportPage() {
                     }
                   }}
                   placeholder="dd-mm-yyyy"
-                  className="w-full px-4 py-3 bg-white border-[3px] border-retro-dark text-retro-dark font-bold text-lg rounded focus:outline-none focus:ring-2 focus:ring-retro-accent"
+                  className="w-full px-3 py-1.5 bg-white border-2 border-retro-dark text-retro-dark font-bold text-xs rounded focus:outline-none focus:ring-2 focus:ring-retro-accent"
                   style={{ paddingRight: '2.5rem' }}
                 />
                 <svg
@@ -379,7 +379,7 @@ export default function DeleteReportPage() {
                     }
                   }}
                   placeholder="dd-mm-yyyy"
-                  className="w-full px-4 py-3 bg-white border-[3px] border-retro-dark text-retro-dark font-bold text-lg rounded focus:outline-none focus:ring-2 focus:ring-retro-accent"
+                  className="w-full px-3 py-1.5 bg-white border-2 border-retro-dark text-retro-dark font-bold text-xs rounded focus:outline-none focus:ring-2 focus:ring-retro-accent"
                   style={{ paddingRight: '2.5rem' }}
                 />
                 <svg
@@ -419,7 +419,7 @@ export default function DeleteReportPage() {
                 id="select-match"
                 value={selectedMatch}
                 onChange={(e) => setSelectedMatch(e.target.value)}
-                className="w-full px-4 py-3 bg-white border-[3px] border-retro-dark text-retro-dark font-bold text-lg rounded focus:outline-none focus:ring-2 focus:ring-retro-accent"
+                className="w-full px-3 py-1.5 bg-white border-[3px] border-retro-dark text-retro-dark font-bold text-xs rounded focus:outline-none focus:ring-2 focus:ring-retro-accent"
                 disabled={isLoadingMatches}
               >
                 {matchOptions.map((option) => (
@@ -439,7 +439,7 @@ export default function DeleteReportPage() {
                 id="select-group"
                 value={selectedGroup}
                 onChange={(e) => setSelectedGroup(e.target.value)}
-                className="w-full px-4 py-3 bg-white border-[3px] border-retro-dark text-retro-dark font-bold text-lg rounded focus:outline-none focus:ring-2 focus:ring-retro-accent"
+                className="w-full px-3 py-1.5 bg-white border-[3px] border-retro-dark text-retro-dark font-bold text-xs rounded focus:outline-none focus:ring-2 focus:ring-retro-accent"
               >
                 {groupOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -455,7 +455,7 @@ export default function DeleteReportPage() {
             <button
               type="button"
               onClick={handleSelectAll}
-              className="px-6 py-2 bg-blue-500 text-white font-bold rounded hover:bg-blue-600 transition-colors"
+              className="px-4 py-1.5 bg-blue-500 text-white font-bold text-sm rounded hover:bg-blue-600 transition-colors"
             >
               {isAllSelected ? 'Deselect All' : 'Select All'}
             </button>
@@ -494,14 +494,21 @@ export default function DeleteReportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedEntries.map((entry) => {
+                    {paginatedEntries.map((entry, index) => {
                       const user = users.find((u) => u.id === entry.user_id);
                       const isSelected = selectedEntries.has(entry.id);
+                      const isEven = index % 2 === 0;
                       
                       return (
                         <tr
                           key={entry.id}
-                          className={`border-b border-gray-200 hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}
+                          className={`border-b border-gray-200 hover:bg-gray-50 ${
+                            isSelected 
+                              ? 'bg-blue-50' 
+                              : isEven 
+                                ? 'bg-gray-100' 
+                                : 'bg-white'
+                          }`}
                         >
                           <td className="px-3 py-2">
                             <input
@@ -659,7 +666,7 @@ export default function DeleteReportPage() {
               type="button"
               onClick={handleDeleteSelected}
               disabled={selectedEntries.size === 0 || deleteEntryMutation.isPending}
-              className={`px-6 py-3 bg-green-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity ${
+              className={`px-4 py-1.5 bg-green-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity ${
                 selectedEntries.size === 0 || deleteEntryMutation.isPending
                   ? 'opacity-50 cursor-not-allowed'
                   : ''

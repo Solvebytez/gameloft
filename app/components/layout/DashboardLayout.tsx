@@ -53,7 +53,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
         {/* Main content */}
         <main className="flex-1 flex flex-col overflow-hidden lg:ml-0" style={{ backgroundColor: '#ECF0F5' }}>
-          <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+          <div className="flex-1 overflow-y-auto p-2 lg:p-3">
             {children}
           </div>
           <Footer />

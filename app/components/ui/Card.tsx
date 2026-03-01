@@ -12,7 +12,7 @@ interface CardProps {
 export default function Card({ children, className = '', height, tabs }: CardProps) {
   return (
     <div
-      className={`border-4 border-[var(--retro-dark)] rounded-lg flex flex-col overflow-hidden ${className}`}
+      className={`rounded-lg flex flex-col overflow-hidden ${className}`}
       style={{ backgroundColor: '#fff', ...(height ? { height } : {}) }}
     >
       {tabs && tabs.length > 0 && (

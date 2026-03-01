@@ -262,7 +262,11 @@ export default function CreateTeamPage() {
         // Randomly assign blue or purple color (you can customize this logic)
         const isPurple = value.toLowerCase().includes('bash');
         return (
-          <span className={isPurple ? 'text-purple-600' : 'text-blue-600'} style={{ cursor: 'pointer' }}>
+          <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
+            isPurple 
+              ? 'bg-purple-800 text-purple-100' 
+              : 'bg-blue-800 text-blue-100'
+          }`}>
             {value}
           </span>
         );
@@ -383,7 +387,7 @@ export default function CreateTeamPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       <Card>
         <form className="space-y-6" onSubmit={handleFormSubmit}>
           {/* Single Row - Team Name, Team Logo, Save Button */}
@@ -414,33 +418,33 @@ export default function CreateTeamPage() {
                   onChange={handleFileChange}
                   className="hidden"
                 />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`px-3 py-1.5 border-2 ${
+                    errors.teamLogo ? 'border-red-500' : 'border-retro-dark'
+                  } bg-white text-retro-dark font-bold text-xs rounded focus:outline-none focus:ring-2 focus:ring-retro-accent hover:opacity-90 transition-opacity whitespace-nowrap`}
+                >
+                  Choose file
+                </button>
                 {imagePreview && (
                   <img
                     src={imagePreview}
                     alt="Team logo preview"
-                    className="w-16 h-16 object-cover border-[3px] border-retro-dark rounded"
+                    className="w-16 h-16 object-cover border-2 border-retro-dark rounded"
                   />
                 )}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`px-4 py-3 border-[3px] ${
-                    errors.teamLogo ? 'border-red-500' : 'border-retro-dark'
-                  } bg-white text-retro-dark font-bold text-lg rounded focus:outline-none focus:ring-2 focus:ring-retro-accent hover:opacity-90 transition-opacity whitespace-nowrap h-[60px]`}
-                >
-                  Choose file
-                </button>
-                <span className="text-retro-dark font-bold text-lg flex-1 min-w-0 truncate">{fileName}</span>
+                <span className="text-retro-dark font-bold text-xs flex-1 min-w-0 truncate">{fileName}</span>
               </div>
               {errors.teamLogo && <p className="mt-1 text-sm text-red-500">{errors.teamLogo}</p>}
             </div>
 
             {/* Action Buttons */}
-            <div className="md:col-span-3 flex items-end gap-4">
+            <div className="md:col-span-3 flex items-end gap-4 justify-end">
               <button
                 type="submit"
                 disabled={createTeamMutation.isPending || updateTeamMutation.isPending}
-                className="px-6 py-3 bg-green-700 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity w-full md:w-auto h-[60px] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-1.5 bg-green-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {createTeamMutation.isPending || updateTeamMutation.isPending
                   ? 'Saving...'
@@ -452,7 +456,7 @@ export default function CreateTeamPage() {
               <button
                 type="button"
                   onClick={handleCancelEdit}
-                  className="px-6 py-3 bg-gray-500 text-white font-bold text-lg rounded hover:opacity-90 transition-opacity h-[60px]"
+                  className="px-4 py-1.5 bg-gray-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
               >
                   Cancel
               </button>
@@ -464,7 +468,7 @@ export default function CreateTeamPage() {
 
       {/* DataTable below the form */}
       <Card>
-        <div className="p-4">
+        <div className="p-2">
           {isLoading ? (
             <div className="text-center py-8">
               <p className="text-retro-dark/60">Loading teams...</p>
@@ -474,17 +478,17 @@ export default function CreateTeamPage() {
               <p className="text-red-600">Error loading teams: {error instanceof Error ? error.message : 'Unknown error'}</p>
             </div>
           ) : (
-          <DataTable
-            title="TEAM SUMMARY"
-              data={transformedTeams}
-            columns={columns}
-            onEdit={handleEditTeam}
-            onDelete={handleDeleteTeam}
-              onStatusChange={handleStatusChange}
-            onRowSelect={handleRowSelect}
-            entriesPerPageOptions={[10, 25, 50, 100]}
-            defaultEntriesPerPage={100}
-          />
+          <div className="text-base">
+            <DataTable
+                data={transformedTeams}
+              columns={columns}
+              onEdit={handleEditTeam}
+              onDelete={handleDeleteTeam}
+                onStatusChange={handleStatusChange}
+              entriesPerPageOptions={[10, 25, 50, 100]}
+              defaultEntriesPerPage={100}
+            />
+          </div>
           )}
         </div>
       </Card>
