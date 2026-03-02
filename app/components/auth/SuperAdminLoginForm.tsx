@@ -90,6 +90,7 @@ export default function SuperAdminLoginForm() {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Enter your email"
           required
+          className="py-3 text-xl"
         />
 
         {/* Password Field */}
@@ -108,7 +109,7 @@ export default function SuperAdminLoginForm() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               required
-              className="pr-12"
+              className="py-3 text-xl pr-12"
               label=""
             />
             <button

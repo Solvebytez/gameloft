@@ -104,7 +104,7 @@ export default function MatchDateField({ onFind }: MatchDateFieldProps) {
             onFocus={handleInputFocus}
             onKeyDown={handleKeyDown}
             placeholder="dd-mm-yyyy"
-            className="w-full h-full px-4 py-3 bg-white border-[3px] border-retro-dark text-retro-dark font-bold text-lg rounded focus:outline-none focus:ring-2 focus:ring-retro-accent disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full h-full px-3 py-1.5 bg-white border-2 border-retro-dark text-retro-dark font-bold text-xs rounded focus:outline-none focus:ring-2 focus:ring-retro-accent disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ paddingRight: '2.5rem' }}
           />
           <svg
@@ -131,7 +131,7 @@ export default function MatchDateField({ onFind }: MatchDateFieldProps) {
         <button
           type="button"
           onClick={handleFind}
-          className="w-[30%] px-6 py-3 bg-retro-accent text-white font-bold text-lg rounded hover:opacity-90 transition-opacity self-stretch"
+          className="w-[30%] px-4 py-1.5 bg-retro-accent text-white font-bold text-sm rounded hover:opacity-90 transition-opacity self-stretch"
         >
           Find
         </button>

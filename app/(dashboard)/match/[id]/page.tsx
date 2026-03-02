@@ -379,9 +379,10 @@ export default function MatchDetailPage() {
   return (
     <div className="space-y-6">
       {/* Two Cards Side by Side - 25% Form, 75% Table */}
-      <div className="grid grid-cols-1 lg:grid-cols-[25%_75%] gap-6 pr-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[25%_75%] gap-2 pr-4">
         {/* Entry Window Card - Left Side */}
-        <Card>
+        <div className="lg:sticky lg:top-0 lg:self-start lg:max-h-[calc(100vh-1rem)] lg:overflow-y-auto">
+          <Card>
           <div className="flex items-center justify-between mb-4">
             {isLoadingEntry && (
               <span className="text-sm text-retro-dark">Loading entry data...</span>
@@ -676,6 +677,7 @@ export default function MatchDetailPage() {
           </div>
           </form>
         </Card>
+        </div>
 
         {/* Recent Entries Card - Right Side */}
         <Card>
@@ -693,7 +695,7 @@ export default function MatchDetailPage() {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-xs">
+                <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="border-t-2 border-b-2 border-retro-dark">
                       <th className="px-1 py-1.5 text-left font-bold text-retro-dark text-base">Customer</th>
@@ -736,22 +738,22 @@ export default function MatchDetailPage() {
                         <td className="px-1 py-1.5 relative">
                           <div className="flex flex-col gap-1 items-start">
                             <div className="flex items-center gap-1">
-                              <span className="inline-block px-1.5 py-0.5 bg-blue-500 text-white font-semibold text-xs rounded">
+                              <span className="inline-block px-1.5 py-0.5 bg-blue-500 text-white font-semibold text-sm rounded">
                                 {entry.customer ? entry.customer.split(' ')[0] : 'N/A'}
                               </span>
                               {isCutUser && (
-                                <span className="inline-block px-1 py-0.5 bg-orange-200 text-orange-800 rounded text-[10px] font-semibold">
+                                <span className="inline-block px-1 py-0.5 bg-orange-200 text-orange-800 rounded text-xs font-semibold">
                                   CT
                                 </span>
                               )}
                               {!isCutUser && commissionTypeBadge && (
-                                <span className={`inline-block w-fit text-[10px] font-semibold px-1 py-0.5 rounded ${commissionTypeBadge.color}`}>
+                                <span className={`inline-block w-fit text-xs font-semibold px-1 py-0.5 rounded ${commissionTypeBadge.color}`}>
                                   {commissionTypeBadge.text}
                                 </span>
                               )}
                             </div>
                             {isCutUser && commissionTypeBadge && (
-                              <span className={`inline-block w-fit text-[10px] font-semibold px-1 py-0.5 rounded ${commissionTypeBadge.color}`}>
+                              <span className={`inline-block w-fit text-xs font-semibold px-1 py-0.5 rounded ${commissionTypeBadge.color}`}>
                                 {commissionTypeBadge.text}
                               </span>
                             )}
@@ -759,44 +761,44 @@ export default function MatchDetailPage() {
                         </td>
                         <td className="px-1 py-1.5 text-center border-l-2 border-retro-dark">
                           {entry.team1Fav && entry.team1Fav !== '0' && entry.team1Fav !== '0/0000' ? (
-                            <span className="inline-block px-1.5 py-0.5 bg-green-700 text-white font-semibold text-xs rounded">
+                            <span className="inline-block px-1.5 py-0.5 bg-green-700 text-white font-semibold text-sm rounded">
                               {entry.team1Fav}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-700 text-white font-semibold text-xs">
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-700 text-white font-semibold text-sm">
                               0
                             </span>
                           )}
                         </td>
                         <td className="px-1 py-1.5 text-center">
                           {entry.team1Nfav && entry.team1Nfav !== '0' && entry.team1Nfav !== '0/0000' ? (
-                            <span className="inline-block px-1.5 py-0.5 bg-red-700 text-white font-semibold text-xs rounded">
+                            <span className="inline-block px-1.5 py-0.5 bg-red-700 text-white font-semibold text-sm rounded">
                               {entry.team1Nfav}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-700 text-white font-semibold text-xs">
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-700 text-white font-semibold text-sm">
                               0
                             </span>
                           )}
                         </td>
                         <td className="px-1 py-1.5 text-center border-l-2 border-retro-dark">
                           {entry.team2Fav && entry.team2Fav !== '0' && entry.team2Fav !== '0/0000' ? (
-                            <span className="inline-block px-1.5 py-0.5 bg-green-700 text-white font-semibold text-xs rounded">
+                            <span className="inline-block px-1.5 py-0.5 bg-green-700 text-white font-semibold text-sm rounded">
                               {entry.team2Fav}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-700 text-white font-semibold text-xs">
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-700 text-white font-semibold text-sm">
                               0
                             </span>
                           )}
                         </td>
                         <td className="px-1 py-1.5 text-center">
                           {entry.team2Nfav && entry.team2Nfav !== '0' && entry.team2Nfav !== '0/0000' ? (
-                            <span className="inline-block px-1.5 py-0.5 bg-red-700 text-white font-semibold text-xs rounded">
+                            <span className="inline-block px-1.5 py-0.5 bg-red-700 text-white font-semibold text-sm rounded">
                               {entry.team2Nfav}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-700 text-white font-semibold text-xs">
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-700 text-white font-semibold text-sm">
                               0
                             </span>
                           )}
@@ -804,18 +806,18 @@ export default function MatchDetailPage() {
                         <td className="px-1 py-1.5 text-center border-l-2 border-retro-dark">
                           <button 
                             onClick={() => handleEditClick(entry.id)}
-                            className="px-1.5 py-0.5 bg-blue-500 text-white font-semibold text-xs rounded hover:bg-blue-600 transition-colors"
+                            className="px-1.5 py-0.5 bg-blue-500 text-white font-semibold text-sm rounded hover:bg-blue-600 transition-colors"
                           >
                             Edit
                           </button>
                         </td>
                         <td className="px-1 py-1.5 text-center border-l-2 border-retro-dark">
-                          <span className="inline-block px-1.5 py-0.5 bg-gray-400 text-white font-semibold text-xs rounded">
+                          <span className="inline-block px-1.5 py-0.5 bg-gray-400 text-white font-semibold text-sm rounded">
                             {formatDate(entry.created_at)}
                           </span>
                         </td>
                         <td className="px-1 py-1.5 text-center border-l-2 border-retro-dark">
-                          <span className="inline-block px-1.5 py-0.5 bg-gray-400 text-white font-semibold text-xs rounded">
+                          <span className="inline-block px-1.5 py-0.5 bg-gray-400 text-white font-semibold text-sm rounded">
                             {formatDate(entry.updated_at)}
                           </span>
                         </td>

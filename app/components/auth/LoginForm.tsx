@@ -77,6 +77,7 @@ export default function LoginForm() {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Enter your email"
           required
+          className="py-3 text-xl"
         />
 
         {/* Password Field */}
@@ -88,6 +89,7 @@ export default function LoginForm() {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Enter your password"
           required
+          className="py-3 text-xl"
         />
 
         {/* Forgot Password and Remember Me */}

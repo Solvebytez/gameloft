@@ -771,9 +771,10 @@ export default function SessionMatchPage() {
   return (
     <div className="space-y-6">
       {/* Form and Table Side by Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-[25%_75%] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[25%_75%] gap-2 pr-4">
         {/* Form Card */}
-        <Card>
+        <div className="lg:sticky lg:top-0 lg:self-start lg:max-h-[calc(100vh-1rem)] lg:overflow-y-auto">
+          <Card>
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
           {/* Team Logos Display - Always show since match is selected */}
           {matchData && (
@@ -998,6 +999,7 @@ export default function SessionMatchPage() {
           </div>
         </form>
         </Card>
+        </div>
 
         {/* Session Entries Table */}
         <Card>

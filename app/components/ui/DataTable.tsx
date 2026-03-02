@@ -428,6 +428,33 @@ export default function DataTable<T extends Record<string, any>>({
     };
   }, [openDropdown]);
 
+  // Close dropdown when scrolling
+  useEffect(() => {
+    const handleScroll = () => {
+      if (openDropdown !== null) {
+        setOpenDropdown(null);
+        setDropdownPosition(null);
+      }
+    };
+
+    if (openDropdown !== null) {
+      window.addEventListener('scroll', handleScroll, true);
+      // Also listen to scroll events on the table container
+      const tableContainer = document.querySelector('.overflow-x-auto');
+      if (tableContainer) {
+        tableContainer.addEventListener('scroll', handleScroll, true);
+      }
+    }
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+      const tableContainer = document.querySelector('.overflow-x-auto');
+      if (tableContainer) {
+        tableContainer.removeEventListener('scroll', handleScroll, true);
+      }
+    };
+  }, [openDropdown]);
+
   const toggleDropdown = (index: number, event?: React.MouseEvent) => {
     if (openDropdown === index) {
       setOpenDropdown(null);
@@ -517,9 +544,9 @@ export default function DataTable<T extends Record<string, any>>({
       <div className="overflow-x-auto" style={{ overflowY: 'visible', position: 'relative' }}>
         <table className="w-full border-collapse bg-transparent">
           <thead>
-            <tr className="border-b border-gray-300">
+            <tr className="border-b border-gray-300" style={{ backgroundColor: 'var(--header)' }}>
               {onRowSelect && (
-                <th className="p-3 text-left">
+                <th className="p-3 text-left" style={{ backgroundColor: 'var(--header)' }}>
                   <input
                     type="checkbox"
                     onChange={handleSelectAll}
@@ -531,9 +558,10 @@ export default function DataTable<T extends Record<string, any>>({
               {columns.map((column) => (
                 <th
                   key={String(column.key)}
-                  className={`p-3 text-left font-bold text-retro-dark ${
+                  className={`p-3 text-left font-bold text-white ${
                     column.sortable !== false ? 'cursor-pointer hover:bg-transparent' : ''
                   }`}
+                  style={{ backgroundColor: 'var(--header)', color: 'var(--header-foreground)' }}
                   onClick={() => column.sortable !== false && handleSort(String(column.key))}
                 >
                   <div className="flex items-center gap-2">
@@ -552,7 +580,7 @@ export default function DataTable<T extends Record<string, any>>({
                 </th>
               ))}
               {(onEdit || onDelete || onStatusChange || renderActions) && (
-                <th className="p-3 text-left font-bold text-retro-dark">Actions</th>
+                <th className="p-3 text-left font-bold text-white" style={{ backgroundColor: 'var(--header)', color: 'var(--header-foreground)' }}>Actions</th>
               )}
             </tr>
           </thead>
@@ -584,7 +612,7 @@ export default function DataTable<T extends Record<string, any>>({
                     </td>
                   )}
                   {columns.map((column) => (
-                    <td key={String(column.key)} className="p-3 text-retro-dark">
+                    <td key={String(column.key)} className="p-3 text-retro-dark font-bold">
                       {column.render
                         ? column.render(row[column.key as string], row)
                         : row[column.key as string]}

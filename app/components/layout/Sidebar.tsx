@@ -145,7 +145,7 @@ export default function Sidebar({ isCollapsed }: SidebarProps) {
   return (
     <aside
       className={`bg-[var(--sidebar)] border-r border-[var(--sidebar-border)] transition-all duration-300 flex flex-col h-full ${
-        isCollapsed ? 'w-20' : 'w-64'
+        isCollapsed ? 'w-20' : 'w-56'
       }`}
     >
       {/* User Profile Section */}

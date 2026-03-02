@@ -18,7 +18,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <Card>
-        <div className="py-4">
+        <div className="p-0">
           <MatchDateField onFind={handleFind} />
         </div>
       </Card>
