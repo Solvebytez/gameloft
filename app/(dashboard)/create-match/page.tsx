@@ -380,38 +380,38 @@ export default function CreateMatchPage() {
                 error={errors.team2}
                 disabled={teamsLoading}
               />
-            </div>
+          </div>
 
             {/* Action Buttons */}
             <div className="md:col-span-2 flex items-end justify-end gap-2">
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={createMatchMutation.isPending || updateMatchMutation.isPending || teamsLoading}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={createMatchMutation.isPending || updateMatchMutation.isPending || teamsLoading}
                 className="px-4 py-1.5 bg-green-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {createMatchMutation.isPending || updateMatchMutation.isPending
-                  ? 'Saving...'
-                  : editingMatchId
-                  ? 'Update'
-                  : 'Save'}
-              </button>
-              {editingMatchId && (
-                <button
-                  type="button"
-                  onClick={handleCancelEdit}
-                  className="px-4 py-1.5 bg-gray-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
-                >
-                  Cancel
-                </button>
-              )}
+            >
+              {createMatchMutation.isPending || updateMatchMutation.isPending
+                ? 'Saving...'
+                : editingMatchId
+                ? 'Update'
+                : 'Save'}
+            </button>
+            {editingMatchId && (
               <button
                 type="button"
-                onClick={handleReset}
-                className="px-4 py-1.5 bg-red-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
+                onClick={handleCancelEdit}
+                  className="px-4 py-1.5 bg-gray-500 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
               >
-                Reset
+                Cancel
               </button>
+            )}
+            <button
+              type="button"
+              onClick={handleReset}
+                className="px-4 py-1.5 bg-red-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
+            >
+              Reset
+            </button>
             </div>
           </div>
         </form>

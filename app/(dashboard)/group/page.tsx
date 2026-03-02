@@ -213,13 +213,13 @@ export default function GroupPage() {
         ) : (
           <div className="p-2">
             <div className="text-lg">
-              <DataTable
-                data={groups}
-                columns={groupColumns}
-                showSearch={true}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
+            <DataTable
+              data={groups}
+              columns={groupColumns}
+              showSearch={true}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
             </div>
           </div>
         )}
@@ -295,7 +295,7 @@ const groupColumns: Column<Group>[] = [
               className="inline-block px-3 py-1 bg-blue-800 text-blue-100 rounded-full text-sm font-semibold"
             >
               {user.name}
-            </span>
+        </span>
           ))}
         </div>
       );

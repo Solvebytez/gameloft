@@ -479,15 +479,15 @@ export default function CreateTeamPage() {
             </div>
           ) : (
           <div className="text-base">
-            <DataTable
-                data={transformedTeams}
-              columns={columns}
-              onEdit={handleEditTeam}
-              onDelete={handleDeleteTeam}
-                onStatusChange={handleStatusChange}
-              entriesPerPageOptions={[10, 25, 50, 100]}
-              defaultEntriesPerPage={100}
-            />
+          <DataTable
+              data={transformedTeams}
+            columns={columns}
+            onEdit={handleEditTeam}
+            onDelete={handleDeleteTeam}
+              onStatusChange={handleStatusChange}
+            entriesPerPageOptions={[10, 25, 50, 100]}
+            defaultEntriesPerPage={100}
+          />
           </div>
           )}
         </div>

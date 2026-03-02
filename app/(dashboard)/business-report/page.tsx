@@ -661,6 +661,11 @@ export default function BusinessReportPage() {
         totalCommission = result.commission;
         custNetWithComm = result.custNetWithComm;
         netProfitLoss = result.netProfitLoss;
+        
+        // For profit_loss commission type, negate profit/loss values
+        profitLoss = -profitLoss;
+        custNetWithComm = -custNetWithComm;
+        netProfitLoss = -netProfitLoss;
       } else if (commissionType === 'entrywise') {
         // Entrywise calculation: commission on losing team total, then apply to gross difference
         const entrywiseResult = calculateEntrywise({
