@@ -8,8 +8,6 @@ import Select from '@/app/components/ui/Select';
 import DatePicker from '@/app/components/ui/DatePicker';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
 import DownloadModal from '@/app/components/ui/DownloadModal';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { useMatchesByDate, matchKeys } from '@/app/hooks/useMatches';
 import { useUsers, userKeys } from '@/app/hooks/useUsers';
 import { useGroups, groupKeys } from '@/app/hooks/useGroups';
@@ -2213,13 +2211,19 @@ export default function BusinessReportPage() {
   };
 
   // Download PDF handler
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (matchSummaryData.length === 0) {
       toast.error('No data to download', { duration: 2000 });
       return;
     }
 
     try {
+      // Dynamically import jsPDF and autoTable (client-side only to avoid SSR issues)
+      const [{ default: jsPDF }, autoTable] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable').then(m => m.default)
+      ]);
+      
       // Get filter values for PDF header
       const selectedMatch = matches.find((m) => String(m.id) === formData.selectMatch);
       const matchName = selectedMatch ? `${selectedMatch.team1.name} vs ${selectedMatch.team2.name}` : 'N/A';
