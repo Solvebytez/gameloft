@@ -7,6 +7,9 @@ import Card from '@/app/components/ui/Card';
 import Select from '@/app/components/ui/Select';
 import DatePicker from '@/app/components/ui/DatePicker';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
+import DownloadModal from '@/app/components/ui/DownloadModal';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { useMatchesByDate, matchKeys } from '@/app/hooks/useMatches';
 import { useUsers, userKeys } from '@/app/hooks/useUsers';
 import { useGroups, groupKeys } from '@/app/hooks/useGroups';
@@ -93,6 +96,7 @@ export default function BusinessReportPage() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [reportGenerated, setReportGenerated] = useState(false);
   const [reportFormData, setReportFormData] = useState<typeof formData | null>(null);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   
   // Pagination state for session table
   const [currentPage, setCurrentPage] = useState(1);
@@ -1701,12 +1705,6 @@ export default function BusinessReportPage() {
     toast.success('Report generated successfully!', { duration: 3000 });
   };
 
-  const handlePrint = () => {
-    toast.success('Printing report...', { duration: 2000 });
-    // Handle print logic here
-    window.print();
-  };
-
   interface MatchSummaryRow {
     srNo: string | number;
     custName: string;
@@ -1722,6 +1720,57 @@ export default function BusinessReportPage() {
     commissionType?: string;
     markAsCut?: 'no' | 'yes';
   }
+
+  // Helper function to capitalize first letter
+  const capitalizeFirst = (str: string): string => {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
+  // Helper function to get display value from column render function or raw value
+  const getDisplayValue = (column: Column<MatchSummaryRow>, row: MatchSummaryRow): string => {
+    const rawValue = row[column.key as keyof MatchSummaryRow];
+    
+    // If column has a render function, we need to extract text from the rendered JSX
+    // For export purposes, we'll use the raw value or a simplified version
+    if (column.render) {
+      // For complex renders (like badges), we'll use the raw value
+      // This is a simplified approach - in a real scenario, you might want to extract text from JSX
+      if (column.key === 'custName') {
+        return String(rawValue || '');
+      }
+      if (column.key === 'totalBet' || column.key === 'profitLoss' || column.key === 'totalCommission' || 
+          column.key === 'custNetWithComm' || column.key === 'netProfitLoss') {
+        const numValue = typeof rawValue === 'number' ? rawValue : (typeof rawValue === 'string' ? parseFloat(rawValue.replace(/,/g, '')) || 0 : Number(rawValue) || 0);
+        return formatNumber(numValue);
+      }
+      if (column.key === 'commissionPercent' || column.key === 'partnership') {
+        const numValue = typeof rawValue === 'number' ? rawValue : (typeof rawValue === 'string' ? parseFloat(rawValue.replace(/,/g, '')) || 0 : Number(rawValue) || 0);
+        return String(numValue);
+      }
+      return String(rawValue || '');
+    }
+    
+    // Handle numbers
+    if (typeof rawValue === 'number') {
+      if (column.key === 'totalBet' || column.key === 'profitLoss' || column.key === 'totalCommission' || 
+          column.key === 'custNetWithComm' || column.key === 'netProfitLoss') {
+        return formatNumber(rawValue);
+      }
+      return String(rawValue);
+    }
+    
+    // Handle strings
+    if (typeof rawValue === 'string') {
+      return rawValue;
+    }
+    
+    // Handle null/undefined
+    if (rawValue == null) {
+      return '';
+    }
+    
+    return String(rawValue);
+  };
 
   // Use calculated data when report is generated, otherwise use empty array
   const matchSummaryData = useMemo(() => {
@@ -2100,6 +2149,238 @@ export default function BusinessReportPage() {
     },
   ];
 
+  // Convert data to CSV format
+  const convertToCSV = (data: MatchSummaryRow[]): string => {
+    if (data.length === 0) return '';
+    
+    // Get headers from columns
+    const headers = columns.map(col => capitalizeFirst(col.label));
+    const csvRows = [headers.join(',')];
+    
+    // Get data rows
+    data.forEach(row => {
+      const values = columns.map(col => {
+        const displayValue = getDisplayValue(col, row);
+        // Handle values that might contain commas or quotes
+        if (!displayValue) return '';
+        const stringValue = displayValue.replace(/"/g, '""');
+        return `"${stringValue}"`;
+      });
+      csvRows.push(values.join(','));
+    });
+    
+    return csvRows.join('\n');
+  };
+
+  // Download CSV handler
+  const handleDownloadCSV = () => {
+    if (matchSummaryData.length === 0) {
+      toast.error('No data to download', { duration: 2000 });
+      return;
+    }
+    const csvData = convertToCSV(matchSummaryData);
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `business_report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('CSV file downloaded!', { duration: 2000 });
+  };
+
+  // Download Excel handler
+  const handleDownloadExcel = () => {
+    if (matchSummaryData.length === 0) {
+      toast.error('No data to download', { duration: 2000 });
+      return;
+    }
+    const csvData = convertToCSV(matchSummaryData);
+    // Excel can open CSV files, but we'll add BOM for UTF-8 support
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvData], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `business_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Excel file downloaded!', { duration: 2000 });
+  };
+
+  // Download PDF handler
+  const handleDownloadPDF = () => {
+    if (matchSummaryData.length === 0) {
+      toast.error('No data to download', { duration: 2000 });
+      return;
+    }
+
+    try {
+      // Get filter values for PDF header
+      const selectedMatch = matches.find((m) => String(m.id) === formData.selectMatch);
+      const matchName = selectedMatch ? `${selectedMatch.team1.name} vs ${selectedMatch.team2.name}` : 'N/A';
+      const matchDate = formData.matchDate || 'N/A';
+      
+      // Get winning team name
+      let winningTeamName = 'N/A';
+      if (selectedMatch && formData.winningTeam) {
+        const winningTeamId = Number(formData.winningTeam);
+        if (winningTeamId === selectedMatch.team1.id) {
+          winningTeamName = selectedMatch.team1.name;
+        } else if (winningTeamId === selectedMatch.team2.id) {
+          winningTeamName = selectedMatch.team2.name;
+        }
+      }
+      
+      // Get selection type and selected user/group name
+      let selectionInfo = '';
+      if (formData.selectionType === 'user') {
+        if (formData.selectUser === 'all') {
+          selectionInfo = 'All Users';
+        } else {
+          const selectedUser = users.find((u) => String(u.id) === formData.selectUser);
+          selectionInfo = selectedUser ? selectedUser.name : 'N/A';
+        }
+      } else {
+        if (formData.selectGroup === 'all') {
+          selectionInfo = 'All Groups';
+        } else {
+          const selectedGroup = groups.find((g) => String(g.id) === formData.selectGroup);
+          selectionInfo = selectedGroup ? selectedGroup.name : 'N/A';
+        }
+      }
+      
+      // Create new jsPDF instance
+      const doc = new jsPDF('landscape'); // Use landscape for better table fit
+      
+      // Add title
+      doc.setFontSize(16);
+      doc.text('Business Report', 14, 15);
+      
+      // Add filter information
+      doc.setFontSize(10);
+      let yPos = 22;
+      doc.text(`Match Date: ${matchDate}`, 14, yPos);
+      yPos += 6;
+      doc.text(`Match: ${matchName}`, 14, yPos);
+      yPos += 6;
+      doc.text(`Winning Team: ${winningTeamName}`, 14, yPos);
+      yPos += 6;
+      doc.text(`Selection: ${formData.selectionType === 'user' ? 'User' : 'Group'} - ${selectionInfo}`, 14, yPos);
+      yPos += 6;
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, yPos);
+      
+      // Prepare table data
+      const tableData = matchSummaryData.map(row => 
+        columns.map(col => {
+          const displayValue = getDisplayValue(col, row);
+          return displayValue || '';
+        })
+      );
+      
+      // Prepare table headers
+      const tableHeaders = columns.map(col => capitalizeFirst(col.label));
+      
+      // Add table using autoTable function (not method)
+      autoTable(doc, {
+        head: [tableHeaders],
+        body: tableData,
+        startY: yPos + 5,
+        styles: {
+          fontSize: 8,
+          cellPadding: 3,
+        },
+        headStyles: {
+          fillColor: [242, 242, 242],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+        },
+        alternateRowStyles: {
+          fillColor: [249, 249, 249],
+        },
+        margin: { top: 28, right: 14, bottom: 14, left: 14 },
+      });
+      
+      // Save the PDF
+      doc.save(`business_report_${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success('PDF file downloaded!', { duration: 2000 });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF', { duration: 2000 });
+    }
+  };
+
+  // Print handler - prints only table data, not the form
+  const handlePrint = () => {
+    if (matchSummaryData.length === 0) {
+      toast.error('No data to print', { duration: 2000 });
+      return;
+    }
+    
+    // Create a new window with table content for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Please allow popups to print', { duration: 3000 });
+      return;
+    }
+
+    // Build HTML content with only the table
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Business Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1 { margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+            @media print {
+              body { margin: 0; }
+              @page { margin: 1cm; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Business Report</h1>
+          <p>Generated on: ${new Date().toLocaleString()}</p>
+          <table>
+            <thead>
+              <tr>
+                ${columns.map(col => `<th>${capitalizeFirst(col.label)}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${matchSummaryData.map(row => `
+                <tr>
+                  ${columns.map(col => {
+                    const displayValue = getDisplayValue(col, row);
+                    return `<td>${displayValue ? displayValue.replace(/</g, '&lt;').replace(/>/g, '&gt;') : ''}</td>`;
+                  }).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    
+    // Wait for content to load, then trigger print
+    setTimeout(() => {
+      printWindow.print();
+      toast.success('Print dialog opened!', { duration: 2000 });
+    }, 250);
+  };
+
   return (
     <div className="space-y-2">
       <Card>
@@ -2302,6 +2583,13 @@ export default function BusinessReportPage() {
                 className="px-4 py-1.5 bg-red-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
               >
                 Print
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsDownloadModalOpen(true)}
+                className="px-4 py-1.5 bg-blue-700 text-white font-bold text-sm rounded hover:opacity-90 transition-opacity"
+              >
+                Download
               </button>
             </div>
           </div>
@@ -2546,6 +2834,15 @@ export default function BusinessReportPage() {
           )}
         </>
       )}
+
+      {/* Download Modal */}
+      <DownloadModal
+        isOpen={isDownloadModalOpen}
+        onClose={() => setIsDownloadModalOpen(false)}
+        onDownloadPDF={handleDownloadPDF}
+        onDownloadExcel={handleDownloadExcel}
+        onDownloadCSV={handleDownloadCSV}
+      />
     </div>
   );
 }
