@@ -863,6 +863,14 @@ export default function BusinessReportPage() {
         console.log('[BusinessReport][Totals] winningTeamSum (from user rows)', winningTeamSum);
 
         // Add winning team total row (sum of all user rows)
+        console.log('[BusinessReport][Totals] adding winning team total row from USER ROWS', {
+          winningTeamSum,
+          rowToAdd: {
+            totalCommission: winningTeamSum.commission,
+            totalBet: winningTeamSum.totalBet,
+            profitLoss: winningTeamSum.profitLoss,
+          },
+        });
         rows.push({
           srNo: 'Total',
           custName: '',
@@ -877,6 +885,7 @@ export default function BusinessReportPage() {
           isTotal: true,
           teamName: winningTeam.name,
         });
+        console.log('[BusinessReport][Totals] after adding winning team row, rows.length =', rows.length, 'last row commission =', rows[rows.length - 1]?.totalCommission);
 
         // Add separator row
         rows.push({
@@ -894,6 +903,7 @@ export default function BusinessReportPage() {
         // For losing team, we need to calculate from entries (different scenario - if losing team won)
         // Set flag to skip winning team row in calculation below (we already added it)
         skipWinningTeamRow = true;
+        console.log('[BusinessReport][Totals] set skipWinningTeamRow = true, will skip entry aggregation winning team row');
         
         // Continue to calculate losing team from entries below (don't return early)
       }
@@ -1458,6 +1468,20 @@ export default function BusinessReportPage() {
             netProfitLoss: hasNoCommission ? -team1NetProfitLoss : team1NetProfitLoss,
           };
 
+      console.log('[BusinessReport][Totals] losing team calculation from ENTRY aggregation', {
+        isTeam1Winner,
+        losingTeam: losingTeam.name,
+        team1Commission,
+        team2Commission,
+        hasNoCommission,
+        secondTeamTotals: {
+          name: secondTeamTotals.name,
+          commission: secondTeamTotals.commission,
+          totalBet: secondTeamTotals.totalBet,
+          profitLoss: secondTeamTotals.profitLoss,
+        },
+      });
+
       // Add winning team total row first (immediately after individual entries, no gap)
       // Skip if we already added it from user rows (when filtered)
       if (!skipWinningTeamRow) {
@@ -1493,6 +1517,16 @@ export default function BusinessReportPage() {
       });
 
       // Add losing team total row below (always show, even if values are 0)
+      console.log('[BusinessReport][Totals] adding losing team total row', {
+        secondTeamTotals: {
+          name: secondTeamTotals.name,
+          totalBet: secondTeamTotals.totalBet,
+          profitLoss: secondTeamTotals.profitLoss,
+          commission: secondTeamTotals.commission,
+          custNetWithComm: secondTeamTotals.custNetWithComm,
+          netProfitLoss: secondTeamTotals.netProfitLoss,
+        },
+      });
       rows.push({
         srNo: 'Total',
         custName: '',
