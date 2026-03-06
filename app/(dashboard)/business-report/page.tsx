@@ -764,10 +764,27 @@ export default function BusinessReportPage() {
       // When we have only one user OR when filtered, we'll add winning team from user rows, so skip it in calculation
       // Also skip if we already added it above when isAllSelected and multiple users
       let skipWinningTeamRow = hasOnlyOneUser || !isAllSelected;
+
+      // DEBUG: team total calculation context
+      console.log('[BusinessReport][Totals] context', {
+        selectionType: reportFormData.selectionType,
+        selectUser: reportFormData.selectUser,
+        selectGroup: reportFormData.selectGroup,
+        isAllSelected,
+        hasOnlyOneUser,
+        userRowsCount: userRows.length,
+        winningTeam: winningTeam?.name,
+        losingTeam: losingTeam?.name,
+        skipWinningTeamRow,
+      });
       
       // If only one user row (regardless of selection), use those values directly
       if (hasOnlyOneUser) {
         const userRow = userRows[0];
+        console.log('[BusinessReport][Totals] single user -> using user row directly', {
+          custName: userRow.custName,
+          totalCommission: userRow.totalCommission,
+        });
         rows.push({
           srNo: 'Total',
           custName: '',
@@ -821,6 +838,13 @@ export default function BusinessReportPage() {
       // When "All Users" is selected, calculate team totals by summing individual user rows
       // This ensures commission matches the sum of individual user commissions
       if (isAllSelected && userRows.length > 1) {
+        console.log('[BusinessReport][Totals] isAllSelected=true -> summing ALL user rows for winning team total', {
+          userRows: userRows.map((r) => ({
+            custName: r.custName,
+            totalCommission: r.totalCommission,
+            profitLoss: r.profitLoss,
+          })),
+        });
         // Winning team total should sum ALL user rows (they're all calculated for winning team scenario)
         const winningTeamSum = {
           totalBet: 0,
@@ -836,6 +860,7 @@ export default function BusinessReportPage() {
           winningTeamSum.custNetWithComm += Number(row.custNetWithComm) || 0;
           winningTeamSum.netProfitLoss += Number(row.netProfitLoss) || 0;
         });
+        console.log('[BusinessReport][Totals] winningTeamSum (from user rows)', winningTeamSum);
 
         // Add winning team total row (sum of all user rows)
         rows.push({
@@ -1436,6 +1461,9 @@ export default function BusinessReportPage() {
       // Add winning team total row first (immediately after individual entries, no gap)
       // Skip if we already added it from user rows (when filtered)
       if (!skipWinningTeamRow) {
+        console.log('[BusinessReport][Totals] adding winning team total row from ENTRY aggregation', {
+          firstTeamTotals,
+        });
         rows.push({
           srNo: 'Total',
           custName: '',
