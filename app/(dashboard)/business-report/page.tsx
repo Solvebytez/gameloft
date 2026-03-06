@@ -700,6 +700,27 @@ export default function BusinessReportPage() {
         netProfitLoss = profitLoss * (1 - partnershipRate);
       }
 
+      // Determine which team this user bet more on (for team totals grouping)
+      let userTeam1Bet = 0;
+      let userTeam2Bet = 0;
+      userEntries.forEach((entry) => {
+        const parseAmountFromString = (formattedString: string | null | undefined): number => {
+          if (!formattedString || formattedString === '0' || formattedString === '0/0000') return 0;
+          try {
+            const parts = formattedString.split('/');
+            if (parts.length === 2) {
+              return Number(parts[1]) || 0;
+            }
+            return 0;
+          } catch {
+            return 0;
+          }
+        };
+        userTeam1Bet += parseAmountFromString(entry.team1Fav) + parseAmountFromString(entry.team1Nfav);
+        userTeam2Bet += parseAmountFromString(entry.team2Fav) + parseAmountFromString(entry.team2Nfav);
+      });
+      const userBetOnTeam1 = userTeam1Bet >= userTeam2Bet;
+
       rows.push({
         srNo: rowIndex++,
         custName: user.name,
@@ -712,6 +733,7 @@ export default function BusinessReportPage() {
         netProfitLoss,
         commissionType: user.commission_type,
         markAsCut: user.mark_as_cut ?? 'no',
+        userBetOnTeam1, // Store which team user bet on
       });
     });
 
@@ -794,6 +816,99 @@ export default function BusinessReportPage() {
 
       // Don't add empty separator row here when we added winning team from user rows
       // The losing team calculation below will add one empty row before the losing team total
+      
+      // When "All Users" is selected, calculate team totals by summing individual user rows
+      // This ensures commission matches the sum of individual user commissions
+      if (isAllSelected && userRows.length > 1) {
+        // Group users by which team they bet more on
+        const winningTeamUsers = userRows.filter((row) => {
+          const userBetOnTeam1 = (row as any).userBetOnTeam1;
+          return isTeam1Winner ? userBetOnTeam1 : !userBetOnTeam1;
+        });
+        const losingTeamUsers = userRows.filter((row) => {
+          const userBetOnTeam1 = (row as any).userBetOnTeam1;
+          return isTeam1Winner ? !userBetOnTeam1 : userBetOnTeam1;
+        });
+
+        // Calculate winning team totals from user rows
+        const winningTeamSum = {
+          totalBet: 0,
+          profitLoss: 0,
+          commission: 0,
+          custNetWithComm: 0,
+          netProfitLoss: 0,
+        };
+        winningTeamUsers.forEach((row) => {
+          winningTeamSum.totalBet += Number(row.totalBet) || 0;
+          winningTeamSum.profitLoss += Number(row.profitLoss) || 0;
+          winningTeamSum.commission += Number(row.totalCommission) || 0;
+          winningTeamSum.custNetWithComm += Number(row.custNetWithComm) || 0;
+          winningTeamSum.netProfitLoss += Number(row.netProfitLoss) || 0;
+        });
+
+        // Calculate losing team totals from user rows
+        const losingTeamSum = {
+          totalBet: 0,
+          profitLoss: 0,
+          commission: 0,
+          custNetWithComm: 0,
+          netProfitLoss: 0,
+        };
+        losingTeamUsers.forEach((row) => {
+          losingTeamSum.totalBet += Number(row.totalBet) || 0;
+          losingTeamSum.profitLoss += Number(row.profitLoss) || 0;
+          losingTeamSum.commission += Number(row.totalCommission) || 0;
+          losingTeamSum.custNetWithComm += Number(row.custNetWithComm) || 0;
+          losingTeamSum.netProfitLoss += Number(row.netProfitLoss) || 0;
+        });
+
+        // Add winning team total row
+        rows.push({
+          srNo: 'Total',
+          custName: '',
+          totalBet: winningTeamSum.totalBet,
+          profitLoss: winningTeamSum.profitLoss,
+          totalCommission: winningTeamSum.commission,
+          commissionPercent: winningTeamSum.commission > 0 && winningTeamSum.totalBet > 0 
+            ? (winningTeamSum.commission / winningTeamSum.totalBet) * 100 : 0,
+          partnership: winningTeam.name,
+          custNetWithComm: winningTeamSum.custNetWithComm,
+          netProfitLoss: winningTeamSum.netProfitLoss,
+          isTotal: true,
+          teamName: winningTeam.name,
+        });
+
+        // Add separator row
+        rows.push({
+          srNo: '',
+          custName: '',
+          totalBet: 0,
+          profitLoss: 0,
+          totalCommission: 0,
+          commissionPercent: 0,
+          partnership: '',
+          custNetWithComm: 0,
+          netProfitLoss: 0,
+        });
+
+        // Add losing team total row
+        rows.push({
+          srNo: 'Total',
+          custName: '',
+          totalBet: losingTeamSum.totalBet,
+          profitLoss: losingTeamSum.profitLoss,
+          totalCommission: losingTeamSum.commission,
+          commissionPercent: losingTeamSum.commission > 0 && losingTeamSum.totalBet > 0 
+            ? (losingTeamSum.commission / losingTeamSum.totalBet) * 100 : 0,
+          partnership: losingTeam.name,
+          custNetWithComm: losingTeamSum.custNetWithComm,
+          netProfitLoss: losingTeamSum.netProfitLoss,
+          isTotal: true,
+          teamName: losingTeam.name,
+        });
+
+        return rows;
+      }
       
       // Always calculate team totals from entries (for losing team when filtered, for both teams when not filtered)
       const entriesForTeamTotals = isAllSelected ? allEntries : entries;
@@ -1717,6 +1832,7 @@ export default function BusinessReportPage() {
     teamName?: string;
     commissionType?: string;
     markAsCut?: 'no' | 'yes';
+    userBetOnTeam1?: boolean; // Which team user bet more on (for team totals grouping)
   }
 
   // Helper function to capitalize first letter
@@ -1790,7 +1906,7 @@ export default function BusinessReportPage() {
     {
       key: 'srNo',
       label: 'Sr No',
-      sortable: true,
+      sortable: false,
       render: (value, row) => {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
@@ -1804,7 +1920,7 @@ export default function BusinessReportPage() {
     {
       key: 'custName',
       label: 'Cust Name',
-      sortable: true,
+      sortable: false,
       render: (value, row) => {
         const getCommissionTypeBadge = (type?: string) => {
           if (type === 'profit_loss') return { text: 'PL', color: 'bg-blue-200 text-blue-800' };
@@ -1846,7 +1962,7 @@ export default function BusinessReportPage() {
     {
       key: 'totalBet',
       label: 'Total Bet',
-      sortable: true,
+      sortable: false,
       render: (value, row) => {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
@@ -1899,7 +2015,7 @@ export default function BusinessReportPage() {
     {
       key: 'profitLoss',
       label: 'Profit/Loss(+/-)',
-      sortable: true,
+      sortable: false,
       render: (value, row) => {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
@@ -1952,7 +2068,7 @@ export default function BusinessReportPage() {
     {
       key: 'totalCommission',
       label: 'Total Commisson',
-      sortable: true,
+      sortable: false,
       render: (value, row) => {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
@@ -2016,7 +2132,7 @@ export default function BusinessReportPage() {
     {
       key: 'partnership',
       label: 'Partnership',
-      sortable: true,
+      sortable: false,
       render: (value, row) => {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
@@ -2044,7 +2160,7 @@ export default function BusinessReportPage() {
     {
       key: 'custNetWithComm',
       label: 'Cust net with comm',
-      sortable: true,
+      sortable: false,
       render: (value, row) => {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
@@ -2096,7 +2212,7 @@ export default function BusinessReportPage() {
     {
       key: 'netProfitLoss',
       label: 'Net Profit/Loss',
-      sortable: true,
+      sortable: false,
       render: (value, row) => {
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;

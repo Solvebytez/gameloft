@@ -120,10 +120,36 @@ export function useCreateEntry() {
       toast.success('Entry created successfully');
     },
     onError: (error: AxiosError<any>) => {
-      const errorMessage =
-        error.response?.data?.message || 'Failed to create entry';
+      let errorMessage = 'Failed to create entry';
+      
+      // Handle timeout errors
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = 'Request timeout. Please check your connection and try again.';
+      }
+      // Handle rate limiting
+      else if (error.response?.status === 429) {
+        errorMessage = error.response?.data?.message || 'Too many requests. Please wait a moment before trying again.';
+      }
+      // Handle network errors
+      else if (error.code === 'ERR_NETWORK' || !error.response) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      // Handle authentication errors
+      else if (error.response?.status === 401) {
+        errorMessage = 'Session expired. Please login again.';
+      }
+      // Handle validation errors
+      else if (error.response?.status === 422) {
+        errorMessage = error.response?.data?.message || 'Validation failed. Please check your input.';
+      }
+      // Handle other errors
+      else {
+        errorMessage = error.response?.data?.message || error.message || 'Failed to create entry';
+      }
+      
       toast.error(errorMessage);
-      throw new Error(errorMessage);
+      // Don't throw - let React Query handle the error state properly
+      console.error('Create entry error:', error);
     },
   });
 }
@@ -161,10 +187,36 @@ export function useUpdateEntry() {
       toast.success('Entry updated successfully');
     },
     onError: (error: AxiosError<any>) => {
-      const errorMessage =
-        error.response?.data?.message || 'Failed to update entry';
+      let errorMessage = 'Failed to update entry';
+      
+      // Handle timeout errors
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = 'Request timeout. Please check your connection and try again.';
+      }
+      // Handle rate limiting
+      else if (error.response?.status === 429) {
+        errorMessage = error.response?.data?.message || 'Too many requests. Please wait a moment before trying again.';
+      }
+      // Handle network errors
+      else if (error.code === 'ERR_NETWORK' || !error.response) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      // Handle authentication errors
+      else if (error.response?.status === 401) {
+        errorMessage = 'Session expired. Please login again.';
+      }
+      // Handle validation errors
+      else if (error.response?.status === 422) {
+        errorMessage = error.response?.data?.message || 'Validation failed. Please check your input.';
+      }
+      // Handle other errors
+      else {
+        errorMessage = error.response?.data?.message || error.message || 'Failed to update entry';
+      }
+      
       toast.error(errorMessage);
-      throw new Error(errorMessage);
+      // Don't throw - let React Query handle the error state properly
+      console.error('Update entry error:', error);
     },
   });
 }

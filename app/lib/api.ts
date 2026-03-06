@@ -18,6 +18,7 @@ export const api = axios.create({
     'Accept': 'application/json',
   },
   withCredentials: true, // Important: This sends cookies automatically
+  timeout: 15000, // 15 second timeout to prevent hanging requests
 });
 
 // Request interceptor (optional - for adding auth tokens if needed)
@@ -42,6 +43,20 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
+    // Handle timeout errors
+    if (error.code === 'ECONNABORTED' || error.message === 'timeout of 15000ms exceeded') {
+      console.error('❌ Request timeout:', error.config?.url);
+      return Promise.reject(new Error('Request timeout. Please check your connection and try again.'));
+    }
+
+    // Handle rate limiting errors (429)
+    if (error.response?.status === 429) {
+      const retryAfter = error.response.headers['retry-after'] || 60;
+      const message = error.response?.data?.message || `Too many requests. Please wait ${retryAfter} seconds before trying again.`;
+      console.error('❌ Rate limit exceeded:', error.config?.url);
+      return Promise.reject(new Error(message));
+    }
+
     // Check for authentication errors (401 or 500 with "Unauthenticated" message)
     const isUnauthenticated = 
       error.response?.status === 401 || 

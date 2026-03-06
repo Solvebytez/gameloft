@@ -60,6 +60,10 @@ export default function MatchDetailPage() {
   const team2RateRef = useRef<HTMLInputElement>(null);
   const team2AmountRef = useRef<HTMLInputElement>(null);
 
+  // Debounce ref to prevent rapid submissions
+  const submitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSubmitTimeRef = useRef<number>(0);
+
   // Filter active users and create dropdown options for filter
   const customerFilterOptions = useMemo(() => {
     const activeUsers = users.filter((user) => user.status === 'active');
@@ -263,6 +267,28 @@ export default function MatchDetailPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Prevent rapid submissions - debounce check
+    const now = Date.now();
+    const timeSinceLastSubmit = now - lastSubmitTimeRef.current;
+    const minTimeBetweenSubmissions = 500; // 500ms minimum between submissions
+
+    if (timeSinceLastSubmit < minTimeBetweenSubmissions) {
+      toast.error('Please wait before submitting again');
+      return;
+    }
+
+    // Clear any pending timeout
+    if (submitTimeoutRef.current) {
+      clearTimeout(submitTimeoutRef.current);
+      submitTimeoutRef.current = null;
+    }
+
+    // Check if already submitting
+    if (createEntryMutation.isPending || updateEntryMutation.isPending) {
+      toast.error('Please wait for the current submission to complete');
+      return;
+    }
+
     // Validation: A user must be selected
     if (!assignedUser || (typeof assignedUser === 'string' && assignedUser === '') || (typeof assignedUser === 'number' && assignedUser === 0)) {
       toast.error('Please select a user to assign entry to');
@@ -298,6 +324,9 @@ export default function MatchDetailPage() {
       toast.error('Match ID is missing');
       return;
     }
+
+    // Update last submit time
+    lastSubmitTimeRef.current = now;
 
     try {
       if (isEditMode && editingEntryId) {
@@ -349,8 +378,25 @@ export default function MatchDetailPage() {
     } catch (error) {
       // Error is already handled by the mutation's onError callback
       console.error('Failed to save entry:', error);
+      // Reset last submit time on error to allow retry
+      lastSubmitTimeRef.current = 0;
+    } finally {
+      // Clear timeout ref
+      if (submitTimeoutRef.current) {
+        clearTimeout(submitTimeoutRef.current);
+        submitTimeoutRef.current = null;
+      }
     }
   };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (submitTimeoutRef.current) {
+        clearTimeout(submitTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (isLoading) {
     return (
