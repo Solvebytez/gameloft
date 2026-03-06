@@ -762,7 +762,8 @@ export default function BusinessReportPage() {
         : (reportFormData.selectUser === 'all' || reportFormData.selectUser === '' || !reportFormData.selectUser);
       
       // When we have only one user OR when filtered, we'll add winning team from user rows, so skip it in calculation
-      const skipWinningTeamRow = hasOnlyOneUser || !isAllSelected;
+      // Also skip if we already added it above when isAllSelected and multiple users
+      let skipWinningTeamRow = hasOnlyOneUser || !isAllSelected;
       
       // If only one user row (regardless of selection), use those values directly
       if (hasOnlyOneUser) {
@@ -820,17 +821,7 @@ export default function BusinessReportPage() {
       // When "All Users" is selected, calculate team totals by summing individual user rows
       // This ensures commission matches the sum of individual user commissions
       if (isAllSelected && userRows.length > 1) {
-        // Group users by which team they bet more on
-        const winningTeamUsers = userRows.filter((row) => {
-          const userBetOnTeam1 = (row as any).userBetOnTeam1;
-          return isTeam1Winner ? userBetOnTeam1 : !userBetOnTeam1;
-        });
-        const losingTeamUsers = userRows.filter((row) => {
-          const userBetOnTeam1 = (row as any).userBetOnTeam1;
-          return isTeam1Winner ? !userBetOnTeam1 : userBetOnTeam1;
-        });
-
-        // Calculate winning team totals from user rows
+        // Winning team total should sum ALL user rows (they're all calculated for winning team scenario)
         const winningTeamSum = {
           totalBet: 0,
           profitLoss: 0,
@@ -838,7 +829,7 @@ export default function BusinessReportPage() {
           custNetWithComm: 0,
           netProfitLoss: 0,
         };
-        winningTeamUsers.forEach((row) => {
+        userRows.forEach((row) => {
           winningTeamSum.totalBet += Number(row.totalBet) || 0;
           winningTeamSum.profitLoss += Number(row.profitLoss) || 0;
           winningTeamSum.commission += Number(row.totalCommission) || 0;
@@ -846,23 +837,7 @@ export default function BusinessReportPage() {
           winningTeamSum.netProfitLoss += Number(row.netProfitLoss) || 0;
         });
 
-        // Calculate losing team totals from user rows
-        const losingTeamSum = {
-          totalBet: 0,
-          profitLoss: 0,
-          commission: 0,
-          custNetWithComm: 0,
-          netProfitLoss: 0,
-        };
-        losingTeamUsers.forEach((row) => {
-          losingTeamSum.totalBet += Number(row.totalBet) || 0;
-          losingTeamSum.profitLoss += Number(row.profitLoss) || 0;
-          losingTeamSum.commission += Number(row.totalCommission) || 0;
-          losingTeamSum.custNetWithComm += Number(row.custNetWithComm) || 0;
-          losingTeamSum.netProfitLoss += Number(row.netProfitLoss) || 0;
-        });
-
-        // Add winning team total row
+        // Add winning team total row (sum of all user rows)
         rows.push({
           srNo: 'Total',
           custName: '',
@@ -891,26 +866,15 @@ export default function BusinessReportPage() {
           netProfitLoss: 0,
         });
 
-        // Add losing team total row
-        rows.push({
-          srNo: 'Total',
-          custName: '',
-          totalBet: losingTeamSum.totalBet,
-          profitLoss: losingTeamSum.profitLoss,
-          totalCommission: losingTeamSum.commission,
-          commissionPercent: losingTeamSum.commission > 0 && losingTeamSum.totalBet > 0 
-            ? (losingTeamSum.commission / losingTeamSum.totalBet) * 100 : 0,
-          partnership: losingTeam.name,
-          custNetWithComm: losingTeamSum.custNetWithComm,
-          netProfitLoss: losingTeamSum.netProfitLoss,
-          isTotal: true,
-          teamName: losingTeam.name,
-        });
-
-        return rows;
+        // For losing team, we need to calculate from entries (different scenario - if losing team won)
+        // Set flag to skip winning team row in calculation below (we already added it)
+        skipWinningTeamRow = true;
+        
+        // Continue to calculate losing team from entries below (don't return early)
       }
       
       // Always calculate team totals from entries (for losing team when filtered, for both teams when not filtered)
+      // When isAllSelected is true and we already added winning team total, skipWinningTeamRow will be true
       const entriesForTeamTotals = isAllSelected ? allEntries : entries;
       const allUserGroups = new Map<number | string, Entry[]>();
       entriesForTeamTotals.forEach((entry) => {
