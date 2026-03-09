@@ -204,7 +204,7 @@ export default function CreateTeamPage() {
             payload: updatePayload,
           });
         } else {
-          toast('No changes to save', { duration: 2000 });
+          console.log('No changes to save');
         }
       } else {
         // Create new team

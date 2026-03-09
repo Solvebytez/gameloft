@@ -340,7 +340,7 @@ export default function CreateUserPage() {
             payload: updatePayload,
           });
         } else {
-          toast('No changes to save', { duration: 2000 });
+          console.log('No changes to save');
         }
       } else {
         // Create mode - ensure all required fields are present

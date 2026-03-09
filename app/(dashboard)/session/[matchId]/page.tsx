@@ -567,7 +567,7 @@ export default function SessionMatchPage() {
             payload: updatePayload,
           });
         } else {
-          toast('No changes to save', { duration: 2000 });
+          console.log('No changes to save');
         }
 
         setIsEditMode(false);
