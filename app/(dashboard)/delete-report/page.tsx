@@ -525,7 +525,7 @@ export default function DeleteReportPage() {
                             {entry.match_name || 'N/A'}
                           </td>
                           <td className="px-3 py-2 text-retro-dark font-bold">
-                            {entry.team1Fav && entry.team1Fav !== '0' && entry.team1Fav !== '0/0000' ? (
+                            {entry.team1Fav && entry.team1Fav !== '0' && entry.team1Fav !== '0/0' && entry.team1Fav !== '0/0000' ? (
                               <span className="inline-block px-2 py-1 bg-green-700 text-white font-semibold text-xs rounded">
                                 {entry.team1Fav}
                               </span>
@@ -534,7 +534,7 @@ export default function DeleteReportPage() {
                             )}
                           </td>
                           <td className="px-3 py-2 text-retro-dark font-bold">
-                            {entry.team1Nfav && entry.team1Nfav !== '0' && entry.team1Nfav !== '0/0000' ? (
+                            {entry.team1Nfav && entry.team1Nfav !== '0' && entry.team1Nfav !== '0/0' && entry.team1Nfav !== '0/0000' ? (
                               <span className="inline-block px-2 py-1 bg-red-700 text-white font-semibold text-xs rounded">
                                 {entry.team1Nfav}
                               </span>
@@ -543,7 +543,7 @@ export default function DeleteReportPage() {
                             )}
                           </td>
                           <td className="px-3 py-2 text-retro-dark font-bold">
-                            {entry.team2Fav && entry.team2Fav !== '0' && entry.team2Fav !== '0/0000' ? (
+                            {entry.team2Fav && entry.team2Fav !== '0' && entry.team2Fav !== '0/0' && entry.team2Fav !== '0/0000' ? (
                               <span className="inline-block px-2 py-1 bg-green-700 text-white font-semibold text-xs rounded">
                                 {entry.team2Fav}
                               </span>
@@ -552,7 +552,7 @@ export default function DeleteReportPage() {
                             )}
                           </td>
                           <td className="px-3 py-2 text-retro-dark font-bold">
-                            {entry.team2Nfav && entry.team2Nfav !== '0' && entry.team2Nfav !== '0/0000' ? (
+                            {entry.team2Nfav && entry.team2Nfav !== '0' && entry.team2Nfav !== '0/0' && entry.team2Nfav !== '0/0000' ? (
                               <span className="inline-block px-2 py-1 bg-red-700 text-white font-semibold text-xs rounded">
                                 {entry.team2Nfav}
                               </span>

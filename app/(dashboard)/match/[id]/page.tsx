@@ -806,7 +806,7 @@ export default function MatchDetailPage() {
                           </div>
                         </td>
                         <td className="px-1 py-1.5 text-center border-l-2 border-retro-dark">
-                          {entry.team1Fav && entry.team1Fav !== '0' && entry.team1Fav !== '0/0000' ? (
+                          {entry.team1Fav && entry.team1Fav !== '0' && entry.team1Fav !== '0/0' && entry.team1Fav !== '0/0000' ? (
                             <span className="inline-block px-1.5 py-0.5 bg-green-700 text-white font-semibold text-sm rounded">
                               {entry.team1Fav}
                             </span>
@@ -817,7 +817,7 @@ export default function MatchDetailPage() {
                           )}
                         </td>
                         <td className="px-1 py-1.5 text-center">
-                          {entry.team1Nfav && entry.team1Nfav !== '0' && entry.team1Nfav !== '0/0000' ? (
+                          {entry.team1Nfav && entry.team1Nfav !== '0' && entry.team1Nfav !== '0/0' && entry.team1Nfav !== '0/0000' ? (
                             <span className="inline-block px-1.5 py-0.5 bg-red-700 text-white font-semibold text-sm rounded">
                               {entry.team1Nfav}
                             </span>
@@ -828,7 +828,7 @@ export default function MatchDetailPage() {
                           )}
                         </td>
                         <td className="px-1 py-1.5 text-center border-l-2 border-retro-dark">
-                          {entry.team2Fav && entry.team2Fav !== '0' && entry.team2Fav !== '0/0000' ? (
+                          {entry.team2Fav && entry.team2Fav !== '0' && entry.team2Fav !== '0/0' && entry.team2Fav !== '0/0000' ? (
                             <span className="inline-block px-1.5 py-0.5 bg-green-700 text-white font-semibold text-sm rounded">
                               {entry.team2Fav}
                             </span>
@@ -839,7 +839,7 @@ export default function MatchDetailPage() {
                           )}
                         </td>
                         <td className="px-1 py-1.5 text-center">
-                          {entry.team2Nfav && entry.team2Nfav !== '0' && entry.team2Nfav !== '0/0000' ? (
+                          {entry.team2Nfav && entry.team2Nfav !== '0' && entry.team2Nfav !== '0/0' && entry.team2Nfav !== '0/0000' ? (
                             <span className="inline-block px-1.5 py-0.5 bg-red-700 text-white font-semibold text-sm rounded">
                               {entry.team2Nfav}
                             </span>
