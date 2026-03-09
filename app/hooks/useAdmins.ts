@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/app/lib/api';
-import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 
 export interface Admin {
@@ -179,10 +178,10 @@ export function useCreateAdmin() {
       if (context?.previousAdmins) {
         queryClient.setQueryData(adminKeys.list(), context.previousAdmins);
       }
-      toast.error(err instanceof Error ? err.message : 'Failed to create admin');
+      console.error('❌', err instanceof Error ? err.message : 'Failed to create admin');
     },
     onSuccess: () => {
-      toast.success('Admin created successfully!');
+      console.log('✅ Admin created successfully!');
     },
     onSettled: () => {
       // Refetch to ensure consistency
@@ -248,10 +247,10 @@ export function useUpdateAdmin() {
       if (context?.previousAdmins) {
         queryClient.setQueryData(adminKeys.list(), context.previousAdmins);
       }
-      toast.error(err instanceof Error ? err.message : 'Failed to update admin');
+      console.error('❌', err instanceof Error ? err.message : 'Failed to update admin');
     },
     onSuccess: () => {
-      toast.success('Admin updated successfully!');
+      console.log('✅ Admin updated successfully!');
     },
     onSettled: () => {
       // Refetch to ensure consistency
@@ -298,10 +297,10 @@ export function useDeleteAdmin() {
       if (context?.previousAdmins) {
         queryClient.setQueryData(adminKeys.list(), context.previousAdmins);
       }
-      toast.error(err instanceof Error ? err.message : 'Failed to delete admin');
+      console.error('❌', err instanceof Error ? err.message : 'Failed to delete admin');
     },
     onSuccess: () => {
-      toast.success('Admin deleted successfully!');
+      console.log('✅ Admin deleted successfully!');
     },
     onSettled: () => {
       // Refetch to ensure consistency
@@ -341,10 +340,10 @@ export function useUpdateAdminStatus() {
       if (context?.previousAdmins) {
         queryClient.setQueryData(adminKeys.list(), context.previousAdmins);
       }
-      toast.error(err instanceof Error ? err.message : 'Failed to update admin status');
+      console.error('❌', err instanceof Error ? err.message : 'Failed to update admin status');
     },
     onSuccess: (data, variables) => {
-      toast.success(`Admin status updated to ${variables.status}!`);
+      console.log(`✅ Admin status updated to ${variables.status}!`);
     },
     onSettled: () => {
       // Refetch to ensure consistency

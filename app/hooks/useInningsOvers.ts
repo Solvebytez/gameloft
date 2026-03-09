@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/app/lib/api';
-import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 
 export interface InningsOver {
@@ -84,10 +83,10 @@ export function useCreateInningsOver() {
     onSuccess: () => {
       // Invalidate and refetch innings/overs list
       queryClient.invalidateQueries({ queryKey: inningsOverKeys.list() });
-      toast.success('Innings/Over created successfully!');
+      console.log('Innings/Over created successfully!');
     },
     onError: (err: Error) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to create innings/over');
+      console.error(err instanceof Error ? err.message : 'Failed to create innings/over');
     },
   });
 }
@@ -120,10 +119,10 @@ export function useUpdateInningsOver() {
     onSuccess: () => {
       // Invalidate and refetch innings/overs list
       queryClient.invalidateQueries({ queryKey: inningsOverKeys.list() });
-      toast.success('Innings/Over updated successfully!');
+      console.log('Innings/Over updated successfully!');
     },
     onError: (err: Error) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to update innings/over');
+      console.error(err instanceof Error ? err.message : 'Failed to update innings/over');
     },
   });
 }
@@ -148,10 +147,10 @@ export function useDeleteInningsOver() {
     onSuccess: () => {
       // Invalidate and refetch innings/overs list
       queryClient.invalidateQueries({ queryKey: inningsOverKeys.list() });
-      toast.success('Innings/Over deleted successfully!');
+      console.log('Innings/Over deleted successfully!');
     },
     onError: (err: Error) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete innings/over');
+      console.error(err instanceof Error ? err.message : 'Failed to delete innings/over');
     },
   });
 }

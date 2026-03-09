@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import toast from 'react-hot-toast';
 import Card from '@/app/components/ui/Card';
 import Input from '@/app/components/ui/Input';
 import { useChangePassword } from '@/app/hooks/useChangePassword';
@@ -90,7 +89,7 @@ export default function ChangePasswordPage() {
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       const firstError = Object.values(newErrors)[0];
-      toast.error(firstError, { duration: 3000 });
+      console.error(firstError, { duration: 3000 });
       return;
     }
 

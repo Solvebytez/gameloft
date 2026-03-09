@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Card from '@/app/components/ui/Card';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
-import toast from 'react-hot-toast';
 
 interface User {
   id: number;
@@ -130,7 +129,7 @@ export default function UsersPage() {
   ];
 
   const handleEdit = (user: User) => {
-    toast.success(`Editing user: ${user.name}`, { duration: 2000 });
+    console.log(`Editing user: ${user.name}`, { duration: 2000 });
     // Handle edit logic here - in future will navigate to edit page or open modal
     console.log('Edit user:', user);
   };
@@ -138,7 +137,7 @@ export default function UsersPage() {
   const handleDelete = (user: User) => {
     if (confirm(`Are you sure you want to delete user ${user.name}?`)) {
       setUsers((prev) => prev.filter((u) => u.id !== user.id));
-      toast.success(`User ${user.name} deleted successfully`, { duration: 2000 });
+      console.log(`User ${user.name} deleted successfully`, { duration: 2000 });
     }
   };
 

@@ -1,6 +1,5 @@
 'use client';
 
-import { Toaster } from 'react-hot-toast';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
 
 export default function Layout({
@@ -11,7 +10,6 @@ export default function Layout({
   return (
     <>
       <DashboardLayout>{children}</DashboardLayout>
-      <Toaster position="top-right" />
     </>
   );
 }

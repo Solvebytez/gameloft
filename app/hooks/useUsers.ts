@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/app/lib/api';
-import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 
 export interface User {
@@ -205,10 +204,10 @@ export function useCreateUser() {
       if (context?.previousUsers) {
         queryClient.setQueryData(userKeys.list(), context.previousUsers);
       }
-      toast.error(err instanceof Error ? err.message : 'Failed to create user');
+      console.error('❌', err instanceof Error ? err.message : 'Failed to create user');
     },
     onSuccess: () => {
-      toast.success('User created successfully!');
+      console.log('✅ User created successfully!');
     },
     onSettled: () => {
       // Refetch to ensure consistency
@@ -270,7 +269,7 @@ export function useUpdateUser() {
       if (context?.previousUsers) {
         queryClient.setQueryData(userKeys.list(), context.previousUsers);
       }
-      toast.error(err instanceof Error ? err.message : 'Failed to update user');
+      console.error('❌', err instanceof Error ? err.message : 'Failed to update user');
     },
     onSuccess: (data) => {
       // Update cache with the returned data from server
@@ -281,7 +280,7 @@ export function useUpdateUser() {
             : user
         )
       );
-      toast.success('User updated successfully!');
+      console.log('✅ User updated successfully!');
     },
     onSettled: () => {
       // Refetch to ensure consistency
@@ -350,10 +349,10 @@ export function useUpdateUserStatus() {
       if (context?.previousUsers) {
         queryClient.setQueryData(userKeys.list(), context.previousUsers);
       }
-      toast.error(err instanceof Error ? err.message : 'Failed to update user status');
+      console.error('❌', err instanceof Error ? err.message : 'Failed to update user status');
     },
     onSuccess: (data, payload) => {
-      toast.success(`User status changed to ${payload.status} successfully!`);
+      console.log(`✅ User status changed to ${payload.status} successfully!`);
     },
     onSettled: () => {
       // Refetch to ensure consistency
@@ -411,10 +410,10 @@ export function useDeleteUser() {
       if (context?.previousUsers) {
         queryClient.setQueryData(userKeys.list(), context.previousUsers);
       }
-      toast.error(err instanceof Error ? err.message : 'Failed to delete user');
+      console.error('❌', err instanceof Error ? err.message : 'Failed to delete user');
     },
     onSuccess: (data, userId) => {
-      toast.success('User deleted successfully!');
+      console.log('✅ User deleted successfully!');
     },
     onSettled: () => {
       // Refetch to ensure consistency

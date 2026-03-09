@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import toast from 'react-hot-toast';
 import Card from '@/app/components/ui/Card';
 import DatePicker from '@/app/components/ui/DatePicker';
 import { useMatches } from '@/app/hooks/useMatches';
@@ -261,7 +260,7 @@ export default function DeleteReportPage() {
   // Handle delete selected entries
   const handleDeleteSelected = async () => {
     if (selectedEntries.size === 0) {
-      toast.error('Please select at least one entry to delete');
+      console.error('Please select at least one entry to delete');
       return;
     }
 
@@ -276,10 +275,10 @@ export default function DeleteReportPage() {
         await deleteEntryMutation.mutateAsync(entryId);
       }
       setSelectedEntries(new Set());
-      toast.success(`Successfully deleted ${entryIds.length} entry/entries`);
+      console.log(`Successfully deleted ${entryIds.length} entry/entries`);
     } catch (error) {
       console.error('Error deleting entries:', error);
-      toast.error('Failed to delete some entries');
+      console.error('Failed to delete some entries');
     }
   };
 

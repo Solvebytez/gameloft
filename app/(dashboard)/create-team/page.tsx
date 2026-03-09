@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import toast from 'react-hot-toast';
 import Card from '@/app/components/ui/Card';
 import Input from '@/app/components/ui/Input';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
@@ -95,7 +94,7 @@ export default function CreateTeamPage() {
         });
         }
       } else {
-        toast.error('Please upload a JPEG, JPG, or PNG image', { duration: 3000 });
+        console.error('Please upload a JPEG, JPG, or PNG image', { duration: 3000 });
         // Reset file input
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
@@ -138,7 +137,7 @@ export default function CreateTeamPage() {
     setImageForCrop(null);
     setOriginalFile(null);
     
-    toast.success('Image cropped successfully!', { duration: 2000 });
+    console.log('Image cropped successfully!', { duration: 2000 });
   };
 
   const handleCropCancel = () => {
@@ -177,7 +176,7 @@ export default function CreateTeamPage() {
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       const firstError = Object.values(newErrors)[0];
-      toast.error(firstError, { duration: 3000 });
+      console.error(firstError, { duration: 3000 });
       return;
     }
 

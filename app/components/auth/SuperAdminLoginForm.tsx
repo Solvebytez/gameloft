@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { toast } from 'react-hot-toast';
 import axios from 'axios';
 import Input from '@/app/components/ui/Input';
 import api from '@/app/lib/api';
@@ -39,7 +38,7 @@ export default function SuperAdminLoginForm() {
 
       if (response.data.success) {
         console.log('✅ Login successful, redirecting...');
-        toast.success('Login successful!');
+        console.log('✅ Login successful!');
         
         // Store admin data in sessionStorage if remember me is checked
         if (rememberMe && response.data.data?.admin) {
@@ -54,7 +53,7 @@ export default function SuperAdminLoginForm() {
         }, 100);
       } else {
         console.warn('⚠️ Login response success is false:', response.data);
-        toast.error(response.data.message || 'Login failed');
+        console.error('❌', response.data.message || 'Login failed');
       }
     } catch (error: any) {
       console.error('❌ Login error:', error);
@@ -71,7 +70,7 @@ export default function SuperAdminLoginForm() {
                           error.message ||
                           'Login failed. Please check your credentials.';
       console.error('❌ Showing error toast:', errorMessage);
-      toast.error(errorMessage);
+      console.error('❌', errorMessage);
     } finally {
       setIsLoading(false);
       console.log('🏁 Login attempt finished');

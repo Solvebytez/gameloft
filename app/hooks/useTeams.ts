@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/app/lib/api';
-import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 
 export interface Team {
@@ -190,10 +189,10 @@ export function useCreateTeam() {
       if (context?.previousTeams) {
         queryClient.setQueryData(teamKeys.list(), context.previousTeams);
       }
-      toast.error(err instanceof Error ? err.message : 'Failed to create team');
+      console.error(err instanceof Error ? err.message : 'Failed to create team');
     },
     onSuccess: () => {
-      toast.success('Team created successfully!');
+      console.log('Team created successfully!');
     },
     onSettled: () => {
       // Refetch to ensure consistency
@@ -251,10 +250,10 @@ export function useUpdateTeam() {
       }
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to update team');
+      console.error(err instanceof Error ? err.message : 'Failed to update team');
     },
     onSuccess: () => {
-      toast.success('Team updated successfully!');
+      console.log('Team updated successfully!');
     },
     onSettled: () => {
       // Refetch to ensure consistency
@@ -286,10 +285,10 @@ export function useDeleteTeam() {
       }
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete team');
+      console.error(err instanceof Error ? err.message : 'Failed to delete team');
     },
     onSuccess: () => {
-      toast.success('Team deleted successfully!');
+      console.log('Team deleted successfully!');
     },
     onSettled: () => {
       // Refetch to ensure consistency
@@ -360,10 +359,10 @@ export function useUpdateTeamStatus() {
       if (context?.previousTeams) {
         queryClient.setQueryData(teamKeys.list(), context.previousTeams);
       }
-      toast.error(err instanceof Error ? err.message : 'Failed to update team status');
+      console.error(err instanceof Error ? err.message : 'Failed to update team status');
     },
     onSuccess: (data, payload) => {
-      toast.success(`Team status changed to ${payload.status} successfully!`);
+      console.log(`Team status changed to ${payload.status} successfully!`);
     },
     onSettled: () => {
       // Refetch to ensure consistency

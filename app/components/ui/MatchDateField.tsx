@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import toast from 'react-hot-toast';
 import Input from './Input';
 import DatePicker from './DatePicker';
 
@@ -33,7 +32,7 @@ export default function MatchDateField({ onFind }: MatchDateFieldProps) {
 
   const handleFind = () => {
     if (!validateDate(date)) {
-      toast.error('Please select a valid date', {
+      console.error('Please select a valid date', {
         duration: 3000,
         style: {
           background: '#fff',
@@ -44,7 +43,7 @@ export default function MatchDateField({ onFind }: MatchDateFieldProps) {
       return;
     }
     
-    toast.success(`Finding matches for ${date}`, {
+    console.log(`Finding matches for ${date}`, {
       duration: 3000,
       style: {
         background: '#fff',
@@ -60,7 +59,7 @@ export default function MatchDateField({ onFind }: MatchDateFieldProps) {
 
   const handleDateChange = (selectedDate: string) => {
     setDate(selectedDate);
-    toast.success(`Date selected: ${selectedDate}`, {
+    console.log(`Date selected: ${selectedDate}`, {
       duration: 2000,
       style: {
         background: '#fff',

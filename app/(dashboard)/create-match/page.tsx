@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useMemo } from 'react';
-import toast from 'react-hot-toast';
 import Card from '@/app/components/ui/Card';
 import Select from '@/app/components/ui/Select';
 import DatePicker from '@/app/components/ui/DatePicker';
@@ -131,7 +130,7 @@ export default function CreateMatchPage() {
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       const firstError = Object.values(newErrors)[0];
-      toast.error(firstError, { duration: 3000 });
+      console.error(firstError, { duration: 3000 });
       return;
     }
 
@@ -188,7 +187,7 @@ export default function CreateMatchPage() {
 
   const handleReset = () => {
     handleCancelEdit();
-    toast.success('Form reset', { duration: 2000 });
+    console.log('Form reset', { duration: 2000 });
   };
 
   const handleCancelEdit = () => {
@@ -240,7 +239,7 @@ export default function CreateMatchPage() {
     // Find the full match object from matches array
     const fullMatch = matches.find((m) => m.id.toString() === match.id);
     if (!fullMatch) {
-      toast.error('Match not found', { duration: 2000 });
+      console.error('Match not found', { duration: 2000 });
       return;
     }
 

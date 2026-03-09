@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import toast from 'react-hot-toast';
 import Card from '@/app/components/ui/Card';
 import Input from '@/app/components/ui/Input';
 import Select from '@/app/components/ui/Select';
@@ -263,7 +262,7 @@ export default function CreateUserPage() {
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       const firstError = Object.values(newErrors)[0];
-      toast.error(firstError, { duration: 3000 });
+      console.error(firstError, { duration: 3000 });
       return;
     }
 
@@ -379,13 +378,13 @@ export default function CreateUserPage() {
 
   const handleReset = () => {
     handleCancelEdit();
-    toast.success('Form reset', { duration: 2000 });
+    console.log('Form reset', { duration: 2000 });
   };
 
   const handleEdit = (user: typeof transformedUsers[0]) => {
     const originalUser = users.find((u) => u.id === user.id);
     if (!originalUser) {
-      toast.error('User not found', { duration: 2000 });
+      console.error('User not found', { duration: 2000 });
       return;
     }
 
@@ -551,7 +550,7 @@ export default function CreateUserPage() {
     // Find the original user data to get the actual status
     const originalUser = users.find((u) => u.id === user.id);
     if (!originalUser) {
-      toast.error('User not found', { duration: 2000 });
+      console.error('User not found', { duration: 2000 });
       return;
     }
 

@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
 import Card from '@/app/components/ui/Card';
 import Select from '@/app/components/ui/Select';
 import DatePicker from '@/app/components/ui/DatePicker';
@@ -664,10 +663,12 @@ export default function BusinessReportPage() {
         custNetWithComm = result.custNetWithComm;
         netProfitLoss = result.netProfitLoss;
         
-        // For profit_loss commission type, negate profit/loss values
-        profitLoss = -profitLoss;
-        custNetWithComm = -custNetWithComm;
-        netProfitLoss = -netProfitLoss;
+        // For cut users with profit_loss, negate profit/loss values
+        if (isCutUser) {
+          profitLoss = -profitLoss;
+          custNetWithComm = -custNetWithComm;
+          netProfitLoss = -netProfitLoss;
+        }
       } else if (commissionType === 'entrywise') {
         // Entrywise calculation: commission on losing team total, then apply to gross difference
         const entrywiseResult = calculateEntrywise({
@@ -1778,7 +1779,7 @@ export default function BusinessReportPage() {
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       const firstError = Object.values(newErrors)[0];
-      toast.error(firstError, { duration: 3000 });
+      console.error(firstError, { duration: 3000 });
       return;
     }
 
@@ -1786,7 +1787,7 @@ export default function BusinessReportPage() {
     setErrors({});
     
     // Refetch ALL data from database to ensure fresh values (commission, rates, amounts, etc.)
-    toast.loading('Refreshing data from database...', { id: 'refreshing-data' });
+    console.log('Refreshing data from database...', { id: 'refreshing-data' });
     
     try {
       // Convert date format from dd-mm-yyyy to yyyy-mm-dd for API
@@ -1825,12 +1826,12 @@ export default function BusinessReportPage() {
 
       await Promise.all(refetchPromises);
       
-      toast.dismiss('refreshing-data');
-      toast.success('Data refreshed successfully!', { duration: 2000 });
+      console.log('refreshing-data');
+      console.log('Data refreshed successfully!', { duration: 2000 });
     } catch (error) {
-      toast.dismiss('refreshing-data');
+      console.log('refreshing-data');
       console.error('Error refreshing data:', error);
-      toast.error('Failed to refresh data. Using cached data.', { duration: 3000 });
+      console.error('Failed to refresh data. Using cached data.', { duration: 3000 });
     }
     
     // Store form data snapshot for calculation (prevents reactive updates)
@@ -1841,7 +1842,7 @@ export default function BusinessReportPage() {
     requestAnimationFrame(() => {
       setReportGenerated(true);
     });
-    toast.success('Report generated successfully!', { duration: 3000 });
+    console.log('Report generated successfully!', { duration: 3000 });
   };
 
   interface MatchSummaryRow {
@@ -2315,7 +2316,7 @@ export default function BusinessReportPage() {
   // Download CSV handler
   const handleDownloadCSV = () => {
     if (matchSummaryData.length === 0) {
-      toast.error('No data to download', { duration: 2000 });
+      console.error('No data to download', { duration: 2000 });
       return;
     }
     const csvData = convertToCSV(matchSummaryData);
@@ -2328,13 +2329,13 @@ export default function BusinessReportPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('CSV file downloaded!', { duration: 2000 });
+    console.log('CSV file downloaded!', { duration: 2000 });
   };
 
   // Download Excel handler
   const handleDownloadExcel = () => {
     if (matchSummaryData.length === 0) {
-      toast.error('No data to download', { duration: 2000 });
+      console.error('No data to download', { duration: 2000 });
       return;
     }
     const csvData = convertToCSV(matchSummaryData);
@@ -2349,13 +2350,13 @@ export default function BusinessReportPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('Excel file downloaded!', { duration: 2000 });
+    console.log('Excel file downloaded!', { duration: 2000 });
   };
 
   // Download PDF handler
   const handleDownloadPDF = async () => {
     if (matchSummaryData.length === 0) {
-      toast.error('No data to download', { duration: 2000 });
+      console.error('No data to download', { duration: 2000 });
       return;
     }
 
@@ -2453,24 +2454,24 @@ export default function BusinessReportPage() {
       
       // Save the PDF
       doc.save(`business_report_${new Date().toISOString().split('T')[0]}.pdf`);
-      toast.success('PDF file downloaded!', { duration: 2000 });
+      console.log('PDF file downloaded!', { duration: 2000 });
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast.error('Failed to generate PDF', { duration: 2000 });
+      console.error('Failed to generate PDF', { duration: 2000 });
     }
   };
 
   // Print handler - prints only table data, not the form
   const handlePrint = () => {
     if (matchSummaryData.length === 0) {
-      toast.error('No data to print', { duration: 2000 });
+      console.error('No data to print', { duration: 2000 });
       return;
     }
     
     // Create a new window with table content for printing
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      toast.error('Please allow popups to print', { duration: 3000 });
+      console.error('Please allow popups to print', { duration: 3000 });
       return;
     }
 
@@ -2523,7 +2524,7 @@ export default function BusinessReportPage() {
     // Wait for content to load, then trigger print
     setTimeout(() => {
       printWindow.print();
-      toast.success('Print dialog opened!', { duration: 2000 });
+      console.log('Print dialog opened!', { duration: 2000 });
     }, 250);
   };
 

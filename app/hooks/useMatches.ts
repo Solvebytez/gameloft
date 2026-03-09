@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/app/lib/api';
-import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 
 export interface Match {
@@ -170,10 +169,10 @@ export function useCreateMatch() {
     onSuccess: () => {
       // Invalidate and refetch matches list
       queryClient.invalidateQueries({ queryKey: matchKeys.list() });
-      toast.success('Match created successfully!');
+      console.log('Match created successfully!');
     },
     onError: (err: Error) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to create match');
+      console.error(err instanceof Error ? err.message : 'Failed to create match');
     },
   });
 }
@@ -204,12 +203,12 @@ export function useUpdateMatch() {
       }
     },
     onError: (err: Error) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to update match');
+      console.error(err instanceof Error ? err.message : 'Failed to update match');
     },
     onSuccess: () => {
       // Invalidate and refetch matches list
       queryClient.invalidateQueries({ queryKey: matchKeys.list() });
-      toast.success('Match updated successfully!');
+      console.log('Match updated successfully!');
     },
     onSettled: () => {
       // Refetch to ensure consistency
@@ -236,12 +235,12 @@ export function useDeleteMatch() {
       }
     },
     onError: (err: Error) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete match');
+      console.error(err instanceof Error ? err.message : 'Failed to delete match');
     },
     onSuccess: () => {
       // Invalidate and refetch matches list
       queryClient.invalidateQueries({ queryKey: matchKeys.list() });
-      toast.success('Match deleted successfully!');
+      console.log('Match deleted successfully!');
     },
     onSettled: () => {
       // Refetch to ensure consistency

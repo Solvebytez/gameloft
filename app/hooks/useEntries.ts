@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/app/lib/api';
-import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 
 export interface Entry {
@@ -117,7 +116,7 @@ export function useCreateEntry() {
       // Also refetch to ensure immediate update
       queryClient.refetchQueries({ queryKey: ['entries', String(matchId)] });
       queryClient.refetchQueries({ queryKey: ['entries', matchId] });
-      toast.success('Entry created successfully');
+      console.log('✅ Entry created successfully');
     },
     onError: (error: AxiosError<any>) => {
       let errorMessage = 'Failed to create entry';
@@ -147,7 +146,7 @@ export function useCreateEntry() {
         errorMessage = error.response?.data?.message || error.message || 'Failed to create entry';
       }
       
-      toast.error(errorMessage);
+      console.error('❌', errorMessage);
       // Don't throw - let React Query handle the error state properly
       console.error('Create entry error:', error);
     },
@@ -184,7 +183,7 @@ export function useUpdateEntry() {
       // Also refetch to ensure immediate update
       queryClient.refetchQueries({ queryKey: ['entries', String(matchId)] });
       queryClient.refetchQueries({ queryKey: ['entries', matchId] });
-      toast.success('Entry updated successfully');
+      console.log('✅ Entry updated successfully');
     },
     onError: (error: AxiosError<any>) => {
       let errorMessage = 'Failed to update entry';
@@ -214,7 +213,7 @@ export function useUpdateEntry() {
         errorMessage = error.response?.data?.message || error.message || 'Failed to update entry';
       }
       
-      toast.error(errorMessage);
+      console.error('❌', errorMessage);
       // Don't throw - let React Query handle the error state properly
       console.error('Update entry error:', error);
     },
@@ -239,12 +238,12 @@ export function useDeleteEntry() {
     onSuccess: () => {
       // Invalidate all entries queries
       queryClient.invalidateQueries({ queryKey: ['entries'] });
-      toast.success('Entry deleted successfully');
+      console.log('✅ Entry deleted successfully');
     },
     onError: (error: AxiosError<any>) => {
       const errorMessage =
         error.response?.data?.message || 'Failed to delete entry';
-      toast.error(errorMessage);
+      console.error('❌', errorMessage);
       throw new Error(errorMessage);
     },
   });

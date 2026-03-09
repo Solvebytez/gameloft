@@ -9,7 +9,6 @@ import Select from '@/app/components/ui/Select';
 import { useMatch, Match } from '@/app/hooks/useMatches';
 import { useUsers } from '@/app/hooks/useUsers';
 import { useEntries, useCreateEntry, useUpdateEntry, useEntry, Entry } from '@/app/hooks/useEntries';
-import toast from 'react-hot-toast';
 
 export default function MatchDetailPage() {
   const params = useParams();
@@ -273,7 +272,7 @@ export default function MatchDetailPage() {
     const minTimeBetweenSubmissions = 500; // 500ms minimum between submissions
 
     if (timeSinceLastSubmit < minTimeBetweenSubmissions) {
-      toast.error('Please wait before submitting again');
+      console.error('Please wait before submitting again');
       return;
     }
 
@@ -285,13 +284,13 @@ export default function MatchDetailPage() {
 
     // Check if already submitting
     if (createEntryMutation.isPending || updateEntryMutation.isPending) {
-      toast.error('Please wait for the current submission to complete');
+      console.error('Please wait for the current submission to complete');
       return;
     }
 
     // Validation: A user must be selected
     if (!assignedUser || (typeof assignedUser === 'string' && assignedUser === '') || (typeof assignedUser === 'number' && assignedUser === 0)) {
-      toast.error('Please select a user to assign entry to');
+      console.error('Please select a user to assign entry to');
       return;
     }
 
@@ -300,7 +299,7 @@ export default function MatchDetailPage() {
     const hasTeam2Bet = team2Rate.trim() !== '' && team2Amount.trim() !== '';
 
     if (!hasTeam1Bet && !hasTeam2Bet) {
-      toast.error('At least one team must have both rate and amount');
+      console.error('At least one team must have both rate and amount');
       return;
     }
 
@@ -311,17 +310,17 @@ export default function MatchDetailPage() {
     const team2AmountNum = team2Amount.trim() ? parseFloat(team2Amount) : null;
 
     if (hasTeam1Bet && (isNaN(team1RateNum!) || isNaN(team1AmountNum!) || team1RateNum! < 0 || team1AmountNum! < 0)) {
-      toast.error('Team 1 rate and amount must be valid positive numbers');
+      console.error('Team 1 rate and amount must be valid positive numbers');
       return;
     }
 
     if (hasTeam2Bet && (isNaN(team2RateNum!) || isNaN(team2AmountNum!) || team2RateNum! < 0 || team2AmountNum! < 0)) {
-      toast.error('Team 2 rate and amount must be valid positive numbers');
+      console.error('Team 2 rate and amount must be valid positive numbers');
       return;
     }
 
     if (!matchId) {
-      toast.error('Match ID is missing');
+      console.error('Match ID is missing');
       return;
     }
 

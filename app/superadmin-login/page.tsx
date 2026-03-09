@@ -1,6 +1,5 @@
 'use client';
 
-import { Toaster } from 'react-hot-toast';
 import SuperAdminLoginForm from '@/app/components/auth/SuperAdminLoginForm';
 
 export default function SuperAdminLoginPage() {
@@ -30,7 +29,6 @@ export default function SuperAdminLoginPage() {
           </p>
         </div>
       </div>
-      <Toaster position="top-right" />
     </>
   );
 }

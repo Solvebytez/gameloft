@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/app/lib/api';
-import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 
 export interface Session {
@@ -118,10 +117,10 @@ export function useCreateSession() {
     onSuccess: () => {
       // Invalidate and refetch sessions list
       queryClient.invalidateQueries({ queryKey: sessionKeys.lists() });
-      toast.success('Session entry created successfully!');
+      console.log('Session entry created successfully!');
     },
     onError: (err: Error) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to create session entry');
+      console.error(err instanceof Error ? err.message : 'Failed to create session entry');
     },
   });
 }
@@ -154,10 +153,10 @@ export function useUpdateSession() {
     onSuccess: () => {
       // Invalidate and refetch sessions list
       queryClient.invalidateQueries({ queryKey: sessionKeys.lists() });
-      toast.success('Session entry updated successfully!');
+      console.log('Session entry updated successfully!');
     },
     onError: (err: Error) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to update session entry');
+      console.error(err instanceof Error ? err.message : 'Failed to update session entry');
     },
   });
 }
@@ -182,10 +181,10 @@ export function useDeleteSession() {
     onSuccess: () => {
       // Invalidate and refetch sessions list
       queryClient.invalidateQueries({ queryKey: sessionKeys.lists() });
-      toast.success('Session entry deleted successfully!');
+      console.log('Session entry deleted successfully!');
     },
     onError: (err: Error) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete session entry');
+      console.error(err instanceof Error ? err.message : 'Failed to delete session entry');
     },
   });
 }
@@ -221,10 +220,10 @@ export function useUpdateResultByInningsOver() {
     onSuccess: (data) => {
       // Invalidate and refetch sessions list to show updated results
       queryClient.invalidateQueries({ queryKey: sessionKeys.lists() });
-      toast.success(`Result updated successfully for ${data.updated_count} entry/entries!`);
+      console.log(`Result updated successfully for ${data.updated_count} entry/entries!`);
     },
     onError: (err: Error) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to update result');
+      console.error(err instanceof Error ? err.message : 'Failed to update result');
     },
   });
 }

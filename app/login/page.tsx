@@ -1,6 +1,5 @@
 'use client';
 
-import { Toaster } from 'react-hot-toast';
 import LoginForm from '@/app/components/auth/LoginForm';
 
 export default function LoginPage() {
@@ -30,7 +29,6 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
-    <Toaster position="top-right" />
     </>
   );
 }

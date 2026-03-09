@@ -3,7 +3,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
-import toast from 'react-hot-toast';
 import Card from '@/app/components/ui/Card';
 import Input from '@/app/components/ui/Input';
 import Select from '@/app/components/ui/Select';
@@ -522,7 +521,7 @@ export default function SessionMatchPage() {
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       const firstError = Object.values(newErrors)[0];
-      toast.error(firstError, { duration: 3000 });
+      console.error(firstError, { duration: 3000 });
       return;
     }
 
@@ -630,7 +629,7 @@ export default function SessionMatchPage() {
       }
     } catch (error) {
       console.error('Error saving entry:', error);
-      toast.error('Failed to save entry');
+      console.error('Failed to save entry');
     }
   };
 
@@ -647,13 +646,13 @@ export default function SessionMatchPage() {
     setErrors({});
     setIsEditMode(false);
     setEditingEntry(null);
-    toast.success('Form reset', { duration: 2000 });
+    console.log('Form reset', { duration: 2000 });
   };
 
   const handleEdit = (entry: typeof sessionData[0]) => {
     const session = (sessions as Session[]).find((s) => s.id === entry.id);
     if (!session) {
-      toast.error('Session not found', { duration: 2000 });
+      console.error('Session not found', { duration: 2000 });
       return;
     }
 
@@ -1089,7 +1088,7 @@ export default function SessionMatchPage() {
                           if (Object.keys(newErrors).length > 0) {
                             setAddResultErrors(newErrors);
                             const firstError = Object.values(newErrors)[0];
-                            toast.error(firstError, { duration: 3000 });
+                            console.error(firstError, { duration: 3000 });
                             return;
                           }
 
@@ -1138,7 +1137,7 @@ export default function SessionMatchPage() {
                       if (Object.keys(newErrors).length > 0) {
                         setAddResultErrors(newErrors);
                         const firstError = Object.values(newErrors)[0];
-                        toast.error(firstError, { duration: 3000 });
+                        console.error(firstError, { duration: 3000 });
                         return;
                       }
 

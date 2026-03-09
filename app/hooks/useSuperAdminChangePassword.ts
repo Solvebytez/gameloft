@@ -2,7 +2,6 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { api } from '@/app/lib/api';
-import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 
 interface ChangePasswordPayload {
@@ -35,10 +34,10 @@ export function useSuperAdminChangePassword() {
       }
     },
     onSuccess: () => {
-      toast.success('Password changed successfully!');
+      console.log('✅ Password changed successfully!');
     },
     onError: (err: Error) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to change password');
+      console.error('❌', err instanceof Error ? err.message : 'Failed to change password');
     },
   });
 }

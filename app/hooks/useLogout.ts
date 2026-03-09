@@ -1,6 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
 import { api } from '@/app/lib/api';
-import toast from 'react-hot-toast';
 
 interface LogoutResponse {
   success: boolean;
@@ -23,7 +22,7 @@ export function useLogout(isSuperAdmin: boolean = false) {
         document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       }
       
-      toast.success('Logged out successfully');
+      console.log('✅ Logged out successfully');
       
       // Redirect to appropriate login page using window.location for full page reload
       const loginPath = isSuperAdmin ? '/superadmin-login' : '/login';

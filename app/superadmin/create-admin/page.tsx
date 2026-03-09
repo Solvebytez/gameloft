@@ -8,7 +8,6 @@ import Select from '@/app/components/ui/Select';
 import DataTable, { Column } from '@/app/components/ui/DataTable';
 import ConfirmModal from '@/app/components/ui/ConfirmModal';
 import { useAdmins, useCreateAdmin, useUpdateAdmin, useDeleteAdmin, useUpdateAdminStatus, Admin } from '@/app/hooks/useAdmins';
-import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 
 const roleOptions = [
@@ -332,14 +331,14 @@ export default function CreateAdminPage() {
         });
         
         setErrors(errorMessages);
-        toast.error(Object.values(errorMessages)[0] || 'Validation failed', { duration: 3000 });
+        console.error(Object.values(errorMessages)[0] || 'Validation failed', { duration: 3000 });
       } else if (error instanceof AxiosError) {
         const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to save admin. Please try again.';
-        toast.error(errorMessage, { duration: 3000 });
+        console.error(errorMessage, { duration: 3000 });
       } else if (error instanceof Error) {
-        toast.error(error.message, { duration: 3000 });
+        console.error(error.message, { duration: 3000 });
       } else {
-        toast.error('Failed to save admin. Please try again.', { duration: 3000 });
+        console.error('Failed to save admin. Please try again.', { duration: 3000 });
       }
     }
   };

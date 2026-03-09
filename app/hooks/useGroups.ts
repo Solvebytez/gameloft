@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/app/lib/api';
-import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 
 export interface Group {
@@ -97,10 +96,10 @@ export function useCreateGroup() {
     onSuccess: () => {
       // Invalidate and refetch groups list
       queryClient.invalidateQueries({ queryKey: groupKeys.list() });
-      toast.success('Group created successfully!');
+      console.log('Group created successfully!');
     },
     onError: (err: Error) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to create group');
+      console.error(err instanceof Error ? err.message : 'Failed to create group');
     },
   });
 }
@@ -133,10 +132,10 @@ export function useUpdateGroup() {
     onSuccess: () => {
       // Invalidate and refetch groups list
       queryClient.invalidateQueries({ queryKey: groupKeys.list() });
-      toast.success('Group updated successfully!');
+      console.log('Group updated successfully!');
     },
     onError: (err: Error) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to update group');
+      console.error(err instanceof Error ? err.message : 'Failed to update group');
     },
   });
 }
@@ -161,10 +160,10 @@ export function useDeleteGroup() {
     onSuccess: () => {
       // Invalidate and refetch groups list
       queryClient.invalidateQueries({ queryKey: groupKeys.list() });
-      toast.success('Group deleted successfully!');
+      console.log('Group deleted successfully!');
     },
     onError: (err: Error) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete group');
+      console.error(err instanceof Error ? err.message : 'Failed to delete group');
     },
   });
 }

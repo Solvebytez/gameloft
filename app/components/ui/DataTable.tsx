@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import toast from 'react-hot-toast';
 
 export interface Column<T> {
   key: keyof T | string;
@@ -213,10 +212,10 @@ export default function DataTable<T extends Record<string, any>>({
     try {
       const tsvData = convertToTSV(sortedData);
       await navigator.clipboard.writeText(tsvData);
-      toast.success('Data copied to clipboard! Paste into Excel to see columns.', { duration: 3000 });
+      console.log('Data copied to clipboard! Paste into Excel to see columns.', { duration: 3000 });
     } catch (error) {
       console.error('Failed to copy:', error);
-      toast.error('Failed to copy data to clipboard', { duration: 2000 });
+      console.error('Failed to copy data to clipboard', { duration: 2000 });
     }
   };
 
@@ -232,7 +231,7 @@ export default function DataTable<T extends Record<string, any>>({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('CSV file downloaded!', { duration: 2000 });
+    console.log('CSV file downloaded!', { duration: 2000 });
   };
 
   // Download Excel (as CSV with .xlsx extension, or use CSV that Excel can open)
@@ -249,7 +248,7 @@ export default function DataTable<T extends Record<string, any>>({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('Excel file downloaded!', { duration: 2000 });
+    console.log('Excel file downloaded!', { duration: 2000 });
   };
 
   // Download PDF
@@ -257,7 +256,7 @@ export default function DataTable<T extends Record<string, any>>({
     // Create a new window with table content for printing
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      toast.error('Please allow popups to generate PDF', { duration: 3000 });
+      console.error('Please allow popups to generate PDF', { duration: 3000 });
       return;
     }
 
@@ -310,7 +309,7 @@ export default function DataTable<T extends Record<string, any>>({
     // Wait for content to load, then trigger print
     setTimeout(() => {
       printWindow.print();
-      toast.success('PDF generation initiated!', { duration: 2000 });
+      console.log('PDF generation initiated!', { duration: 2000 });
     }, 250);
   };
 
@@ -319,7 +318,7 @@ export default function DataTable<T extends Record<string, any>>({
     // Create a new window with table content for printing
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      toast.error('Please allow popups to print', { duration: 3000 });
+      console.error('Please allow popups to print', { duration: 3000 });
       return;
     }
 
@@ -372,7 +371,7 @@ export default function DataTable<T extends Record<string, any>>({
     // Wait for content to load, then trigger print
     setTimeout(() => {
       printWindow.print();
-      toast.success('Print dialog opened!', { duration: 2000 });
+      console.log('Print dialog opened!', { duration: 2000 });
     }, 250);
   };
 
@@ -394,7 +393,7 @@ export default function DataTable<T extends Record<string, any>>({
         handlePrint();
         break;
       default:
-        toast.error(`Export format "${format}" not supported`, { duration: 2000 });
+        console.error(`Export format "${format}" not supported`, { duration: 2000 });
     }
   };
 
