@@ -663,8 +663,12 @@ export default function BusinessReportPage() {
         custNetWithComm = result.custNetWithComm;
         netProfitLoss = result.netProfitLoss;
         
-        // Note: For cut users, the reversal already happens at team totals level (lines 604-615)
-        // So profitLoss naturally reflects the correct sign - no additional negation needed
+        // For cut users with profit_loss, negate profit/loss values
+        if (isCutUser) {
+          profitLoss = -profitLoss;
+          custNetWithComm = -custNetWithComm;
+          netProfitLoss = -netProfitLoss;
+        }
       } else if (commissionType === 'entrywise') {
         // Entrywise calculation: commission on losing team total, then apply to gross difference
         const entrywiseResult = calculateEntrywise({
