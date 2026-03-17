@@ -64,8 +64,12 @@ api.interceptors.response.use(
        (error.response?.data?.error === 'Unauthenticated.' || 
         error.response?.data?.message?.includes('Unauthenticated')));
     
-    // Handle authentication errors
-    if (isUnauthenticated && error.config && !error.config._retry) {
+    const requestUrl: string = error.config?.url || '';
+    const isRefreshRequest =
+      requestUrl.includes('/v1/admin/refresh') || requestUrl.includes('/v1/superadmin/refresh');
+
+    // Handle authentication errors (but never try to refresh the refresh call itself)
+    if (isUnauthenticated && !isRefreshRequest && error.config && !error.config._retry) {
       error.config._retry = true;
       
       // Try to refresh token (works for both admin and superadmin)

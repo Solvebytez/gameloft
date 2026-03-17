@@ -76,136 +76,18 @@ export async function middleware(request: NextRequest) {
   const isSuperAdminRoute = superAdminRoutes.some((route) => pathname === route || pathname.startsWith(route + "/"));
   const isProtectedRoute = isAdminRoute || isSuperAdminRoute;
 
-          // Helper function to get user role from API (uses common endpoint for both admin and superadmin)
-          async function getUserRole(token: string): Promise<{ role: string | null; user: { id?: number; name?: string; email?: string; role?: string; [key: string]: unknown } | null }> {
-            try {
-              // Use common /me endpoint that works for both admin and superadmin
-              const endpoint = '/v1/me';
-              const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-      
-      // Get all cookies from the incoming request to forward them
-      const cookieHeader = request.headers.get('cookie') || '';
-      
-      console.log(`🔍 Calling getUserRole - endpoint: ${endpoint}, token preview: ${token ? token.substring(0, 30) + '...' : 'null'}`);
-      
-      const response = await fetch(`${apiUrl}${endpoint}`, {
-        method: "GET",
-        credentials: 'include', // Include cookies for Sanctum stateful API
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "Cookie": cookieHeader, // Forward cookies from Next.js request to backend
-          Authorization: `Bearer ${token}`, // Also send as Bearer token as fallback
-        },
-      });
-
-      console.log(`🔍 getUserRole response status: ${response.status}`);
-
-      if (response.ok) {
-        const userData = await response.json();
-        console.log(`🔍 getUserRole response:`, JSON.stringify(userData));
-        // Adjust these based on your API response structure
-        const role = userData.data?.role || userData.role || userData.user?.role || null;
-        console.log(`🔍 Extracted role: ${role} from structure:`, {
-          'data.role': userData.data?.role,
-          'role': userData.role,
-          'user.role': userData.user?.role,
-        });
-        return { role, user: userData.data || userData.user || userData };
-      } else {
-        const errorText = await response.text().catch(() => '');
-        console.error(`❌ getUserRole failed: ${response.status}`, errorText.substring(0, 200));
-      }
-      return { role: null, user: null };
-    } catch (error) {
-      console.error("Error fetching user role:", error);
-      return { role: null, user: null };
-    }
-  }
-
-  // Helper function to refresh token
-  async function refreshAccessToken(refreshToken: string, isSuperAdmin: boolean = false): Promise<{ accessToken?: string; refreshToken?: string; isSuperAdmin?: boolean }> {
-    try {
-      // Determine which refresh endpoint to use
-      // If isSuperAdmin is explicitly passed, use it, otherwise check pathname
-      const refreshEndpoint = (isSuperAdmin || pathname.includes('/superadmin')) 
-        ? '/v1/superadmin/refresh' 
-        : '/v1/admin/refresh';
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-      
-      console.log(`🔄 Attempting refresh at: ${apiUrl}${refreshEndpoint} (isSuperAdmin: ${isSuperAdmin || pathname.includes('/superadmin')})`);
-      console.log(`🍪 Sending refresh_token cookie: ${refreshToken ? 'yes' : 'no'}`);
-      
-      const refreshResponse = await fetch(`${apiUrl}${refreshEndpoint}`, {
-        method: "POST",
-        credentials: 'include', // Include cookies
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "Cookie": `refresh_token=${refreshToken}`, // Send specific cookie like reference
-        },
-      });
-
-      console.log(`🔄 Refresh response status: ${refreshResponse.status}`);
-
-      if (refreshResponse.ok) {
-        const refreshData = await refreshResponse.json().catch(() => ({}));
-        console.log(`✅ Refresh successful, response:`, refreshData);
-        
-        // Get new access token from response body (backend returns it)
-        const newAccessToken = refreshData?.data?.access_token;
-        
-        // Also try to get from Set-Cookie header as fallback
-        const setCookieHeader = refreshResponse.headers.get('set-cookie');
-        console.log(`🍪 Set-Cookie header: ${setCookieHeader || 'none'}`);
-        
-        if (newAccessToken) {
-          console.log(`✅ Got new access token from response body`);
-          return { 
-            accessToken: newAccessToken, 
-            refreshToken: refreshToken, // Keep same refresh token
-            isSuperAdmin: refreshEndpoint.includes('superadmin')
-          };
-        } else if (setCookieHeader) {
-          // Parse from header as fallback
-          const cookieMatch = setCookieHeader.match(/access_token=([^;]+)/);
-          if (cookieMatch) {
-            console.log(`✅ Extracted access_token from Set-Cookie header`);
-            return { 
-              accessToken: cookieMatch[1], 
-              refreshToken: refreshToken,
-              isSuperAdmin: refreshEndpoint.includes('superadmin')
-            };
-          }
-        }
-        
-        // If refresh was successful but we can't get the token, still return success
-        // The cookie might be set by the browser automatically
-        console.log(`⚠️ Refresh successful but couldn't extract token, assuming cookie was set`);
-        return { 
-          accessToken: undefined, 
-          refreshToken: refreshToken,
-          isSuperAdmin: refreshEndpoint.includes('superadmin')
-        };
-      } else {
-        const errorData = await refreshResponse.json().catch(() => ({}));
-        console.error(`❌ Refresh failed: ${refreshResponse.status}`, errorData);
-      }
-      return {};
-    } catch (error) {
-      console.error("💥 Error refreshing token:", error);
-      return {};
-    }
-  }
+  // NOTE:
+  // We intentionally do NOT refresh tokens in Next middleware.
+  // Reason: refreshing here forces Next to set cookies itself, which can conflict
+  // with the backend's cookie attributes (domain/secure) and create multiple
+  // cookie variants. The browser-side API layer handles refresh seamlessly.
 
   // 1. Handle auth routes - redirect if already authenticated based on role
   if (isAuthRoute && (authToken || refreshToken)) {
     console.log("🔐 Auth route detected with token, validating...");
 
     try {
-      let tokenToUse = authToken || refreshToken;
-      let newAccessToken: string | undefined = undefined;
-      let newRefreshToken: string | undefined = undefined;
+      const tokenToUse = authToken || refreshToken;
 
       // Try to validate with current token
       // Use common /me endpoint that works for both admin and superadmin
@@ -226,7 +108,7 @@ export async function middleware(request: NextRequest) {
       }
       const cookieHeader = cookieParts.join('; ');
       
-      let response = await fetch(
+      const response = await fetch(
         `${apiBaseUrl}${meEndpoint}`,
         {
           method: "GET",
@@ -239,46 +121,6 @@ export async function middleware(request: NextRequest) {
           },
         }
       );
-
-      // If access token expired (401), try to refresh it
-      if (!response.ok && response.status === 401 && refreshToken) {
-        console.log("🔄 Access token expired, attempting to refresh...");
-        // Determine if this is a superadmin route based on pathname
-        const isSuperAdminRefresh = pathname.includes('/superadmin');
-        console.log(`🔍 Auth route refresh - pathname: ${pathname}, isSuperAdminRefresh: ${isSuperAdminRefresh}`);
-        const refreshResult = await refreshAccessToken(refreshToken, isSuperAdminRefresh);
-        if (refreshResult.accessToken) {
-          newAccessToken = refreshResult.accessToken;
-          newRefreshToken = refreshResult.refreshToken;
-          tokenToUse = newAccessToken;
-          console.log("✅ Token refreshed successfully");
-
-          // Retry /me with new token
-          // Build cookie header with new access token
-          const retryCookieParts: string[] = [];
-          if (newAccessToken) {
-            retryCookieParts.push(`access_token=${newAccessToken}`);
-          }
-          if (refreshToken) {
-            retryCookieParts.push(`refresh_token=${refreshToken}`);
-          }
-          const retryCookieHeader = retryCookieParts.join('; ');
-          
-          response = await fetch(
-            `${apiBaseUrl}${meEndpoint}`,
-            {
-              method: "GET",
-              credentials: 'include', // Include cookies for Sanctum stateful API
-              headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "Cookie": retryCookieHeader, // Send specific cookies like reference
-                Authorization: `Bearer ${newAccessToken}`, // Also send as Bearer token as fallback
-              },
-            }
-          );
-        }
-      }
 
       if (response.ok) {
         const userData = await response.json();
@@ -299,27 +141,6 @@ export async function middleware(request: NextRequest) {
         const redirectResponse = NextResponse.redirect(
           new URL(redirectPath, request.url)
         );
-
-        // Set new tokens if refreshed
-        if (newAccessToken) {
-          const expires = new Date();
-          expires.setMinutes(expires.getMinutes() + 15);
-          redirectResponse.cookies.set("access_token", newAccessToken, {
-            expires: expires,
-            path: "/",
-            sameSite: "lax",
-          });
-        }
-
-        if (newRefreshToken && typeof newRefreshToken === "string" && newRefreshToken !== "[object Object]" && newRefreshToken.length >= 10) {
-          const refreshExpires = new Date();
-          refreshExpires.setDate(refreshExpires.getDate() + 30);
-          redirectResponse.cookies.set("refresh_token", newRefreshToken, {
-            expires: refreshExpires,
-            path: "/",
-            sameSite: "lax",
-          });
-        }
 
         return redirectResponse;
       } else {
@@ -370,8 +191,6 @@ export async function middleware(request: NextRequest) {
 
     // Validate access token if it exists, or refresh if missing/expired
     let shouldRefresh = false;
-    let newAccessToken: string | undefined = undefined;
-    let newRefreshToken: string | undefined = undefined;
 
     // If we have an access token, validate it first
             if (authToken) {
@@ -479,108 +298,18 @@ export async function middleware(request: NextRequest) {
 
     // If access token is missing or expired, try to refresh
     if (shouldRefresh) {
-      if (
-        !refreshToken ||
-        typeof refreshToken !== "string" ||
-        refreshToken === "[object Object]" ||
-        refreshToken.length < 50
-      ) {
-        console.log("❌ Access token expired and no valid refresh token available");
-        // Don't redirect if already on login page
-        if (pathname === "/login" || pathname === "/superadmin-login") {
-          return NextResponse.next();
-        }
-        const url = request.nextUrl.clone();
-        url.pathname = isSuperAdminRoute ? "/superadmin-login" : "/login";
-        const response = NextResponse.redirect(url);
-        response.cookies.delete("access_token");
-        response.cookies.delete("refresh_token");
-        return response;
+      // If a refresh token exists, allow the page route and let the browser-side
+      // API layer refresh seamlessly on the first API call.
+      if (refreshToken) {
+        console.log("🔓 Access token missing/expired, refresh token present: allowing request (no middleware refresh)");
+        return NextResponse.next();
       }
 
-      console.log("🔄 Access token missing/expired, attempting to refresh...");
-
-      try {
-        // Determine if this is a superadmin route to use correct refresh endpoint
-        // Check pathname for superadmin (includes /superadmin-login and /superadmin routes)
-        const isSuperAdminRefresh = isSuperAdminRoute || pathname.includes('/superadmin');
-        console.log(`🔍 Determining refresh endpoint - isSuperAdminRoute: ${isSuperAdminRoute}, pathname: ${pathname}, isSuperAdminRefresh: ${isSuperAdminRefresh}`);
-        const refreshResult = await refreshAccessToken(refreshToken, isSuperAdminRefresh);
-
-        if (refreshResult.accessToken) {
-          newAccessToken = refreshResult.accessToken;
-          newRefreshToken = refreshResult.refreshToken;
-          console.log("✅ Token refreshed successfully in middleware");
-
-          // Validate the new token and get user role (common endpoint works for both)
-          console.log(`🔍 Getting user role from common /v1/me endpoint`);
-          const userRoleResult = await getUserRole(newAccessToken);
-          const role = userRoleResult.role;
-          console.log(`👤 User role from refresh: ${role}`);
-
-          // Check role-based access
-          if (isSuperAdminRoute && role !== "superadmin" && role !== "super_admin") {
-            console.log("❌ Super admin route accessed by non-superadmin user");
-            const url = request.nextUrl.clone();
-            url.pathname = "/dashboard";
-            return NextResponse.redirect(url);
-          }
-
-          if (isAdminRoute && (role === "superadmin" || role === "super_admin")) {
-            // Superadmin should NOT access admin routes - redirect to superadmin dashboard
-            console.log("❌ Admin route accessed by superadmin, redirecting to superadmin dashboard");
-            const url = request.nextUrl.clone();
-            url.pathname = "/superadmin";
-            return NextResponse.redirect(url);
-          } else if (isAdminRoute && role !== "admin" && role !== "user") {
-            console.log("❌ Admin route accessed by unauthorized user");
-            const url = request.nextUrl.clone();
-            url.pathname = "/login";
-            return NextResponse.redirect(url);
-          }
-
-          // Set new tokens and allow request
-          const response = NextResponse.next();
-          const expires = new Date();
-          expires.setMinutes(expires.getMinutes() + 15);
-          if (newAccessToken) {
-            response.cookies.set("access_token", newAccessToken, {
-              expires: expires,
-              path: "/",
-              sameSite: "lax",
-              httpOnly: true,
-            });
-            console.log("✅ Set access_token cookie in middleware response");
-          }
-
-          if (newRefreshToken && typeof newRefreshToken === "string" && newRefreshToken !== "[object Object]" && newRefreshToken.length >= 10) {
-            const refreshExpires = new Date();
-            refreshExpires.setDate(refreshExpires.getDate() + 30);
-            response.cookies.set("refresh_token", newRefreshToken, {
-              expires: refreshExpires,
-              path: "/",
-              sameSite: "lax",
-              httpOnly: true,
-            });
-            console.log("✅ Set refresh_token cookie in middleware response");
-          }
-
-          return response;
-        } else {
-          console.log("❌ Token refresh failed");
-        }
-      } catch (error) {
-        console.error("💥 Error refreshing token:", error);
-      }
-
-      // Refresh failed, redirect to appropriate login page
-      console.log("❌ Token refresh failed, redirecting to login");
-      // Don't redirect if already on login page (prevent infinite loop)
+      console.log("❌ Access token expired and no refresh token available");
       if (pathname === "/login" || pathname === "/superadmin-login") {
         return NextResponse.next();
       }
       const url = request.nextUrl.clone();
-      // Redirect to superadmin login if accessing superadmin routes, otherwise regular login
       url.pathname = isSuperAdminRoute ? "/superadmin-login" : "/login";
       const response = NextResponse.redirect(url);
       response.cookies.delete("access_token");
@@ -603,9 +332,7 @@ export async function middleware(request: NextRequest) {
 
     // Validate token and redirect based on role
     try {
-      let tokenToUse = authToken || refreshToken;
-      let newAccessToken: string | undefined = undefined;
-      let newRefreshToken: string | undefined = undefined;
+      const tokenToUse = authToken || refreshToken;
 
       // Use common /me endpoint that works for both admin and superadmin
       const meEndpoint = '/v1/me';
@@ -625,7 +352,7 @@ export async function middleware(request: NextRequest) {
       }
       const cookieHeader = cookieParts.join('; ');
       
-      let response = await fetch(
+      const response = await fetch(
         `${apiBaseUrl}${meEndpoint}`,
         {
           method: "GET",
@@ -638,42 +365,6 @@ export async function middleware(request: NextRequest) {
           },
         }
       );
-
-      // If access token expired (401), try to refresh it
-      if (!response.ok && response.status === 401 && refreshToken) {
-        console.log("🔄 Access token expired, attempting to refresh...");
-        const refreshResult = await refreshAccessToken(refreshToken, false);
-        if (refreshResult.accessToken) {
-          newAccessToken = refreshResult.accessToken;
-          newRefreshToken = refreshResult.refreshToken;
-          tokenToUse = newAccessToken;
-          console.log("✅ Token refreshed successfully");
-
-          // Retry /me with new token
-          const retryCookieParts: string[] = [];
-          if (newAccessToken) {
-            retryCookieParts.push(`access_token=${newAccessToken}`);
-          }
-          if (refreshToken) {
-            retryCookieParts.push(`refresh_token=${refreshToken}`);
-          }
-          const retryCookieHeader = retryCookieParts.join('; ');
-          
-          response = await fetch(
-            `${apiBaseUrl}${meEndpoint}`,
-            {
-              method: "GET",
-              credentials: 'include',
-              headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "Cookie": retryCookieHeader,
-                Authorization: `Bearer ${newAccessToken}`,
-              },
-            }
-          );
-        }
-      }
 
       if (response.ok) {
         const userData = await response.json();
@@ -694,27 +385,6 @@ export async function middleware(request: NextRequest) {
         const redirectResponse = NextResponse.redirect(
           new URL(redirectPath, request.url)
         );
-
-        // Set new tokens if refreshed
-        if (newAccessToken) {
-          const expires = new Date();
-          expires.setMinutes(expires.getMinutes() + 15);
-          redirectResponse.cookies.set("access_token", newAccessToken, {
-            expires: expires,
-            path: "/",
-            sameSite: "lax",
-          });
-        }
-
-        if (newRefreshToken && typeof newRefreshToken === "string" && newRefreshToken !== "[object Object]" && newRefreshToken.length >= 10) {
-          const refreshExpires = new Date();
-          refreshExpires.setDate(refreshExpires.getDate() + 30);
-          redirectResponse.cookies.set("refresh_token", newRefreshToken, {
-            expires: refreshExpires,
-            path: "/",
-            sameSite: "lax",
-          });
-        }
 
         return redirectResponse;
       } else {

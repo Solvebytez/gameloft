@@ -2476,7 +2476,7 @@ export default function BusinessReportPage() {
     }
 
     // Build HTML content with only the table
-    let htmlContent = `
+    const htmlContent = `
       <!DOCTYPE html>
       <html>
         <head>
