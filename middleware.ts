@@ -14,6 +14,13 @@ export async function middleware(request: NextRequest) {
   // Debug: Log the actual pathname at the start
   console.log(`📍 Middleware called for pathname: ${pathname}`);
 
+  // Disable legacy delete-report page URL.
+  if (pathname === "/delete-report") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
   // Skip middleware for static assets and API routes
   if (
     pathname.startsWith("/_next/") ||
@@ -69,7 +76,7 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = authRoutes.includes(pathname);
 
   // Define protected routes
-  const adminRoutes = ["/dashboard", "/create-user", "/create-match", "/create-team", "/group", "/session", "/business-report", "/delete-report", "/users", "/change-password", "/logout", "/match"];
+  const adminRoutes = ["/dashboard", "/create-user", "/create-match", "/create-team", "/group", "/session", "/business-report", "/users", "/change-password", "/logout", "/match"];
   const superAdminRoutes = ["/superadmin"];
   
   const isAdminRoute = adminRoutes.some((route) => pathname === route || pathname.startsWith(route + "/"));

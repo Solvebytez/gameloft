@@ -13,6 +13,11 @@ import { useGroups, groupKeys } from '@/app/hooks/useGroups';
 import { useInningsOvers, inningsOverKeys } from '@/app/hooks/useInningsOvers';
 import { useSessions, Session, sessionKeys } from '@/app/hooks/useSessions';
 import { useEntries, Entry } from '@/app/hooks/useEntries';
+import {
+  useReportRowSelections,
+  useToggleReportRowSelection,
+  ReportRowSelectionContext,
+} from '@/app/hooks/useReportRowSelections';
 import { calculateEntrywise } from '@/app/utils/entrywiseCalculator';
 import { reverseCutUserCalculation } from '@/app/utils/cutUserCalculator';
 // Removed unused imports - now using calculateRowResult() function
@@ -75,6 +80,14 @@ function calculateRowResult({
   };
 }
 
+function areNumberSetsEqual(a: Set<number>, b: Set<number>): boolean {
+  if (a.size !== b.size) return false;
+  for (const value of a) {
+    if (!b.has(value)) return false;
+  }
+  return true;
+}
+
 export default function BusinessReportPage() {
   const queryClient = useQueryClient();
   
@@ -94,10 +107,12 @@ export default function BusinessReportPage() {
   const [reportGenerated, setReportGenerated] = useState(false);
   const [reportFormData, setReportFormData] = useState<typeof formData | null>(null);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [selectedMatchUsers, setSelectedMatchUsers] = useState<Set<number>>(new Set());
   
   // Pagination state for session table
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [selectedSessionUsers, setSelectedSessionUsers] = useState<Set<number>>(new Set());
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   // Date validation function
@@ -352,11 +367,119 @@ export default function BusinessReportPage() {
     return sessionData.slice(startIndex, startIndex + entriesPerPage);
   }, [sessionData, currentPage, entriesPerPage]);
 
+  const activeSelectionContext = useMemo<ReportRowSelectionContext | null>(() => {
+    if (!reportGenerated || !reportFormData?.selectMatch) return null;
+
+    const selectedGroupId =
+      reportFormData.selectionType === 'group' && reportFormData.selectGroup && reportFormData.selectGroup !== 'all'
+        ? Number(reportFormData.selectGroup) || 0
+        : 0;
+
+    return {
+      report_type: reportFormData.reportType === 'session' ? 'session' : 'match',
+      match_id: Number(reportFormData.selectMatch),
+      selection_type: reportFormData.selectionType || '',
+      selected_group_id: selectedGroupId,
+      inning_over: reportFormData.reportType === 'session' ? (reportFormData.inningOver || '') : '',
+      winning_team_id: reportFormData.reportType === 'match' ? (Number(reportFormData.winningTeam) || 0) : 0,
+    };
+  }, [reportGenerated, reportFormData]);
+
+  const {
+    data: persistedSelectedUserIds = [],
+    isSuccess: hasPersistedSelectionsLoaded,
+  } = useReportRowSelections(activeSelectionContext, !!activeSelectionContext);
+  const toggleReportRowSelectionMutation = useToggleReportRowSelection();
+
+  useEffect(() => {
+    if (!activeSelectionContext || !hasPersistedSelectionsLoaded) return;
+
+    const nextSet = new Set(persistedSelectedUserIds.map((id) => Number(id)).filter((id) => Number.isFinite(id)));
+
+    if (activeSelectionContext.report_type === 'session') {
+      setSelectedSessionUsers((prev) => (areNumberSetsEqual(prev, nextSet) ? prev : nextSet));
+      return;
+    }
+
+    setSelectedMatchUsers((prev) => (areNumberSetsEqual(prev, nextSet) ? prev : nextSet));
+  }, [activeSelectionContext, hasPersistedSelectionsLoaded, persistedSelectedUserIds]);
+
   // Reset to page 1 when entries per page changes
   const handleEntriesPerPageChange = (value: string) => {
     setEntriesPerPage(parseInt(value));
     setCurrentPage(1);
   };
+
+  const toggleSessionUserSelection = (userId: number) => {
+    let isSelectedAfterToggle = false;
+    setSelectedSessionUsers((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      isSelectedAfterToggle = next.has(userId);
+      return next;
+    });
+
+    if (!activeSelectionContext) return;
+
+    toggleReportRowSelectionMutation.mutate({
+      ...activeSelectionContext,
+      selected_user_id: userId,
+      is_selected: isSelectedAfterToggle,
+    });
+  };
+
+  // Used to avoid repeatedly "pruning" selection when sessionData changes
+  // in reference only (which otherwise can trigger an update loop).
+  const lastSessionUserIdsSignatureRef = useRef<string>('');
+
+  useEffect(() => {
+    const validUserIds = new Set(
+      sessionData
+        .map((entry) => Number(entry.user_id))
+        .filter((id) => Number.isFinite(id))
+    );
+
+    // Build a stable signature so we only "prune" when the actual set of
+    // user ids changes, not when sessionData changes by reference.
+    const signature = Array.from(validUserIds)
+      .sort((a, b) => a - b)
+      .join(',');
+
+    if (signature === lastSessionUserIdsSignatureRef.current) return;
+    lastSessionUserIdsSignatureRef.current = signature;
+
+    setSelectedSessionUsers((prevSelected) => {
+      if (prevSelected.size === 0) return prevSelected;
+
+      // Intersection of previous selection with currently valid user ids.
+      const next = new Set<number>();
+      let changed = false;
+
+      prevSelected.forEach((rawId) => {
+        const id = Number(rawId);
+        if (validUserIds.has(id)) next.add(id);
+        else changed = true;
+      });
+
+      // If nothing changed content-wise, keep the same Set reference.
+      if (!changed && next.size === prevSelected.size) return prevSelected;
+
+      // Extra safety: verify membership equality (prevents accidental updates).
+      if (next.size === prevSelected.size) {
+        let same = true;
+        prevSelected.forEach((rawId) => {
+          if (!next.has(Number(rawId))) same = false;
+        });
+        if (same) return prevSelected;
+      }
+
+      return next;
+    });
+  }, [sessionData]);
 
   // Filter entries by selected user/group if not "all" (use reportFormData when report is generated)
   const entries = useMemo(() => {
@@ -735,6 +858,7 @@ export default function BusinessReportPage() {
         commissionType: user.commission_type,
         markAsCut: user.mark_as_cut ?? 'no',
         userBetOnTeam1, // Store which team user bet on
+        userId: user.id,
       });
     });
 
@@ -1860,6 +1984,7 @@ export default function BusinessReportPage() {
     commissionType?: string;
     markAsCut?: 'no' | 'yes';
     userBetOnTeam1?: boolean; // Which team user bet more on (for team totals grouping)
+    userId?: number;
   }
 
   // Helper function to capitalize first letter
@@ -1927,6 +2052,73 @@ export default function BusinessReportPage() {
     return num.toLocaleString('en-US');
   };
 
+  const toggleMatchUserSelection = (userId: number) => {
+    let isSelectedAfterToggle = false;
+    setSelectedMatchUsers((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      isSelectedAfterToggle = next.has(userId);
+      return next;
+    });
+
+    if (!activeSelectionContext) return;
+
+    toggleReportRowSelectionMutation.mutate({
+      ...activeSelectionContext,
+      selected_user_id: userId,
+      is_selected: isSelectedAfterToggle,
+    });
+  };
+
+  // Used to avoid repeatedly "pruning" selection when matchSummaryData changes
+  // by reference only (which can also trigger update loops).
+  const lastMatchUserIdsSignatureRef = useRef<string>('');
+
+  useEffect(() => {
+    const validUserIds = new Set(
+      matchSummaryData
+        .filter((row) => !row.isTotal && !!row.userId)
+        .map((row) => Number(row.userId))
+        .filter((id) => Number.isFinite(id))
+    );
+
+    const signature = Array.from(validUserIds)
+      .sort((a, b) => a - b)
+      .join(',');
+
+    if (signature === lastMatchUserIdsSignatureRef.current) return;
+    lastMatchUserIdsSignatureRef.current = signature;
+
+    setSelectedMatchUsers((prev) => {
+      if (prev.size === 0) return prev;
+
+      const next = new Set<number>();
+      let changed = false;
+
+      prev.forEach((rawId) => {
+        const id = Number(rawId);
+        if (validUserIds.has(id)) next.add(id);
+        else changed = true;
+      });
+
+      if (!changed && next.size === prev.size) return prev;
+
+      if (next.size === prev.size) {
+        let same = true;
+        prev.forEach((rawId) => {
+          if (!next.has(Number(rawId))) same = false;
+        });
+        if (same) return prev;
+      }
+
+      return next;
+    });
+  }, [matchSummaryData]);
+
 
   // DataTable columns configuration for Match Summary
   const columns: Column<MatchSummaryRow>[] = [
@@ -1957,13 +2149,23 @@ export default function BusinessReportPage() {
         };
         const commissionTypeBadge = getCommissionTypeBadge(row.commissionType);
         const isCutUser = row.markAsCut === 'yes';
-        
         // Check if this is an empty separator row
         const isEmptyRow = !row.srNo && !row.custName && !row.isTotal;
+        const isSelectableUserRow = !row.isTotal && !!row.userId && !isEmptyRow;
+        const isChecked = row.userId ? selectedMatchUsers.has(row.userId) : false;
         return (
           <div className={`${row.isTotal ? 'font-bold' : ''} relative -m-3 p-3`}>
             <div className="flex flex-col gap-1 items-start">
               <div className="flex items-center gap-1">
+                {isSelectableUserRow && (
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => row.userId && toggleMatchUserSelection(row.userId)}
+                    className="w-4 h-4 text-retro-accent border-2 border-retro-dark rounded focus:ring-retro-accent"
+                    aria-label={`Select ${value || 'user'}`}
+                  />
+                )}
                 <span>{isEmptyRow ? '-' : (value || '')}</span>
                 {isCutUser && !row.isTotal && !isEmptyRow && (
                   <span className="inline-block px-1 py-0.5 bg-orange-200 text-orange-800 rounded text-[10px] font-semibold">
@@ -2111,6 +2313,12 @@ export default function BusinessReportPage() {
         } else if (value != null) {
           numValue = Number(value) || 0;
         }
+
+        const formatMoney2 = (n: number) =>
+          n.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          });
         
         const commissionPercent = Number(row.commissionPercent) || 0;
         const formattedPercent = commissionPercent.toFixed(2);
@@ -2146,12 +2354,12 @@ export default function BusinessReportPage() {
             {isEmptyRow 
               ? '-'
               : row.isTotal
-                ? formatNumber(value) // For total rows, don't show percentage
-              : value > 0 
-                ? `${formatNumber(value)} (${formattedPercent}%)` 
-                  : value !== 0
-                    ? formatNumber(value)
-                    : ''}
+                ? formatMoney2(numValue) // For total rows, don't show percentage
+              : numValue > 0 
+                ? `${formatMoney2(numValue)} (${formattedPercent}%)` 
+                  : numValue !== 0
+                    ? formatMoney2(numValue)
+                    : '0.00'}
           </div>
         );
       },
@@ -2758,6 +2966,11 @@ export default function BusinessReportPage() {
                   <DataTable
                     data={matchSummaryData}
                     columns={columns}
+                    getRowClassName={(row) =>
+                      row.userId && selectedMatchUsers.has(row.userId)
+                        ? '!bg-yellow-100'
+                        : ''
+                    }
                     entriesPerPageOptions={[10, 25, 50, 100]}
                     defaultEntriesPerPage={100}
                     showEntries={true}
@@ -2844,6 +3057,9 @@ export default function BusinessReportPage() {
                       {/* Table Header */}
                       <thead>
                         <tr className="border-b border-gray-300 bg-[var(--header)]">
+                          <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)] w-12">
+                            Select
+                          </th>
                           <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)]">Name</th>
                           <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)]">Group</th>
                           <th className="px-3 py-1.5 text-left font-bold text-[var(--header-foreground)]">Inning/Over</th>
@@ -2887,6 +3103,7 @@ export default function BusinessReportPage() {
                             }
                             const rowSpan = isFirstEntryOfUser ? userEntries.length : 0;
                             const finalNetProfit = Number(userFinalNetProfit.get(entry.user_id)) || 0;
+                            const isUserSelected = selectedSessionUsers.has(entry.user_id);
                             
                             // Get user data for commission type badge
                             const user = users.find((u) => u.id === entry.user_id);
@@ -2919,8 +3136,22 @@ export default function BusinessReportPage() {
                             return (
                               <tr 
                                 key={entry.id} 
-                                className={borderClasses}
+                                className={`${borderClasses} ${isUserSelected ? 'bg-yellow-100' : ''}`}
                               >
+                                {isFirstEntryOfUser ? (
+                                  <td
+                                    rowSpan={rowSpan}
+                                    className="px-3 py-1.5 align-middle text-center"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isUserSelected}
+                                      onChange={() => toggleSessionUserSelection(entry.user_id)}
+                                      className="w-4 h-4 text-retro-accent border-2 border-retro-dark rounded focus:ring-retro-accent"
+                                      aria-label={`Select ${entry.user_name}`}
+                                    />
+                                  </td>
+                                ) : null}
                                 <td className="px-3 py-1.5 text-retro-dark relative">
                                   <span>{entry.user_name}</span>
                                   {commissionTypeBadge && (

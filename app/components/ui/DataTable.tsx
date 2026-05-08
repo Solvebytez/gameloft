@@ -14,6 +14,7 @@ export interface DataTableProps<T> {
   title?: string;
   data: T[];
   columns: Column<T>[];
+  getRowClassName?: (row: T, index: number) => string;
   onEdit?: (row: T) => void;
   onDelete?: (row: T) => void;
   onStatusChange?: (row: T) => void;
@@ -30,6 +31,7 @@ export default function DataTable<T extends Record<string, any>>({
   title,
   data,
   columns,
+  getRowClassName,
   onEdit,
   onDelete,
   onStatusChange,
@@ -596,10 +598,11 @@ export default function DataTable<T extends Record<string, any>>({
             ) : (
               paginatedData.map((row, index) => {
                 const isEven = index % 2 === 0;
+                const customRowClass = getRowClassName ? getRowClassName(row, index) : '';
                 return (
                 <tr key={index} className={`border-b border-gray-200 hover:bg-gray-200 transition-colors ${
                   isEven ? 'bg-gray-100' : 'bg-white'
-                }`}>
+                } ${customRowClass}`}>
                   {onRowSelect && (
                     <td className="p-3">
                       <input
