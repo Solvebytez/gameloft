@@ -1,10 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import axios from 'axios';
 import Input from '@/app/components/ui/Input';
 import api from '@/app/lib/api';
+
+function firstValidationMessage(
+  errors: Record<string, string[] | string> | undefined,
+  key: string
+): string | undefined {
+  const v = errors?.[key];
+  if (Array.isArray(v) && typeof v[0] === 'string') return v[0];
+  if (typeof v === 'string') return v;
+  return undefined;
+}
 
 export default function SuperAdminLoginForm() {
   const [email, setEmail] = useState('');
@@ -12,84 +20,88 @@ export default function SuperAdminLoginForm() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const router = useRouter();
+  const [emailError, setEmailError] = useState<string | undefined>();
+  const [passwordError, setPasswordError] = useState<string | undefined>();
+  const [formError, setFormError] = useState<string | undefined>();
+
+  const clearErrors = () => {
+    setEmailError(undefined);
+    setPasswordError(undefined);
+    setFormError(undefined);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
-    console.log('🔐 Login attempt:', { email, password: '***' });
+    clearErrors();
 
     try {
-      // Note: API routes are exempt from CSRF validation
-      // No need to get CSRF cookie for API requests
-      
-      // Make the login request
       const response = await api.post('/v1/superadmin/login', {
         email,
         password,
       });
 
-      console.log('✅ Login response:', response);
-      console.log('✅ Response data:', response.data);
-      console.log('✅ Response status:', response.status);
-      console.log('✅ Response headers:', response.headers);
-      console.log('✅ Cookies:', document.cookie);
-
       if (response.data.success) {
-        console.log('✅ Login successful, redirecting...');
-        console.log('✅ Login successful!');
-        
-        // Store admin data in sessionStorage if remember me is checked
         if (rememberMe && response.data.data?.admin) {
           sessionStorage.setItem('admin', JSON.stringify(response.data.data.admin));
-          console.log('✅ Admin data stored in sessionStorage');
         }
-        
-        // Wait a moment for cookies to be set, then redirect
-        // Using window.location instead of router.push to ensure cookies are sent
+
         setTimeout(() => {
           window.location.href = '/superadmin';
         }, 100);
       } else {
-        console.warn('⚠️ Login response success is false:', response.data);
-        console.error('❌', response.data.message || 'Login failed');
+        setFormError(response.data.message || 'Login failed.');
       }
-    } catch (error: any) {
-      console.error('❌ Login error:', error);
-      console.error('❌ Error response:', error.response);
-      console.error('❌ Error response data:', error.response?.data);
-      console.error('❌ Error response status:', error.response?.status);
-      console.error('❌ Error message:', error.message);
-      if (error.stack) {
-        console.error('❌ Error stack:', error.stack);
+    } catch (error: unknown) {
+      const err = error as {
+        response?: { data?: { message?: string; errors?: Record<string, string[] | string> } };
+        message?: string;
+      };
+      const data = err.response?.data;
+      const errors = data?.errors;
+      const emailErr = firstValidationMessage(errors, 'email');
+      const passwordErr = firstValidationMessage(errors, 'password');
+      setEmailError(emailErr);
+      setPasswordError(passwordErr);
+      const hasFieldErrors = !!(emailErr || passwordErr);
+      if (!hasFieldErrors) {
+        setFormError(
+          data?.message ||
+            err.message ||
+            'Login failed. Please check your credentials.'
+        );
       }
-      
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.errors?.email?.[0] ||
-                          error.message ||
-                          'Login failed. Please check your credentials.';
-      console.error('❌ Showing error toast:', errorMessage);
-      console.error('❌', errorMessage);
     } finally {
       setIsLoading(false);
-      console.log('🏁 Login attempt finished');
     }
   };
 
   return (
     <div className="bg-[#f5f1e8] border-4 border-[#2d2d2d] rounded-lg p-6">
       <form onSubmit={handleSubmit} className="space-y-6">
+        {formError && (
+          <div
+            className="rounded-md border-2 border-red-500 bg-red-50 px-3 py-2 text-sm text-red-700"
+            role="alert"
+          >
+            {formError}
+          </div>
+        )}
         {/* Email Field */}
         <Input
           type="email"
           label="EMAIL"
           id="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setEmailError(undefined);
+            setFormError(undefined);
+          }}
           placeholder="Enter your email"
           required
           className="py-3 text-xl"
+          error={emailError}
         />
 
         {/* Password Field */}
@@ -105,11 +117,16 @@ export default function SuperAdminLoginForm() {
               type={showPassword ? 'text' : 'password'}
               id="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setPasswordError(undefined);
+                setFormError(undefined);
+              }}
               placeholder="Enter your password"
               required
               className="py-3 text-xl pr-12"
               label=""
+              error={passwordError}
             />
             <button
               type="button"
