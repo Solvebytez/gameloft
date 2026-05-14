@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/app/lib/api';
 import { AxiosError } from 'axios';
+import type { AdminListQueryOptions } from '@/app/hooks/useUsers';
 
 export interface Match {
   id: number;
@@ -54,9 +55,10 @@ export const matchKeys = {
 };
 
 // Fetch all matches
-export function useMatches() {
+export function useMatches(options?: AdminListQueryOptions) {
   return useQuery({
     queryKey: matchKeys.list(),
+    enabled: options?.enabled !== false,
     queryFn: async (): Promise<Match[]> => {
       try {
         const response = await api.get('/v1/admin/matches', {
@@ -77,9 +79,10 @@ export function useMatches() {
 }
 
 // Fetch matches by date
-export function useMatchesByDate(date: string | null) {
+export function useMatchesByDate(date: string | null, options?: AdminListQueryOptions) {
   return useQuery({
     queryKey: matchKeys.listByDate(date || ''),
+    enabled: !!date && options?.enabled !== false,
     queryFn: async (): Promise<Match[]> => {
       if (!date) {
         return [];
@@ -105,14 +108,14 @@ export function useMatchesByDate(date: string | null) {
         return [];
       }
     },
-    enabled: !!date, // Only run query if date is provided
   });
 }
 
 // Fetch a single match by ID
-export function useMatch(id: number | string | null) {
+export function useMatch(id: number | string | null, options?: AdminListQueryOptions) {
   return useQuery({
     queryKey: matchKeys.detail(Number(id)),
+    enabled: !!id && options?.enabled !== false,
     queryFn: async (): Promise<Match | null> => {
       if (!id) {
         return null;
@@ -137,7 +140,6 @@ export function useMatch(id: number | string | null) {
         throw error;
       }
     },
-    enabled: !!id, // Only run query if id is provided
   });
 }
 

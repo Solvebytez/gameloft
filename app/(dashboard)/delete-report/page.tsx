@@ -23,14 +23,14 @@ export default function DeleteReportPage() {
   const fromDateInputRef = useRef<HTMLInputElement>(null);
   const toDateInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch all matches
-  const { data: allMatches = [], isLoading: isLoadingMatches } = useMatches();
-  
-  // Fetch users
-  const { data: users = [] } = useUsers();
-  
-  // Fetch groups
-  const { data: groups = [] } = useGroups();
+  // Stagger list fetches: matches → users → groups
+  const matchesQuery = useMatches();
+  const usersQuery = useUsers({ enabled: matchesQuery.isFetched });
+  const groupsQuery = useGroups({ enabled: usersQuery.isFetched });
+
+  const { data: allMatches = [], isLoading: isLoadingMatches } = matchesQuery;
+  const { data: users = [] } = usersQuery;
+  const { data: groups = [] } = groupsQuery;
 
   // Delete entry mutation
   const deleteEntryMutation = useDeleteEntry();

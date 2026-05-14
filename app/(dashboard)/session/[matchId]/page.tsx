@@ -17,10 +17,22 @@ export default function SessionMatchPage() {
   const matchId = params.matchId ? (Array.isArray(params.matchId) ? params.matchId[0] : params.matchId) : null;
   const matchIdNumber = matchId ? parseInt(matchId) : null;
 
-  // Fetch match data
-  const { data: matchData, isLoading: isLoadingMatch } = useMatch(matchIdNumber);
+  // Fetch match first, then sessions + reference lists in sequence to cap concurrent API calls.
+  const matchQuery = useMatch(matchIdNumber);
+  const { data: matchData, isLoading: isLoadingMatch } = matchQuery;
 
-  // Form state
+  const { data: sessions = [] as Session[], isLoading: isLoadingSessions } = useSessions(
+    matchIdNumber,
+    !!matchIdNumber && matchQuery.isFetched
+  );
+
+  const usersQuery = useUsers({ enabled: matchQuery.isFetched });
+  const groupsQuery = useGroups({ enabled: usersQuery.isFetched });
+  const inningsQuery = useInningsOvers({ enabled: groupsQuery.isFetched });
+
+  const users = usersQuery.data ?? [];
+  const groups = groupsQuery.data ?? [];
+  const inningsOvers = inningsQuery.data ?? [];
   const [formData, setFormData] = useState({
     match_id: matchIdNumber ? String(matchIdNumber) : '',
     user_id: '',
@@ -61,8 +73,7 @@ export default function SessionMatchPage() {
     setCurrentPage(1);
   };
 
-  // API hooks - filter sessions by match_id
-  const { data: sessions = [] as Session[], isLoading: isLoadingSessions } = useSessions(matchIdNumber);
+  // API hooks - filter sessions by match_id (after match metadata has been attempted)
   const createSessionMutation = useCreateSession();
   const updateSessionMutation = useUpdateSession();
   const deleteSessionMutation = useDeleteSession();
@@ -79,12 +90,6 @@ export default function SessionMatchPage() {
   const addResultInningOverSelectRef = useRef<HTMLSelectElement>(null);
   const addResultResultInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch users, groups, and innings/overs for dropdowns
-  const { data: users = [] } = useUsers();
-  const { data: groups = [] } = useGroups();
-  const { data: inningsOvers = [] } = useInningsOvers();
-
-  // Filter active users and create dropdown options
   const userOptions = useMemo(() => {
     const activeUsers = users.filter((user) => user.status === 'active');
     const options = [{ value: '', label: '--SELECT--' }];

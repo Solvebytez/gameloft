@@ -21,6 +21,21 @@ export const api = axios.create({
   timeout: 15000, // 15 second timeout to prevent hanging requests
 });
 
+/** One in-flight refresh per endpoint so parallel 401s do not N× POST /refresh. */
+const refreshInflight: Record<string, Promise<void>> = {};
+
+function refreshSessionOnce(refreshEndpoint: string): Promise<void> {
+  if (!refreshInflight[refreshEndpoint]) {
+    refreshInflight[refreshEndpoint] = api
+      .post(refreshEndpoint)
+      .then(() => undefined)
+      .finally(() => {
+        delete refreshInflight[refreshEndpoint];
+      });
+  }
+  return refreshInflight[refreshEndpoint];
+}
+
 // Request interceptor (optional - for adding auth tokens if needed)
 api.interceptors.request.use(
   (config) => {
@@ -49,10 +64,24 @@ api.interceptors.response.use(
       return Promise.reject(new Error('Request timeout. Please check your connection and try again.'));
     }
 
-    // Handle rate limiting errors (429)
-    if (error.response?.status === 429) {
-      const retryAfter = error.response.headers['retry-after'] || 60;
-      const message = error.response?.data?.message || `Too many requests. Please wait ${retryAfter} seconds before trying again.`;
+    const errMsg =
+      typeof error.response?.data?.error === 'string'
+        ? error.response.data.error
+        : typeof error.response?.data?.message === 'string'
+          ? error.response.data.message
+          : '';
+
+    // 429, or legacy 500 JSON from old handler that still said "Too Many Attempts"
+    const isRateLimited =
+      error.response?.status === 429 ||
+      (error.response?.status === 500 &&
+        (errMsg.includes('Too Many Attempts') || errMsg.includes('Too many requests')));
+
+    if (isRateLimited) {
+      const retryAfter = error.response?.headers?.['retry-after'] ?? 60;
+      const message =
+        error.response?.data?.message ||
+        `Too many requests. Please wait ${retryAfter} seconds before trying again.`;
       console.error('❌ Rate limit exceeded:', error.config?.url);
       return Promise.reject(new Error(message));
     }
@@ -80,7 +109,7 @@ api.interceptors.response.use(
           ? '/v1/superadmin/refresh' 
           : '/v1/admin/refresh';
         
-        await api.post(refreshEndpoint);
+        await refreshSessionOnce(refreshEndpoint);
         
         // Preserve FormData if present
         if (error.config.data instanceof FormData) {

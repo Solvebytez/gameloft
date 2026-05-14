@@ -139,14 +139,14 @@ export default function BusinessReportPage() {
     isValidDate ? formData.matchDate : null
   );
 
-  // Fetch users from API
-  const { data: users = [], isLoading: isLoadingUsers } = useUsers();
+  // Fetch users, then groups, then innings/overs — staggers list calls (matches-by-date stays independent).
+  const usersQuery = useUsers();
+  const groupsQuery = useGroups({ enabled: usersQuery.isFetched });
+  const inningsOversQuery = useInningsOvers({ enabled: groupsQuery.isFetched });
 
-  // Fetch groups from API
-  const { data: groups = [], isLoading: isLoadingGroups } = useGroups();
-
-  // Fetch innings/overs from API
-  const { data: inningsOvers = [] } = useInningsOvers();
+  const { data: users = [], isLoading: isLoadingUsers } = usersQuery;
+  const { data: groups = [], isLoading: isLoadingGroups } = groupsQuery;
+  const { data: inningsOvers = [] } = inningsOversQuery;
 
   // Fetch sessions for the selected match (when report type is "session" and report is generated)
   // OPTIMIZED: Only fetch when report is generated, not before
@@ -852,7 +852,10 @@ export default function BusinessReportPage() {
         profitLoss,
         totalCommission,
         commissionPercent,
-        partnership: user.partnership,
+        partnership: (() => {
+          const p = Number(user.partnership);
+          return Number.isFinite(p) ? p : 0;
+        })(),
         custNetWithComm,
         netProfitLoss,
         commissionType: user.commission_type,
@@ -2376,18 +2379,34 @@ export default function BusinessReportPage() {
         const bgColorClass = (row.isTotal && hasValue && typeof value === 'string') 
           ? '!bg-[#0073b7] !text-white' 
           : '';
-        // For total rows, show team name (string), for individual rows show percentage with 2 decimals
-        // For empty rows, show dash
-        const displayValue = isEmptyRow
-          ? '-'
-          : row.isTotal 
-            ? value 
-            : (typeof value === 'number' ? value.toFixed(2) : value);
+        // Total rows: team name (string). User rows: partnership % — coerce null/undefined/string like Total Commission so we never show a blank for 0.
+        let displayValue: string;
+        if (isEmptyRow) {
+          displayValue = '-';
+        } else if (row.isTotal) {
+          if (typeof value === 'string' && value.trim() !== '') {
+            displayValue = value.trim();
+          } else if (typeof value === 'number' && Number.isFinite(value)) {
+            displayValue = String(value);
+          } else {
+            displayValue = '-';
+          }
+        } else {
+          const raw =
+            typeof value === 'number'
+              ? value
+              : parseFloat(String(value ?? '').replace(/,/g, '').trim());
+          const n = Number.isFinite(raw) ? raw : 0;
+          displayValue = n.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          });
+        }
         return (
           <div 
             className={`-m-3 p-3 ${row.isTotal ? 'font-bold' : ''} ${bgColorClass}`}
           >
-            {displayValue || ''}
+            {displayValue === '-' ? '-' : displayValue}
           </div>
         );
       },

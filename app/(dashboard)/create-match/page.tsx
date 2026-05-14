@@ -25,9 +25,13 @@ export default function CreateMatchPage() {
   });
   const dateInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch teams created by current user
-  const { data: teams = [], isLoading: teamsLoading } = useTeams();
-  const { data: matches = [], isLoading: matchesLoading } = useMatches();
+  // Fetch teams first, then matches — one list request at a time right after load.
+  const teamsQuery = useTeams();
+  const matchesQuery = useMatches({ enabled: teamsQuery.isFetched });
+  const teams = teamsQuery.data ?? [];
+  const matches = matchesQuery.data ?? [];
+  const teamsLoading = teamsQuery.isLoading;
+  const matchesLoading = matchesQuery.isFetching && teamsQuery.isFetched;
   const createMatchMutation = useCreateMatch();
   const updateMatchMutation = useUpdateMatch();
   const deleteMatchMutation = useDeleteMatch();

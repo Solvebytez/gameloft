@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/app/lib/api';
 import { AxiosError } from 'axios';
+import type { AdminListQueryOptions } from '@/app/hooks/useUsers';
 
 export interface Entry {
   id: number;
@@ -48,9 +49,14 @@ export interface UpdateEntryPayload {
  * @param matchId - The match ID
  * @param userId - Optional user ID to filter entries. Pass 'all' or undefined to get all entries.
  */
-export function useEntries(matchId: string | number | undefined, userId?: string | number | 'all') {
+export function useEntries(
+  matchId: string | number | undefined,
+  userId?: string | number | 'all',
+  options?: AdminListQueryOptions
+) {
   return useQuery({
     queryKey: ['entries', matchId, userId],
+    enabled: !!matchId && options?.enabled !== false,
     queryFn: async () => {
       if (!matchId) return { success: true, data: [] };
 
@@ -67,9 +73,8 @@ export function useEntries(matchId: string | number | undefined, userId?: string
       }
       throw new Error('Failed to fetch entries');
     },
-    enabled: !!matchId,
-    staleTime: 30000, // Consider data fresh for 30 seconds to reduce unnecessary refetches
-    gcTime: 300000, // Keep in cache for 5 minutes
+    staleTime: 30000,
+    gcTime: 300000,
   });
 }
 

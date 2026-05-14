@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/app/lib/api';
 import { AxiosError } from 'axios';
+import type { AdminListQueryOptions } from '@/app/hooks/useUsers';
 
 export interface InningsOver {
   id: number;
@@ -32,9 +33,10 @@ export const inningsOverKeys = {
 };
 
 // Fetch all innings/overs
-export function useInningsOvers() {
+export function useInningsOvers(options?: AdminListQueryOptions) {
   return useQuery({
     queryKey: inningsOverKeys.list(),
+    enabled: options?.enabled !== false,
     queryFn: async (): Promise<InningsOver[]> => {
       try {
         const response = await api.get('/v1/admin/innings-overs', {

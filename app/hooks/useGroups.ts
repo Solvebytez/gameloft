@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/app/lib/api';
 import { AxiosError } from 'axios';
+import type { AdminListQueryOptions } from '@/app/hooks/useUsers';
 
 export interface Group {
   id: number;
@@ -45,9 +46,10 @@ export const groupKeys = {
 };
 
 // Fetch all groups
-export function useGroups() {
+export function useGroups(options?: AdminListQueryOptions) {
   return useQuery({
     queryKey: groupKeys.list(),
+    enabled: options?.enabled !== false,
     queryFn: async (): Promise<Group[]> => {
       try {
         const response = await api.get('/v1/admin/groups', {

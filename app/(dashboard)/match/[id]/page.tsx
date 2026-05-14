@@ -15,15 +15,18 @@ export default function MatchDetailPage() {
   const router = useRouter();
   const matchId = params.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : null;
 
-  // Fetch match data from API
-  const { data: matchData, isLoading, error } = useMatch(matchId);
-  
-  // Fetch users list (already filtered by current admin in backend)
-  const { data: users = [], isLoading: isLoadingUsers } = useUsers();
+  // Match first, then users and entries — avoids parallel burst on cold load.
+  const matchQuery = useMatch(matchId);
+  const { data: matchData, isLoading, error } = matchQuery;
 
+  const usersQuery = useUsers({ enabled: matchQuery.isFetched });
+  const { data: users = [], isLoading: isLoadingUsers } = usersQuery;
 
-  // Fetch entries for this match
-  const { data: entriesData, isLoading: isLoadingEntries } = useEntries(matchId || undefined);
+  const { data: entriesData, isLoading: isLoadingEntries } = useEntries(
+    matchId || undefined,
+    undefined,
+    { enabled: usersQuery.isFetched }
+  );
   const allEntries: Entry[] = entriesData?.data || [];
 
   // Create entry mutation

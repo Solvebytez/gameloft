@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/app/lib/api';
 import { AxiosError } from 'axios';
+import type { AdminListQueryOptions } from '@/app/hooks/useUsers';
 
 export interface Team {
   id: number;
@@ -41,9 +42,10 @@ export const teamKeys = {
 };
 
 // Fetch all teams
-export function useTeams() {
+export function useTeams(options?: AdminListQueryOptions) {
   return useQuery({
     queryKey: teamKeys.list(),
+    enabled: options?.enabled !== false,
     queryFn: async (): Promise<Team[]> => {
       try {
         console.log('🔍 Attempting to fetch teams from:', `${api.defaults.baseURL}/v1/admin/teams`);

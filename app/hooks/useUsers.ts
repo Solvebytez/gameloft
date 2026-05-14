@@ -60,10 +60,16 @@ export const userKeys = {
   detail: (id: number) => [...userKeys.details(), id] as const,
 };
 
+export type AdminListQueryOptions = {
+  /** When false, the query does not run (use to stagger after another query finishes). */
+  enabled?: boolean;
+};
+
 // Fetch all users
-export function useUsers() {
+export function useUsers(options?: AdminListQueryOptions) {
   return useQuery({
     queryKey: userKeys.list(),
+    enabled: options?.enabled !== false,
     queryFn: async (): Promise<User[]> => {
       try {
         const response = await api.get('/v1/admin/users', {

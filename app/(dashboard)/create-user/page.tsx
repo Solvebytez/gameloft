@@ -67,11 +67,14 @@ export default function CreateUserPage() {
   const sessionCommissionInputRef = useRef<HTMLInputElement>(null);
   const groupInputRef = useRef<HTMLSelectElement>(null);
 
-  // Fetch users from API
-  const { data: users = [], isLoading, error } = useUsers();
-  
-  // Fetch groups from API
-  const { data: groups = [], isLoading: isLoadingGroups } = useGroups();
+  // Fetch users first, then groups — avoids N parallel list requests on load (rate limits / refresh herd).
+  const usersQuery = useUsers();
+  const groupsQuery = useGroups({ enabled: usersQuery.isFetched });
+  const users = usersQuery.data ?? [];
+  const groups = groupsQuery.data ?? [];
+  const isLoading = usersQuery.isLoading;
+  const isLoadingGroups = groupsQuery.isFetching && usersQuery.isFetched;
+  const error = usersQuery.error;
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();
   const updateStatusMutation = useUpdateUserStatus();
